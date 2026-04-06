@@ -1,0 +1,197 @@
+# AGENTS.md — Developer & Agent Reference
+
+Internal reference for AI agents and human developers working on OpenCode Advance.
+For user-facing documentation, see [`README.md`](README.md).
+
+---
+
+## Project Overview
+
+**OpenCode Advance** (`oca`) is the environment and configuration platform for [OpenCode](https://opencode.ai). It replaces the earlier `open-chad` project with a Go-based, declarative rewrite. It pairs with the [Advance](https://github.com/Sharper-Flow/Advance) spec-driven workflow plugin as a required dependency.
+
+- **Repo**: `https://github.com/Sharper-Flow/Opencode-Advance.git`
+- **Branch**: `trunk` (default), remote `origin`
+- **Language**: Go 1.22+ (CLI core), Bash (tmux/shell integration only), Markdown (design docs, proposals)
+- **Test framework**: Go stdlib `testing` + golden files; bash test scripts for shell integration
+
+---
+
+## Relationship to Advance
+
+OpenCode Advance depends on Advance; Advance does not depend on OpenCode Advance.
+
+- OpenCode Advance clones, builds, and wires the Advance plugin as part of `oca install` / `oca apply`
+- OpenCode Advance delegates all Advance-owned asset sync to `advance/scripts/sync-global.sh --fix`
+- OpenCode Advance does **not** duplicate any files that Advance owns: `adv-*.md` commands, ADV agents (`plan`, `scout`, `refine`, `adv-researcher`, `tron`), ADV skills (`adv-*`), or ADV instructions
+- OpenCode Advance owns the non-ADV slice of the environment: environment-level agents (`build`, `explore`, `librarian`, `general`, `mechanic`), instructions (rules.yaml, identity, shell_strategy, etc.), MCP server lifecycle, plugin management, providers, session/tmux UX
+
+This clean boundary is the central reason OpenCode Advance exists as a separate project. Each file in `~/.config/opencode/` has exactly one owner.
+
+---
+
+## Architecture
+
+```
+opencodeadvance/
+├── stack.toml                          # THE source of truth (user creates; oca reads)
+├── stack.example.toml                  # Complete example reference
+│
+├── cmd/oca/                            # CLI entry point (Go)
+│   └── main.go
+│
+├── internal/                           # Internal Go packages
+│   ├── config/                         # stack.toml parser + schema validation
+│   ├── render/                         # Templates + JSON merge logic
+│   ├── health/                         # MCP/plugin/instruction health checks
+│   └── migrate/                        # open-chad → opencode-advance importer
+│
+├── assets/                             # Static files, copied as-is to ~/.config/opencode/
+│   ├── agents/                         # build.md, explore.md, librarian.md, general.md, mechanic.md
+│   ├── instructions/                   # identity.md, rules.yaml, shell_strategy.md, etc.
+│   ├── skills/                         # lgrep, mcp-selection, morph, worktree, prioritizer
+│   └── themes/
+│       ├── obsidian.json               # OpenCode UI theme (obsidian palette, indigo accent)
+│       ├── obsidian.tmux.conf          # Tmux 2-row status bar theme
+│       └── obsidian-light.tmux.conf    # Optional light variant (future)
+│
+├── templates/                          # Go text/template files rendered by oca apply
+│   ├── opencode.json.gotmpl            # Merged into ~/.config/opencode/opencode.json
+│   ├── vision-servers.yaml.gotmpl      # Rendered to ~/.config/vision/servers.yaml
+│   └── tmux.conf.block.gotmpl          # Block injected into ~/.tmux.conf
+│
+├── bin/                                # Shell-level entry points (post-install)
+│   ├── oca                             # Thin wrapper calling the Go binary
+│   ├── oc                              # Short alias (retains muscle memory)
+│   ├── cds                             # Scratch dir launcher
+│   └── ocashell.sh                     # Completion bootstrap
+│
+├── lib/                                # Shell-only helpers (tmux theming, status bar)
+│   ├── obsidian.tmux.conf              # Live theme file (also present in assets/)
+│   ├── status_bar.sh                   # Status bar renderer
+│   ├── boot_splash.sh                  # Boot splash with wordmark reveal
+│   ├── session_lifecycle.sh            # tmux session teardown hooks
+│   └── discord/                        # Discord Rich Presence integration
+│
+├── tests/                              # Test suites
+│   ├── config_test.go                  # stack.toml parse/validate
+│   ├── render_test.go                  # Template rendering golden files
+│   ├── apply_test.go                   # End-to-end apply with mock home
+│   └── shell/                          # Bash tests for shell integration
+│
+├── docs/
+│   ├── design/                         # Architecture, brand, schema, CLI reference
+│   │   ├── architecture.md
+│   │   ├── brand.md
+│   │   ├── wordmark.md
+│   │   ├── palette.md
+│   │   ├── theme.md
+│   │   ├── stack-toml-schema.md
+│   │   └── cli-surface.md
+│   ├── proposals/                      # Implementation planning docs
+│   │   ├── v1-implementation.md        # Full v1.0 proposal content (for first ADV change)
+│   │   ├── phases.md                   # Phase sequencing
+│   │   └── first-boot.md               # How to initialize ADV in this repo
+│   └── specs/                          # Generated spec docs (populated by ADV)
+│
+├── .adv/                               # ADV state directories (plugin-managed)
+│   ├── specs/                          # Capability specs (written by ADV)
+│   ├── changes/                        # Active change proposals (written by ADV)
+│   └── archive/                        # Completed changes (written by ADV)
+│
+└── .github/
+    └── workflows/                      # CI (populated in Phase 1)
+```
+
+---
+
+## Development Model
+
+This project is developed through the Advance spec-driven workflow. Every non-trivial change is an ADV change with:
+
+- A proposal (problem statement, success criteria, constraints)
+- Research (validated architectural decisions)
+- Prep (task graph synthesized from research)
+- Apply (TDD-driven implementation)
+- Review (code review across multiple dimensions)
+- Harden (quality verification and cleanup)
+- Signoff (user approval)
+
+The v1.0 initial implementation is scoped in [`docs/proposals/v1-implementation.md`](docs/proposals/v1-implementation.md) and phased in [`docs/proposals/phases.md`](docs/proposals/phases.md).
+
+### First ADV change
+
+See [`docs/proposals/first-boot.md`](docs/proposals/first-boot.md) for the exact sequence to initialize ADV state in this repo and create the first change from the scaffolded proposal content.
+
+---
+
+## Clean cutover policy
+
+During development, OpenCode Advance MUST NOT modify the user's live OpenCode configuration. All development and testing happens in isolated config directories:
+
+- `~/.config/opencode-advance-dev/` (instead of `~/.config/opencode/`)
+- `~/.config/vision-dev/` (instead of `~/.config/vision/`)
+- Isolated tmux socket if needed
+
+The `oca` CLI accepts environment overrides for all target paths so tests and dev runs never touch production state:
+
+| Override                  | Purpose                                                         |
+| ------------------------- | --------------------------------------------------------------- |
+| `OCA_OPENCODE_CONFIG_DIR`    | Target OpenCode config dir (default: `~/.config/opencode`)        |
+| `OCA_VISION_CONFIG_DIR`      | Target Vision config dir (default: `~/.config/vision`)            |
+| `OCA_PLUGIN_CHECKOUT_ROOT`   | Where plugins are cloned (default: `~/dev/oc-plugins/`)           |
+| `OCA_CACHE_DIR`              | Cache/runtime dir (default: `$XDG_RUNTIME_DIR/opencode-advance`)  |
+
+At v1.0 release time, the user runs `oca migrate from-open-chad` which performs a one-shot read of the current `open-chad`-managed state, emits a `stack.toml` reflecting it, and then `oca install` applies it to production.
+
+---
+
+## What goes where (file ownership matrix)
+
+| File / dir                                  | Owner         | Notes                                              |
+| ------------------------------------------- | ------------- | -------------------------------------------------- |
+| `stack.toml`                                  | **user**          | Source of truth. User edits. `oca` reads.            |
+| `~/.config/opencode/opencode.json`            | **oca**           | Rendered from stack.toml + plugin-provided fragments |
+| `~/.config/opencode/agents/build.md`          | **oca**           | Environment-level agent                            |
+| `~/.config/opencode/agents/explore.md`        | **oca**           | Environment-level agent                            |
+| `~/.config/opencode/agents/librarian.md`      | **oca**           | Environment-level agent                            |
+| `~/.config/opencode/agents/general.md`        | **oca**           | Environment-level agent                            |
+| `~/.config/opencode/agents/mechanic.md`       | **oca**           | Environment-level agent                            |
+| `~/.config/opencode/agents/plan.md`           | **Advance**       | ADV agent (via sync-global.sh)                     |
+| `~/.config/opencode/agents/scout.md`          | **Advance**       | ADV agent                                          |
+| `~/.config/opencode/agents/refine.md`         | **Advance**       | ADV agent                                          |
+| `~/.config/opencode/agents/adv-researcher.md` | **Advance**       | ADV agent                                          |
+| `~/.config/opencode/agents/tron.md`           | **Advance**       | ADV agent                                          |
+| `~/.config/opencode/command/adv-*.md`         | **Advance**       | ADV slash commands                                 |
+| `~/.config/opencode/command/oca-*.md`         | **oca**           | OpenCode Advance slash commands (if any)          |
+| `~/.config/opencode/skills/adv-*/`            | **Advance**       | ADV methodology skills                             |
+| `~/.config/opencode/skills/lgrep/`            | **oca**           | Tool selection skills                              |
+| `~/.config/opencode/skills/morph/`            | **oca**           | Tool selection skills                              |
+| `~/.config/opencode/skills/prioritizer/`      | **oca**           | Shared methodology skill                           |
+| `~/.config/opencode/skills/worktree/`         | **oca**           | Shared methodology skill                           |
+| `~/.config/opencode/skills/mcp-selection/`    | **oca**           | Tool selection skill                               |
+| `~/.config/opencode/instructions/identity.md` | **oca**           | Environment-level instruction                      |
+| `~/.config/opencode/instructions/rules.yaml`  | **oca**           | Environment-level instruction                      |
+| `~/.config/opencode/instructions/ADV_*.md`    | **Advance**       | Advance instruction (path referenced)              |
+| `~/.config/vision/servers.yaml`               | **oca**           | Rendered from stack.toml                           |
+| `~/.tmux.conf` (OCA block only)               | **oca**           | Managed block, rest is user-owned                  |
+| `~/.zshrc` / `~/.bashrc` (OCA block only)     | **oca**           | Managed block, rest is user-owned                  |
+
+Any file not in the "oca" or "Advance" column is user-owned and MUST NOT be touched by `oca apply`.
+
+---
+
+## Commit style
+
+- Conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `style:`
+- Scope when relevant: `feat(config): add stack.toml schema validation`
+- Atomic commits — one logical change per commit
+- Never commit secrets or user-specific paths
+
+---
+
+## CI/Release (Phase 1+)
+
+To be populated in `.github/workflows/`:
+
+- `ci.yml` — on every PR and push to trunk: `go test ./...`, `go vet ./...`, `gofmt -d .`
+- `release.yml` — on version tags (`v*`): goreleaser builds cross-platform binaries, publishes to GitHub Releases

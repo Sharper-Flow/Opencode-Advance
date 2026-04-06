@@ -1,0 +1,51 @@
+# ─── Go build artifacts ──────────────────────────────────────────────────────
+/bin/oca
+/bin/oca-*
+/dist/
+*.exe
+*.test
+*.out
+*.prof
+coverage.*
+vendor/
+
+# ─── Editor / IDE ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ─── Environment / secrets ───────────────────────────────────────────────────
+.env
+.env.local
+*.env.local
+secrets/
+**/secrets/*.env
+stack.local.toml
+
+# ─── Test / dev config isolation ─────────────────────────────────────────────
+# During development, oca writes into isolated test dirs instead of
+# ~/.config/opencode/. These live in .dev/ and are never committed.
+.dev/
+.dev-*/
+.opencode-advance-dev/
+.vision-dev/
+
+# ─── ADV cache (derived state, not committed) ────────────────────────────────
+.adv/db/
+*.db
+*.db-wal
+*.db-shm
+
+# ─── Logs / scratch ──────────────────────────────────────────────────────────
+*.log
+tmp/
+scratch/
+
+# ─── Node artifacts (installer helpers may use node) ─────────────────────────
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+bun.lock

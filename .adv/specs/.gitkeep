@@ -1,0 +1,3 @@
+# This directory holds capability specs written by the ADV plugin.
+# When you first run /adv-status in OpenCode from this repo, the plugin
+# will populate it as needed. Empty by design.

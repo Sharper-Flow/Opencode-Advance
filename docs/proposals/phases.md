@@ -1,0 +1,383 @@
+# Phase Sequencing
+
+OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or more ADV changes. Phase dependencies are strict: Phase N cannot start until Phase N-1 has been archived.
+
+---
+
+## Phase 0: Foundation + Brand
+
+**Goal:** Scaffold the repository, lock the brand identity, establish the color palette and wordmark as usable primitives.
+
+**Estimate:** 3-5 days
+
+**Deliverables:**
+
+- Repository scaffolded (this phase is partially complete: see the scaffold commit)
+- `go.mod` initialized, `cobra` dependency added
+- Minimal `cmd/oca/main.go` that prints the wordmark + version
+- `lib/palette.sh` with all color constants as env vars
+- `lib/wordmark.sh` with rendering function for the ASCII wordmark (full + compact + short)
+- `lib/boot_splash.sh` with minimal sequence (fallback: just print the wordmark, no animation yet)
+- Brand documentation finalized (`docs/design/brand.md`, `wordmark.md`, `palette.md`, `theme.md`)
+- CI scaffold: `.github/workflows/ci.yml` runs `go vet ./... && go test ./... && gofmt -d .`
+- README and AGENTS.md reflect the new brand
+
+**Exit criteria:**
+
+- `go run ./cmd/oca version` prints the wordmark in correct colors (on a truecolor terminal)
+- `bash lib/boot_splash.sh` renders the wordmark with the obsidian palette
+- CI passes on first run
+
+**Tasks (high-level, for adv-prep to refine):**
+
+- tk-phase0-01: Initialize go.mod and add cobra dependency
+- tk-phase0-02: Create `cmd/oca/main.go` with minimal version subcommand
+- tk-phase0-03: Implement `lib/palette.sh` with all color constants
+- tk-phase0-04: Implement `lib/wordmark.sh` with render function
+- tk-phase0-05: Implement `lib/boot_splash.sh` (v1 — no animation yet, just render)
+- tk-phase0-06: Write `.github/workflows/ci.yml`
+- tk-phase0-07: Verify boot splash renders correctly on truecolor + 256-color + mono terminals
+
+---
+
+## Phase 1: stack.toml + MCP apply
+
+**Goal:** Parse `stack.toml`, validate it, and render the `[mcp.servers.*]` section into both `opencode.json` and `vision/servers.yaml`.
+
+**Estimate:** 1-2 weeks
+
+**Deliverables:**
+
+- `internal/config/` — TOML parser, schema types, validation, variable resolution
+- `internal/render/` — JSON merge, YAML writing, template rendering
+- `internal/health/mcp.go` — MCP server HTTP health checks
+- `cmd/oca/apply.go` — `oca apply --target mcp`
+- `cmd/oca/doctor.go` — `oca doctor --scope mcp`
+- `cmd/oca/debug.go` — `oca debug plan`, `oca debug validate`
+- `templates/vision-servers.yaml.gotmpl`
+- `templates/opencode.json.mcp.gotmpl` (fragment)
+- Golden-file tests for every schema variant
+
+**Exit criteria:**
+
+- `oca apply --target mcp --dry-run` prints the render plan for the example stack.toml
+- `oca apply --target mcp` writes the MCP fragment to an isolated test `opencode.json` atomically
+- `oca doctor --scope mcp` checks each declared MCP server and reports pass/fail
+- All 9 MCP servers from the user's real stack are represented in tests
+- Isolated test config dir is used throughout (never touches `~/.config/opencode/`)
+
+**Tasks (high-level):**
+
+- tk-phase1-01: Define Stack, MCP, MCPServer struct types in `internal/config/types.go`
+- tk-phase1-02: Implement TOML parser with pelletier v2
+- tk-phase1-03: Implement schema validation (required fields, value ranges)
+- tk-phase1-04: Implement variable resolution ($HOME, ~/, {checkout}, env vars)
+- tk-phase1-05: Implement idempotent JSON merge
+- tk-phase1-06: Implement atomic file write (temp + rename)
+- tk-phase1-07: Implement backup rotation
+- tk-phase1-08: Write `vision-servers.yaml.gotmpl`
+- tk-phase1-09: Write `opencode.json.mcp.gotmpl` fragment
+- tk-phase1-10: Implement `oca apply --target mcp` command
+- tk-phase1-11: Implement `oca doctor --scope mcp` with HTTP health checks
+- tk-phase1-12: Implement `oca debug plan` and `oca debug validate`
+- tk-phase1-13: Write golden tests for stack.example.toml rendering
+- tk-phase1-14: Write integration test for full mcp apply cycle
+
+---
+
+## Phase 2: Plugin + Instruction Management
+
+**Goal:** Manage plugin lifecycle (clone, build, pin, wire into opencode.json) and render the instructions list. Critically, delegate ADV asset sync to Advance's own sync-global.sh.
+
+**Estimate:** 1 week
+
+**Deliverables:**
+
+- `internal/plugin/` — git clone/pull, subprocess for build commands, SHA pinning
+- `internal/render/plugin.go` — plugin array rendering for opencode.json
+- `internal/render/instructions.go` — instructions list rendering
+- `internal/health/plugin.go` — plugin health checks (checkout exists, built, git ref)
+- `cmd/oca/apply.go` extended for plugins + instructions targets
+- `cmd/oca/pin.go` — `oca pin` command
+- `cmd/oca/update.go` — `oca update` command
+- Advance delegation: subprocess invocation of `sync-global.sh --fix` with captured output
+
+**Exit criteria:**
+
+- `oca apply --target plugins` clones/updates all declared plugins, runs build commands, wires paths into `opencode.json`
+- `oca apply --target plugins` invokes `advance/scripts/sync-global.sh --fix` when Advance is declared with `sync` field
+- `oca apply` skips asset categories that Advance `provides`
+- `oca pin` writes current SHAs into stack.toml
+- `oca update` pulls latest (respecting pins) and re-applies
+- Instructions are rendered in declared order with plugin-provided instructions appended
+- `oca doctor --scope plugins` verifies each plugin is built and ready
+
+**Tasks (high-level):**
+
+- tk-phase2-01: Implement git clone/pull in `internal/plugin/git.go`
+- tk-phase2-02: Implement subprocess runner for build commands with captured output
+- tk-phase2-03: Implement SHA capture/pin logic
+- tk-phase2-04: Implement npm plugin handling (`npm:` source prefix)
+- tk-phase2-05: Implement plugin array rendering into opencode.json
+- tk-phase2-06: Implement instructions list rendering with order preservation
+- tk-phase2-07: Implement Advance delegation (subprocess + provides exclusion)
+- tk-phase2-08: Implement `oca pin` command
+- tk-phase2-09: Implement `oca update` command
+- tk-phase2-10: Implement plugin health checks (checkout/built/ref)
+- tk-phase2-11: Integration test: full plugin lifecycle (clone, build, pin, update)
+- tk-phase2-12: Integration test: Advance delegation does not duplicate files
+
+---
+
+## Phase 3: Providers + Agents + Permissions + LSP + Watcher
+
+**Goal:** Full `opencode.json` coverage. Every slice of OpenCode configuration the user cares about is now declarative.
+
+**Estimate:** 1 week
+
+**Deliverables:**
+
+- `internal/render/providers.go` — providers rendering (handles nested model/variants)
+- `internal/render/agents.go` — agent model mapping
+- `internal/render/permissions.go` — permissions rendering
+- `internal/render/watcher.go` — watcher.ignore rendering
+- `internal/render/lsp.go` — LSP rendering
+- `cmd/oca/diff.go` — `oca diff` drift detection
+- `cmd/oca/apply.go` supports all targets
+- Golden-file tests for every target
+
+**Exit criteria:**
+
+- `oca apply` with no `--target` applies all targets in dependency order
+- `oca diff` shows drift for every configuration slice
+- The complete `stack.example.toml` renders to a valid `opencode.json` that OpenCode can load
+- Manually verified: OpenCode loads the rendered config without errors
+
+**Tasks (high-level):**
+
+- tk-phase3-01: Implement providers rendering (nested structure)
+- tk-phase3-02: Implement agents rendering (flat map)
+- tk-phase3-03: Implement permissions rendering (external_directory, bash, default, doom_loop)
+- tk-phase3-04: Implement watcher.ignore rendering
+- tk-phase3-05: Implement LSP rendering
+- tk-phase3-06: Implement `oca diff` command
+- tk-phase3-07: Implement target-aware apply (run all targets in order)
+- tk-phase3-08: Golden tests for each target
+- tk-phase3-09: End-to-end test: stack.example.toml → opencode.json → OpenCode loads
+
+---
+
+## Phase 4: Session + Theme
+
+**Goal:** tmux session lifecycle, Obsidian theme (OpenCode UI + tmux), redesigned status bar, new boot splash with animation.
+
+**Estimate:** 1-1.5 weeks
+
+**Deliverables:**
+
+- `assets/themes/obsidian.json` — OpenCode UI theme
+- `assets/themes/obsidian.tmux.conf` — tmux status bar theme
+- `lib/status_bar.sh` — status bar renderers (replaces `status_left.sh`, `status_right.sh`)
+- `lib/boot_splash.sh` — full boot splash with animation (indigo pulse, wordmark reveal)
+- `lib/session_lifecycle.sh` — session creation, teardown, reaper
+- `cmd/oca/session.go` — `oca session new/list/attach/switch/killall/restart`
+- `cmd/oca/theme.go` — `oca theme list/set/preview`
+- tmux config block template (`templates/tmux.conf.block.gotmpl`)
+
+**Exit criteria:**
+
+- `oca session new` creates a tmux session, shows the boot splash, drops into OpenCode in the current directory
+- `oca session list` shows active sessions
+- Obsidian theme loads cleanly in OpenCode with all palette colors applied
+- Status bar shows: session title + ADV change (row 0 left), repo/branch/worktree (row 0 right), window name (row 1 left), metrics + LLM gauges + clock (row 1 right)
+- Boot splash renders wordmark with indigo+ pulse effect on truecolor terminals
+- Stale session reaper cleans up unattached `oca-*` sessions
+- No synthwave edges, no color-cycling, no per-session randomized borders
+
+**Tasks (high-level):**
+
+- tk-phase4-01: Design and implement `assets/themes/obsidian.json`
+- tk-phase4-02: Design and implement `assets/themes/obsidian.tmux.conf`
+- tk-phase4-03: Port and rewrite `lib/status_bar.sh`
+- tk-phase4-04: Implement boot splash with animation
+- tk-phase4-05: Port and rewrite `lib/session_lifecycle.sh`
+- tk-phase4-06: Implement `oca session new/list/attach/switch/killall/restart`
+- tk-phase4-07: Implement `oca theme list/set/preview`
+- tk-phase4-08: Implement ADV state reading for status bar
+- tk-phase4-09: Implement LLM fuel gauge renderer (reuse open-chad logic, rewrite in clean form)
+- tk-phase4-10: Write tmux config block template
+- tk-phase4-11: Integration test: session new → boot splash → OpenCode launches
+- tk-phase4-12: Manual verification: visual check of status bar on truecolor + 256-color terminals
+
+---
+
+## Phase 5: Installer + Shell Profile
+
+**Goal:** `oca install` performs end-to-end first-time setup. Shell profile wiring (PATH, completions) is idempotent and reversible.
+
+**Estimate:** 4-5 days
+
+**Deliverables:**
+
+- `cmd/oca/install.go` — full install flow
+- `internal/install/` — prerequisite checks, shell profile management
+- `templates/shell_profile.block.gotmpl`
+- `cmd/oca/completion.go` — shell completion generation (bash, zsh, fish)
+- `cmd/oca/uninstall.go` — removes managed blocks
+
+**Exit criteria:**
+
+- `oca install --yes` installs everything on a fresh Ubuntu 22.04 VM
+- `oca install` adds a managed block to `~/.zshrc` and `~/.bashrc` with PATH + completions
+- `oca completion zsh` and `oca completion bash` print working completion scripts
+- `oca uninstall` removes all managed blocks without touching user-owned content
+- Installer handles partial install recovery (if interrupted, re-running completes)
+
+**Tasks (high-level):**
+
+- tk-phase5-01: Implement prerequisite check (git, tmux version, OpenCode, vision binary)
+- tk-phase5-02: Implement shell profile block management (add/remove idempotent)
+- tk-phase5-03: Implement `oca install` command with all steps
+- tk-phase5-04: Implement `oca completion <shell>` for bash/zsh/fish
+- tk-phase5-05: Implement `oca uninstall` command
+- tk-phase5-06: Integration test: fresh-VM install in Docker/chroot
+- tk-phase5-07: Integration test: install → uninstall → install again is clean
+
+---
+
+## Phase 6: Migration + Doctor Expansion
+
+**Goal:** `oca migrate from-open-chad` works on the maintainer's real open-chad state. Doctor expands to cover Advance state and cross-component health.
+
+**Estimate:** 4-5 days
+
+**Deliverables:**
+
+- `internal/migrate/openchad.go` — reads open-chad state, emits stack.toml
+- `cmd/oca/migrate.go` — `oca migrate from-open-chad`, `oca migrate init`
+- `internal/health/advance.go` — ADV state checks
+- `internal/health/cross.go` — cross-component consistency checks
+- Expanded `oca doctor` output with all checks
+
+**Exit criteria:**
+
+- `oca migrate from-open-chad` successfully reads the maintainer's open-chad state and produces a valid stack.toml
+- The generated stack.toml, when applied, reproduces the user's current state (verified by diff)
+- `oca doctor` reports on: Advance checkout, plugin build state, ADV state directory, cross-component consistency (e.g., agent model references a declared provider)
+- Migration preserves user customizations (plugin paths, provider models, agent assignments)
+
+**Tasks (high-level):**
+
+- tk-phase6-01: Implement open-chad state reader (opencode.json + vision/servers.yaml + open-chad.json + config/opencode/)
+- tk-phase6-02: Implement stack.toml emitter
+- tk-phase6-03: Implement `oca migrate from-open-chad` command
+- tk-phase6-04: Implement `oca migrate init` command (minimal starter)
+- tk-phase6-05: Implement ADV state health checks
+- tk-phase6-06: Implement cross-component consistency checks
+- tk-phase6-07: Integration test: migration reproduces state
+- tk-phase6-08: Manual verification: run migration on maintainer's real environment
+
+---
+
+## Phase 7: Extras + Polish
+
+**Goal:** Discord integration (with new taglines), release pipeline, final README, polish pass.
+
+**Estimate:** 3-5 days
+
+**Deliverables:**
+
+- `lib/discord/` — ported and rewritten Discord Rich Presence integration
+- `lib/discord/taglines.toml` — all new taglines (data-driven, no "chad" era jokes)
+- `cmd/oca/discord.go` — `oca discord enable/disable/status`
+- `.github/workflows/release.yml` — goreleaser release pipeline
+- `.goreleaser.yaml` — cross-platform build config
+- Final README rewrite with install instructions, command reference, troubleshooting
+- `INSTALL.md` with detailed install guide
+- `CHANGELOG.md` generated from git log
+
+**Exit criteria:**
+
+- `oca discord enable` works and shows presence in Discord
+- All Discord taglines are rewritten (no "chad" references)
+- `git tag v1.0.0 && git push origin v1.0.0` triggers release pipeline that produces cross-platform binaries
+- Binaries are published to GitHub Releases with SHA256SUMS.txt
+- README is complete and internally consistent
+- Manual smoke test: fresh install from GitHub Release binary on Ubuntu 22.04
+
+**Tasks (high-level):**
+
+- tk-phase7-01: Port Discord Rich Presence integration from open-chad
+- tk-phase7-02: Rewrite all taglines (data-driven TOML file)
+- tk-phase7-03: Implement `oca discord enable/disable/status`
+- tk-phase7-04: Set up goreleaser config
+- tk-phase7-05: Write `.github/workflows/release.yml`
+- tk-phase7-06: Test release pipeline with a pre-release tag (v1.0.0-rc1)
+- tk-phase7-07: Write final README
+- tk-phase7-08: Write INSTALL.md
+- tk-phase7-09: Generate CHANGELOG.md
+- tk-phase7-10: Final polish pass: inconsistencies, typos, dead links
+
+---
+
+## Cross-phase rules
+
+### Clean cutover enforcement
+
+Every phase MUST:
+
+- Never write to `~/.config/opencode/`, `~/.config/vision/`, `~/.tmux.conf`, or shell rc files
+- Honor `OCA_OPENCODE_CONFIG_DIR`, `OCA_VISION_CONFIG_DIR`, `OCA_PLUGIN_CHECKOUT_ROOT`, `OCA_CACHE_DIR` environment overrides
+- Run all tests against isolated test directories (not production state)
+
+### ADV workflow
+
+Every phase is developed as one or more ADV changes:
+
+1. `/adv-proposal` creates the change with the phase goal + deliverables as the proposal
+2. `/adv-research` validates architectural decisions for this phase (Go libraries, patterns, API contracts)
+3. `/adv-prep` expands the high-level tasks into a concrete task graph with TDD intent
+4. `/adv-apply` implements tasks one at a time with red/green TDD evidence
+5. `/adv-review` reviews the implementation across 12 dimensions
+6. `/adv-harden` runs coverage/slop/doc checks
+7. `/adv-validate` checks the change against any specs created during the phase
+8. `/adv-archive` applies deltas and closes the change
+
+### Phase dependencies
+
+- Phase 1 blocks on Phase 0 (needs the wordmark + palette primitives)
+- Phase 2 blocks on Phase 1 (needs config/render/health foundations)
+- Phase 3 blocks on Phase 2 (extends the apply + target system)
+- Phase 4 blocks on Phase 0 only for brand, but on Phase 3 for full apply → recommended to do Phase 4 after Phase 3 for clean end-to-end test
+- Phase 5 blocks on Phase 4 (install uses the session lifecycle + theme)
+- Phase 6 blocks on Phase 5 (migration produces a stack.toml, which needs full coverage to be useful)
+- Phase 7 blocks on Phase 6 (release is the last step)
+
+### Out-of-phase work
+
+Minor fixes, typos, doc updates, and CI tweaks can be committed outside of ADV changes if they are trivial. Anything that touches Go code, stack.toml schema, or render logic MUST go through an ADV change.
+
+---
+
+## Estimated timeline
+
+| Phase                             | Estimate    | Cumulative  |
+| --------------------------------- | ----------- | ----------- |
+| 0: Foundation + brand             | 3-5 days    | 0.5-1 week  |
+| 1: stack.toml + MCP apply         | 1-2 weeks   | 1.5-3 weeks |
+| 2: Plugin + instruction mgmt      | 1 week      | 2.5-4 weeks |
+| 3: Full opencode.json coverage    | 1 week      | 3.5-5 weeks |
+| 4: Session + theme                | 1-1.5 weeks | 4.5-6.5 weeks |
+| 5: Installer + shell              | 4-5 days    | 5-7 weeks   |
+| 6: Migration + doctor             | 4-5 days    | 5.5-7.5 weeks |
+| 7: Extras + polish                | 3-5 days    | 6-8 weeks   |
+
+**Total: 6-8 weeks of focused work.** Longer if interleaved with other work.
+
+The estimate intentionally allows for:
+
+- Research time within each phase (ADV workflow includes `/adv-research`)
+- Code review iteration (ADV `/adv-review` and `/adv-harden` gates)
+- Unforeseen complexity (Go template edge cases, Advance API drift, etc.)
+
+If any phase blows its estimate by more than 2x, halt and re-plan. Do not push through.

@@ -1,0 +1,2 @@
+# This directory holds active ADV change proposals. Populated by the ADV
+# plugin when /adv-proposal creates a new change. Empty by design.

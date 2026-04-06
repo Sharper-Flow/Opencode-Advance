@@ -1,0 +1,40 @@
+OpenCode Advance — canonical wordmark source
+==============================================
+
+This file contains the raw ASCII art for the wordmark, with NO leading
+indentation modifications. The slant effect is applied at render time by
+the renderer (lib/boot_splash.sh, internal/render/wordmark.go, etc.).
+
+Preserve this file exactly. Do not reformat. Do not strip whitespace.
+
+--- OPENCODE (row 1, no slant) ---
+ ██████╗ ██████╗ ███████╗███╗   ██╗ ██████╗ ██████╗ ██████╗ ███████╗
+██╔═══██╗██╔══██╗██╔════╝████╗  ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝
+██║   ██║██████╔╝█████╗  ██╔██╗ ██║██║     ██║   ██║██║  ██║█████╗
+██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██║     ██║   ██║██║  ██║██╔══╝
+╚██████╔╝██║     ███████╗██║ ╚████║╚██████╗╚██████╔╝██████╔╝███████╗
+ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
+
+--- ADVANCE (row 2, slanted at render time) ---
+ █████╗ ██████╗ ██╗   ██╗ █████╗ ███╗   ██╗ ██████╗███████╗
+██╔══██╗██╔══██╗██║   ██║██╔══██╗████╗  ██║██╔════╝██╔════╝
+███████║██║  ██║██║   ██║███████║██╔██╗ ██║██║     █████╗
+██╔══██║██║  ██║╚██╗ ██╔╝██╔══██║██║╚██╗██║██║     ██╔══╝
+██║  ██║██████╔╝ ╚████╔╝ ██║  ██║██║ ╚████║╚██████╗███████╗
+╚═╝  ╚═╝╚═════╝   ╚═══╝  ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝╚══════╝
+
+--- Slant progression (leading-space offsets applied to ADVANCE rows) ---
+Row 0 (top):    +5 spaces
+Row 1:          +4 spaces
+Row 2:          +3 spaces
+Row 3:          +2 spaces
+Row 4:          +1 space
+Row 5 (bottom): +0 spaces
+
+Note: slant direction may be inverted depending on implementation choice.
+The canonical implementation in internal/render/wordmark.go decides the
+final posture. This file is the letterform source only.
+
+--- Compact variants ---
+Medium:     OpenCode ADVANCE
+Short:      OCA

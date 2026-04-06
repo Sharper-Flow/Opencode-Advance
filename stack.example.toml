@@ -1,0 +1,326 @@
+# stack.example.toml — complete reference example
+#
+# This is a working example grounded in a real OpenCode Advance stack.
+# Copy this file to ~/stack.toml (or ./stack.toml in a project root),
+# edit to taste, and run `oca apply`.
+#
+# See docs/design/stack-toml-schema.md for the full schema reference.
+
+[meta]
+version     = "1.0.0"
+name        = "default"
+description = "Personal OpenCode Advance stack"
+
+# ─── MCP servers ─────────────────────────────────────────────────────────────
+# Declared here once. `oca apply` renders into both:
+#   ~/.config/opencode/opencode.json  (.mcp section)
+#   ~/.config/vision/servers.yaml     (Vision daemon registry)
+
+[mcp.servers.vision]
+port        = 6275
+type        = "daemon"
+required    = true
+source      = "https://github.com/Sharper-Flow/vision"
+description = "MCP daemon — manages lifecycle of all other MCP servers"
+
+[mcp.servers.context7]
+port        = 6276
+command     = "npx"
+args        = ["-y", "@upstash/context7-mcp@latest"]
+timeout     = 10000
+autostart   = true
+source      = "https://github.com/upstash/context7"
+description = "Library and API documentation lookup"
+
+[mcp.servers.svelte-mcp]
+port        = 6278
+command     = "npx"
+args        = ["-y", "@sveltejs/mcp@latest"]
+timeout     = 10000
+autostart   = true
+source      = "https://github.com/sveltejs/mcp"
+description = "Svelte 5 / SvelteKit documentation and autofixer"
+
+[mcp.servers.kagi]
+port        = 6279
+command     = "uvx"
+args        = ["--from", "kagimcp", "kagimcp"]
+timeout     = 15000
+autostart   = true
+env_file    = "~/.config/opencode-advance/secrets/kagi.env"
+source      = "https://github.com/kagisearch/kagimcp"
+description = "Kagi Search API for fetch and summarizer"
+
+[mcp.servers.firecrawl]
+port        = 6281
+command     = "npx"
+args        = ["-y", "@mendableai/firecrawl-mcp@latest"]
+timeout     = 15000
+autostart   = true
+env_file    = "~/.config/opencode-advance/secrets/firecrawl.env"
+source      = "https://github.com/mendableai/firecrawl"
+description = "Web scraping and crawl"
+
+[mcp.servers.lgrep]
+port        = 6285
+command     = "uvx"
+args        = ["--from", "git+https://github.com/Sharper-Flow/lgrep.git", "lgrep"]
+timeout     = 5000
+autostart   = true
+source      = "https://github.com/Sharper-Flow/lgrep"
+description = "Semantic local code search + symbol indexing"
+
+[mcp.servers.lgrep.env]
+LGREP_AUTO_WATCH = "true"
+
+[mcp.servers.playwright]
+port        = 6287
+command     = "npx"
+args        = ["-y", "@playwright/mcp@latest"]
+timeout     = 30000
+autostart   = true
+source      = "https://github.com/microsoft/playwright-mcp"
+description = "Browser automation"
+
+[mcp.servers.grep-app]
+port        = 6288
+command     = "npx"
+args        = ["-y", "@grep-app/mcp@latest"]
+timeout     = 5000
+autostart   = true
+source      = "https://grep.app"
+description = "Cross-repo code example search"
+
+[mcp.servers.sentry]
+port        = 6289
+command     = "npx"
+args        = ["-y", "@sentry/mcp-server@latest"]
+timeout     = 15000
+autostart   = true
+env_file    = "~/.config/opencode-advance/secrets/sentry.env"
+source      = "https://github.com/getsentry/sentry-mcp"
+description = "Sentry error tracking and root cause analysis"
+
+# ─── Plugins ─────────────────────────────────────────────────────────────────
+# Each plugin is cloned, built, and wired into opencode.json.
+# Plugins with `provides` signal that OCA should not duplicate their assets.
+
+[plugins.advance]
+source       = "https://github.com/Sharper-Flow/Advance.git"
+ref          = "trunk"
+checkout     = "~/dev/oc-plugins/advance"
+subdir       = "plugin"
+build        = ["pnpm install", "pnpm build"]
+path         = "{checkout}/{subdir}"
+sync         = "{checkout}/scripts/sync-global.sh --fix"
+provides     = ["adv-commands", "adv-agents", "adv-skills", "adv-overlays"]
+instructions = ["{checkout}/ADV_INSTRUCTIONS.md"]
+
+[plugins.morph-fast-apply]
+source   = "https://github.com/JRedeker/opencode-morph-fast-apply.git"
+ref      = "trunk"
+checkout = "~/dev/oc-plugins/morph-fast-apply"
+build    = ["pnpm install", "pnpm build"]
+path     = "{checkout}"
+
+[plugins.vision-opencode]
+source   = "https://github.com/Sharper-Flow/vision.git"
+ref      = "trunk"
+checkout = "~/dev/vision"
+subdir   = "opencode-plugin"
+build    = ["pnpm install", "pnpm build"]
+path     = "{checkout}/{subdir}"
+
+[plugins.openai-codex-auth]
+source = "npm:opencode-openai-codex-auth@latest"
+
+[plugins.md-table-formatter]
+source = "npm:@franlol/opencode-md-table-formatter@latest"
+
+[plugins.anthropic-auth]
+source = "npm:@ex-machina/opencode-anthropic-auth@latest"
+
+# ─── Instructions ────────────────────────────────────────────────────────────
+# Loaded in declared order. Plugin-provided instructions append automatically.
+
+[instructions]
+order = [
+  "identity.md",
+  "rules.yaml",
+  "shell_strategy.md",
+  "test_resource_guardrails.md",
+  "lbp.md",
+  "temp_directory.md",
+  "mcp-tools.md",
+  "lgrep-tools.md",
+  "morph-tools.md",
+  "worktree-guide.md",
+  # ADV_INSTRUCTIONS.md appended automatically via [plugins.advance.instructions]
+]
+
+# ─── Providers ───────────────────────────────────────────────────────────────
+
+[providers.google.models."gemini-3-pro-preview"]
+name    = "Gemini 3 Pro Preview (Gemini CLI)"
+context = 1048576
+output  = 65535
+inputs  = ["text", "image", "pdf"]
+outputs = ["text"]
+
+[providers.google.models."gemini-3-flash-preview"]
+name    = "Gemini 3 Flash Preview (Gemini CLI)"
+context = 1048576
+output  = 65536
+inputs  = ["text", "image", "pdf"]
+outputs = ["text"]
+
+[providers.google.models."gemini-2.5-pro"]
+name    = "Gemini 2.5 Pro (Gemini CLI)"
+context = 1048576
+output  = 65536
+inputs  = ["text", "image", "pdf"]
+outputs = ["text"]
+
+[providers.google.models."gemini-2.5-flash"]
+name    = "Gemini 2.5 Flash (Gemini CLI)"
+context = 1048576
+output  = 65536
+inputs  = ["text", "image", "pdf"]
+outputs = ["text"]
+
+[providers.openai.options]
+reasoningEffort  = "medium"
+reasoningSummary = "auto"
+textVerbosity    = "medium"
+store            = false
+include          = ["reasoning.encrypted_content"]
+
+[providers.openai.models."gpt-5.2"]
+name    = "GPT 5.2 (OAuth)"
+context = 272000
+output  = 128000
+inputs  = ["text", "image"]
+outputs = ["text"]
+
+[providers.openai.models."gpt-5.2".variants.high]
+reasoningEffort  = "high"
+reasoningSummary = "detailed"
+textVerbosity    = "medium"
+
+[providers.openai.models."gpt-5.2".variants.medium]
+reasoningEffort  = "medium"
+reasoningSummary = "auto"
+textVerbosity    = "medium"
+
+[providers.openai.models."gpt-5.2".variants.low]
+reasoningEffort  = "low"
+reasoningSummary = "auto"
+textVerbosity    = "medium"
+
+[providers.openai.models."gpt-5.2".variants.xhigh]
+reasoningEffort  = "xhigh"
+reasoningSummary = "detailed"
+textVerbosity    = "medium"
+
+# ... (other GPT-5.x variants omitted for brevity — full list in production stack.toml)
+
+[providers.openrouter.models."anthropic/claude-haiku-4.5:nitro"]
+name    = "Claude Haiku 4.5 Nitro (OpenRouter)"
+context = 200000
+output  = 8192
+inputs  = ["text", "image"]
+outputs = ["text"]
+
+[providers.openrouter.models."anthropic/claude-haiku-4.5:nitro".options.reasoning]
+effort = "none"
+
+# ─── Agents ──────────────────────────────────────────────────────────────────
+# Agent → model mapping. OCA writes these to opencode.json .agent.<name>.model
+
+[agents]
+build     = "anthropic/claude-opus-4-6"
+plan      = "openai/gpt-5.2"
+scout     = "zai-coding-plan/glm-5"
+refine    = "anthropic/claude-opus-4-6"
+librarian = "openrouter/anthropic/claude-haiku-4.5:nitro"
+explore   = "zai-coding-plan/glm-5"
+
+# ─── Permissions ─────────────────────────────────────────────────────────────
+
+[permissions]
+default   = "allow"
+doom_loop = "ask"
+
+[permissions.external_directory]
+"*"                                                 = "ask"
+"~/dev/**"                                          = "allow"
+"~/scratch/**"                                      = "allow"
+"~/docs/**"                                         = "allow"
+"~/.local/share/opencode/plugins/advance/**"        = "allow"
+"~/.local/share/opencode/worktree/**"               = "allow"
+
+[permissions.bash]
+"*"                   = "allow"
+"git push*"           = "ask"
+"git reset --hard*"   = "ask"
+"rm -rf *"            = "ask"
+"sudo *"              = "ask"
+"mkfs*"               = "deny"
+
+# ─── Watcher ─────────────────────────────────────────────────────────────────
+
+[watcher]
+ignore = [
+  "node_modules/**",
+  "**/node_modules/**",
+  "dist/**",
+  "build/**",
+  ".git/**",
+  "**/.venv/**",
+  "**/__pycache__/**",
+  "**/target/**",
+  "**/.next/**",
+  "**/.svelte-kit/**",
+  "**/coverage/**",
+  "**/.mypy_cache/**",
+  "**/.ruff_cache/**",
+  "**/.pytest_cache/**",
+]
+
+# ─── LSP ─────────────────────────────────────────────────────────────────────
+
+[lsp.pyrefly]
+command    = ["pyrefly", "lsp"]
+extensions = [".py", ".pyi"]
+
+[lsp.pyright]
+disabled = true
+
+[lsp.typescript]
+command    = ["node", "./node_modules/typescript/lib/tsserver.js", "--useInferredProjectPerProjectRoot", "--enableTelemetry", "false"]
+extensions = [".ts", ".tsx", ".svelte"]
+
+[lsp.typescript-language-server]
+command    = ["typescript-language-server", "--stdio"]
+extensions = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]
+
+# ─── Session / UX ────────────────────────────────────────────────────────────
+
+[session]
+prefix               = "oca-"
+reaper               = true
+reaper_timeout_hours = 4
+theme                = "obsidian"
+boot_splash          = true
+boot_splash_timeout  = 1000
+
+# ─── Discord ─────────────────────────────────────────────────────────────────
+
+[discord]
+enabled = false
+mode    = "builtin"
+
+# ─── OpenCode UI ─────────────────────────────────────────────────────────────
+
+[opencode]
+theme = "obsidian"
