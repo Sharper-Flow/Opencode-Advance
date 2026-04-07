@@ -108,11 +108,16 @@ Suggestions:
 ============================================================
 ```
 
-## Step 5: Start Phase 0
+## Step 5: Create a dedicated Phase 0 change
 
 The first real work is **Phase 0: Foundation + Brand**. See [`phases.md`](phases.md) for details.
 
-Phase 0 should itself be an ADV change (separate from the v1 planning change above, or as a child change — your choice). For clarity, create a dedicated Phase 0 change:
+Recommended structure:
+
+- `opencodeAdvanceV1` = umbrella / tracking change only
+- `opencodeAdvancePhase0` = first implementation change
+
+Create a dedicated Phase 0 change:
 
 ```
 /adv-proposal Phase 0: Foundation + brand — go.mod, wordmark render, palette, boot splash
@@ -128,18 +133,14 @@ Then:
 
 Each phase follows the same pattern. The `opencodeAdvanceV1` change is the umbrella / tracking change; individual phase changes are where the work actually lives.
 
-## Alternative: single umbrella change
+## Why this structure is recommended
 
-If you prefer a single umbrella change for all of v1.0 instead of separate changes per phase:
+- It keeps the long-range v1 narrative in one place
+- It keeps implementation work archiveable in clean units
+- It reduces task sprawl inside a single giant change
+- It makes it easier to stop and resume between phases
 
-- Skip the Phase 0 proposal above
-- Run `/adv-research opencodeAdvanceV1` directly
-- During `/adv-prep`, expand the phase tasks from `phases.md` into the task graph
-- Execute all phases within the single change
-
-The trade-off: a single umbrella change keeps everything together but is harder to archive incrementally. Per-phase changes ship cleaner units of work but require more ceremony. Either is valid.
-
-**Recommendation:** per-phase changes for Phases 1-7, with the umbrella `opencodeAdvanceV1` as a tracking document only. Phase 0 is small enough to do directly within the umbrella change.
+**Recommendation:** keep Phase 0 separate too. Use the umbrella change for proposal context and progress tracking, not direct implementation.
 
 ## Working rules during implementation
 
