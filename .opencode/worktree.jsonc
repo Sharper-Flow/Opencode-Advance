@@ -1,0 +1,34 @@
+{
+  "$schema": "https://registry.kdco.dev/schemas/worktree.json",
+
+  // Worktree plugin configuration
+  // Documentation: https://github.com/kdcokenny/ocx
+
+  // Inline mode: agent works in the worktree via workdir instead of
+  // spawning a new terminal window with a separate OpenCode instance.
+  // Set to false to restore the old behavior (new tmux window / terminal tab).
+  // "inline": true,
+
+  "sync": {
+    // Files to copy from main worktree to new worktrees
+    // Example: [".env", ".env.local", "dev.sqlite"]
+    "copyFiles": [],
+
+    // Directories to symlink (saves disk space)
+    // Example: ["node_modules"]
+    "symlinkDirs": [],
+
+    // Patterns to exclude from copying
+    "exclude": []
+  },
+
+  "hooks": {
+    // Commands to run after worktree creation
+    // Example: ["pnpm install", "docker compose up -d"]
+    "postCreate": [],
+
+    // Commands to run before worktree deletion
+    // Example: ["docker compose down"]
+    "preDelete": []
+  }
+}
