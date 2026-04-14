@@ -6,41 +6,41 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 
 ## Phase 0: Foundation + Brand
 
-**Goal:** Scaffold the repository, lock the brand identity, establish the color palette and wordmark as usable primitives.
+**Status:** Complete — delivered in archived change `phase0FoundationBrand` and merged to `trunk`.
+
+**Goal:** Establish the repository foundation, lock the brand identity, and ship the minimal branded CLI/shell baseline needed for later phases.
 
 **Estimate:** 3-5 days
 
 **Deliverables:**
 
-- Repository scaffolded (this phase is partially complete: see the scaffold commit)
-- `go.mod` initialized, `cobra` dependency added
-- Minimal `cmd/oca/main.go` that prints the wordmark + version
-- `lib/palette.sh` with all color constants as env vars
-- `lib/wordmark.sh` with rendering function for the ASCII wordmark (full + compact + short)
-- `lib/boot_splash.sh` with minimal sequence (fallback: just print the wordmark, no animation yet)
+- Repository scaffolded and Go module initialized
+- `cobra` dependency added and minimal `oca` command tree shipped
+- Shared runtime brand assets + Go renderer under `brand/`
+- `oca version` renders the branded wordmark + version output
+- `lib/palette.sh`, `lib/wordmark.sh`, and `lib/boot_splash.sh` shipped with truecolor/256/mono + `NO_COLOR` behavior
 - Brand documentation finalized (`docs/design/brand.md`, `wordmark.md`, `palette.md`, `theme.md`)
-- CI scaffold: `.github/workflows/ci.yml` runs `go vet ./... && go test ./... && gofmt -d .`
-- README and AGENTS.md reflect the new brand
+- CI + local verification cover `go vet`, `go test`, `go build`, and shell verification
+- README / status / resume docs refreshed for the Phase 0 baseline
 
 **Exit criteria:**
 
-- `go run ./cmd/oca version` prints the wordmark in correct colors (on a truecolor terminal)
-- `bash lib/boot_splash.sh` renders the wordmark with the obsidian palette
-- CI passes on first run
+- [x] `go run ./cmd/oca version` prints the branded wordmark + version
+- [x] `bash lib/boot_splash.sh` renders the minimal boot splash behavior
+- [x] Color/no-color and terminal fallback behavior are verified in Go + shell tests
+- [x] CI passes with Go + shell verification wired in
 
-**Tasks (high-level, for adv-prep to refine):**
+**Historical implementation reference:**
 
-- tk-phase0-01: Initialize go.mod and add cobra dependency
-- tk-phase0-02: Create `cmd/oca/main.go` with minimal version subcommand
-- tk-phase0-03: Implement `lib/palette.sh` with all color constants
-- tk-phase0-04: Implement `lib/wordmark.sh` with render function
-- tk-phase0-05: Implement `lib/boot_splash.sh` (v1 — no animation yet, just render)
-- tk-phase0-06: Write `.github/workflows/ci.yml`
-- tk-phase0-07: Verify boot splash renders correctly on truecolor + 256-color + mono terminals
+- Archived ADV change: `phase0FoundationBrand`
+- Merge commit on `trunk`: `dc85b39 feat(phase0): establish branded CLI baseline`
+- Use this shipped baseline as the reference point for all later phases
 
 ---
 
 ## Phase 1: stack.toml + MCP apply
+
+**Status:** Next recommended phase.
 
 **Goal:** Parse `stack.toml`, validate it, and render the `[mcp.servers.*]` section into both `opencode.json` and `vision/servers.yaml`.
 

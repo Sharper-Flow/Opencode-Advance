@@ -7,9 +7,9 @@ This file is the fastest way to resume work in `~/dev/opencodeadvance` later.
 - Repository scaffold exists and is pushed to `origin/trunk`
 - Brand, wordmark, palette, architecture, schema, and CLI docs are written
 - The compact 3-line pagga wordmark is the canonical form everywhere
-- Phase 0 foundation work now exists in the current implementation branch
-- CI and local verification now cover Go + shell checks for the Phase 0 baseline
-- **Current ADV focus:** finish `phase0FoundationBrand` if it is still active; otherwise start the next phase change
+- Phase 0 foundation work is archived and merged to `trunk`
+- CI and local verification cover the Phase 0 baseline (`go test`, shell tests, `go vet`, `go build`)
+- **Current ADV focus:** start Phase 1 (`stack.toml` + MCP apply)
 
 ## Resume from here
 
@@ -20,36 +20,27 @@ cd ~/dev/opencodeadvance
 opencode
 ```
 
-### If `phase0FoundationBrand` is still active
+Then:
 
-Resume the current implementation change first:
-
-```
-/adv-status
-```
-
-Then continue from the first incomplete gate:
-
-- if release is still pending, continue harden / archive for `phase0FoundationBrand`
-- if `phase0FoundationBrand` is already archived, move to the next phase change instead of reopening Phase 0
-
-### After `phase0FoundationBrand` is archived
-
-Start the next implementation change from the roadmap (likely Phase 1 config loading/validation), not another fresh Phase 0 scaffold change.
+1. Run `/adv-status`
+2. Confirm there are no new active changes to finish first
+3. Start the next implementation change from the roadmap in `docs/proposals/phases.md`
+4. Begin with Phase 1 discovery/design/planning, not another Phase 0 change
 
 ## Recommended workflow
 
-- Finish and archive `phase0FoundationBrand` before starting the next implementation change
-- Do implementation in separate per-phase changes following `docs/proposals/phases.md`
-- Use `phase0FoundationBrand` as the reference implementation for later phases
+- Treat `phase0FoundationBrand` as the shipped reference baseline for later phases
+- Start the next implementation change for **Phase 1: stack.toml + MCP apply**
+- Keep implementation in separate per-phase changes following `docs/proposals/phases.md`
 - Archive each phase before starting the next one
 
-## Immediate implementation target (Phase 0)
+## Immediate implementation target (Phase 1)
 
-- finish remaining release / archive steps for `phase0FoundationBrand` if it is still active
-- preserve the new minimal Cobra CLI and branded version output
-- preserve shell helper behavior and CI wiring added in Phase 0
-- do not expand Phase 0 into parser/render/apply scope
+- define `stack.toml` parser + validation scope in `internal/config/`
+- render MCP declarations into isolated OpenCode + Vision config targets
+- add early `oca apply --target mcp` and `oca doctor --scope mcp` command surface
+- keep all writes isolated from live user config
+- do not pull Phase 2 plugin/session/theme work forward
 
 ## Constraints to keep in mind
 
@@ -62,8 +53,8 @@ Start the next implementation change from the roadmap (likely Phase 1 config loa
 
 - `STATUS.md` — project snapshot
 - `docs/proposals/first-boot.md` — exact ADV startup flow
-- `docs/proposals/v1-implementation.md` — umbrella proposal content (refreshed)
-- `docs/proposals/phases.md` — implementation sequencing (refreshed, includes Phase 3.5)
+- `docs/proposals/v1-implementation.md` — umbrella proposal content
+- `docs/proposals/phases.md` — implementation sequencing
 - `docs/design/architecture.md` — system shape
-- `docs/design/stack-toml-schema.md` — declarative config model (refreshed)
-- `stack.example.toml` — complete reference example (refreshed)
+- `docs/design/stack-toml-schema.md` — declarative config model
+- `stack.example.toml` — complete reference example

@@ -126,8 +126,8 @@ This repo is built through the Advance spec-driven workflow.
 Recommended flow:
 
 1. run `/adv-status` first and finish any already-active implementation change
-2. archive `phase0FoundationBrand` if it is still open
-3. start the next phase change from `docs/proposals/phases.md` (likely Phase 1 config loading / validation)
+2. use `phase0FoundationBrand` as the archived reference baseline for future work
+3. start the next phase change from `docs/proposals/phases.md` (currently Phase 1 config loading / validation)
 4. archive each phase before starting the next one
 
 In other words:
@@ -219,8 +219,8 @@ opencode
 Then:
 
 1. `/adv-status` — check for any active changes to complete first
-2. If `phase0FoundationBrand` is still active, finish its release / archive steps
-3. Otherwise start the next phase change from `docs/proposals/phases.md`
+2. Use `phase0FoundationBrand` as the shipped Phase 0 reference point
+3. Start the next phase change from `docs/proposals/phases.md`
 4. Use `NEXT_STEPS.md` for the exact resume sequence and current state
 
 ## Contributing

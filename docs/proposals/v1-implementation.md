@@ -5,6 +5,12 @@
 
 This document is the source material for the first ADV change in this repository. When OpenCode is opened in this repo and ADV is initialized, this proposal will be loaded by `/adv-proposal` to create the formal change state.
 
+## Progress snapshot
+
+- Phase 0 (`phase0FoundationBrand`) is complete, archived, and merged to `trunk`
+- Current recommended next phase: **Phase 1: stack.toml + MCP apply**
+- This document remains the umbrella roadmap for the full v1.0 effort
+
 ---
 
 ## Problem statement
@@ -216,8 +222,8 @@ Explicitly out of scope for the first release:
 
 See [`phases.md`](phases.md) for the full phase sequencing. Rough shape:
 
-1. **Phase 0: Foundation + brand** — repo, scaffold, palette, wordmark, theme specs
-2. **Phase 1: stack.toml + MCP apply** — parser, schema, MCP rendering, Vision integration
+1. **Phase 0: Foundation + brand** — completed baseline: branded CLI, shared brand runtime, shell helpers, verification wiring
+2. **Phase 1: stack.toml + MCP apply** — next: parser, schema, MCP rendering, Vision integration
 3. **Phase 2: Plugin + instruction management** — plugin lifecycle, ADV delegation, instructions rendering
 4. **Phase 3: Core opencode.json coverage** — providers, agents, permissions, LSP, watcher, diff command
 5. **Phase 3.5: Skills + commands + formatters + toggles** — OCA-owned skills, custom commands, formatter config, OpenCode-level toggles

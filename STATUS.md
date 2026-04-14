@@ -2,11 +2,11 @@
 
 ## Summary
 
-OpenCode Advance is currently at the **Phase 0 foundation + brand** stage.
+OpenCode Advance currently has a **completed Phase 0 foundation baseline** and is ready for **Phase 1: stack.toml + MCP apply**.
 
-- Implementation status: **Phase 0 active / foundation baseline implemented in current change**
-- Repository status: **ready to resume**
-- Recommended next action: finish `phase0FoundationBrand`, then continue into the next phase change
+- Implementation status: **Phase 0 archived and merged to `trunk`**
+- Repository status: **ready for next phase planning**
+- Recommended next action: start the Phase 1 change for config parsing, MCP rendering, and isolated apply/doctor foundations
 
 ## What is done
 
@@ -31,11 +31,13 @@ OpenCode Advance is currently at the **Phase 0 foundation + brand** stage.
 - Minimal Cobra CLI added (`oca`, `oca version`)
 - Shell brand helpers added (`lib/palette.sh`, `lib/wordmark.sh`, `lib/boot_splash.sh`)
 - Broader Phase 0 verification added (Go + shell + CI wiring)
+- `phase0FoundationBrand` archived and merged to `trunk`
 
 ## What is not done
 
 - No ADV umbrella change yet
-- No rendering / apply / doctor logic yet
+- No `stack.toml` parser or schema validation implementation yet
+- No render / apply / doctor command implementation yet
 - No installer / migration / session lifecycle implementation yet
 
 ## Decision log snapshot
@@ -52,4 +54,4 @@ OpenCode Advance is currently at the **Phase 0 foundation + brand** stage.
 
 ## Resume guidance
 
-If you are returning to this repo later, start with `NEXT_STEPS.md` and resume `phase0FoundationBrand` if it is still active.
+If you are returning to this repo later, start with `NEXT_STEPS.md`, verify there are no new active changes, and begin the Phase 1 change.
