@@ -7,9 +7,9 @@ This file is the fastest way to resume work in `~/dev/opencodeadvance` later.
 - Repository scaffold exists and is pushed to `origin/trunk`
 - Brand, wordmark, palette, architecture, schema, and CLI docs are written
 - The compact 3-line pagga wordmark is the canonical form everywhere
-- CI verifies the scaffold builds and tests cleanly
-- No real implementation work has started yet
-- **Active ADV change:** `refreshOcaPlanningDocs` — planning doc refresh (complete through planning gate)
+- Phase 0 foundation work now exists in the current implementation branch
+- CI and local verification now cover Go + shell checks for the Phase 0 baseline
+- **Current ADV focus:** finish `phase0FoundationBrand` if it is still active; otherwise start the next phase change
 
 ## Resume from here
 
@@ -20,40 +20,36 @@ cd ~/dev/opencodeadvance
 opencode
 ```
 
-### If planning doc refresh is not yet archived
+### If `phase0FoundationBrand` is still active
 
-Check status and finish the `refreshOcaPlanningDocs` change first:
+Resume the current implementation change first:
 
 ```
 /adv-status
 ```
 
-Then apply, review, and archive it before starting Phase 0.
+Then continue from the first incomplete gate:
 
-### After planning doc refresh is archived — start Phase 0
+- if release is still pending, continue harden / archive for `phase0FoundationBrand`
+- if `phase0FoundationBrand` is already archived, move to the next phase change instead of reopening Phase 0
 
-1. `/adv-proposal Phase 0: Foundation + brand — go.mod, wordmark render, palette, boot splash`
-2. `/adv-discover opencodeAdvancePhase0`
-3. `/adv-agree opencodeAdvancePhase0`
-4. `/adv-design opencodeAdvancePhase0`
-5. `/adv-prep opencodeAdvancePhase0`
-6. `/adv-apply opencodeAdvancePhase0`
+### After `phase0FoundationBrand` is archived
+
+Start the next implementation change from the roadmap (likely Phase 1 config loading/validation), not another fresh Phase 0 scaffold change.
 
 ## Recommended workflow
 
-- Keep `refreshOcaPlanningDocs` archived before starting any implementation change
+- Finish and archive `phase0FoundationBrand` before starting the next implementation change
 - Do implementation in separate per-phase changes following `docs/proposals/phases.md`
-- Start with **Phase 0** as the first implementation change
+- Use `phase0FoundationBrand` as the reference implementation for later phases
 - Archive each phase before starting the next one
 
 ## Immediate implementation target (Phase 0)
 
-- initialize `go.mod` and add `cobra` dependency
-- replace the scaffold CLI with a minimal `oca version` subcommand
-- implement `lib/palette.sh` with all color constants
-- implement `lib/wordmark.sh` with render function
-- implement `lib/boot_splash.sh` (minimal — no animation yet, just render the wordmark)
-- keep CI green
+- finish remaining release / archive steps for `phase0FoundationBrand` if it is still active
+- preserve the new minimal Cobra CLI and branded version output
+- preserve shell helper behavior and CI wiring added in Phase 0
+- do not expand Phase 0 into parser/render/apply scope
 
 ## Constraints to keep in mind
 

@@ -10,7 +10,7 @@
 
 **A declarative, reproducible OpenCode environment and workflow platform.**
 
-*Status: v0 scaffold — design complete, implementation not yet started. First stable release will be v1.0.*
+*Status: Phase 0 foundation baseline implemented. Next milestone: Phase 1 config loading + validation. First stable release will be v1.0.*
 
 </div>
 
@@ -61,7 +61,7 @@ You cannot run OpenCode Advance without Advance — Advance is a required depend
 
 ## Current status
 
-This repository is intentionally at the **scaffold + design** stage.
+This repository now has a **real Phase 0 foundation baseline** in place.
 
 ### Done
 
@@ -73,12 +73,14 @@ This repository is intentionally at the **scaffold + design** stage.
 - phase plan written
 - ADV first-boot guide written
 - compact canonical wordmark finalized
+- shared runtime brand assets and Go renderer added
+- minimal Cobra CLI added (`oca`, `oca version`)
+- shell brand helpers added (`lib/palette.sh`, `lib/wordmark.sh`, `lib/boot_splash.sh`)
+- broader Go + shell verification wiring added
 
 ### Not done yet
 
 - no umbrella ADV change created yet
-- no Phase 0 change created yet
-- no real CLI beyond scaffold placeholder
 - no `stack.toml` parser yet
 - no apply / doctor implementation yet
 - no installer / session lifecycle logic yet
@@ -123,14 +125,14 @@ This repo is built through the Advance spec-driven workflow.
 
 Recommended flow:
 
-1. create an umbrella `opencodeAdvanceV1` change for the overall v1.0 effort
-2. create a dedicated `opencodeAdvancePhase0` change for the first implementation phase
-3. run research → prep → apply on the phase change
+1. run `/adv-status` first and finish any already-active implementation change
+2. archive `phase0FoundationBrand` if it is still open
+3. start the next phase change from `docs/proposals/phases.md` (likely Phase 1 config loading / validation)
 4. archive each phase before starting the next one
 
 In other words:
 
-- **umbrella change** = long-range tracking and proposal context
+- **umbrella change** = long-range tracking and proposal context when needed
 - **phase changes** = actual implementation work
 
 ## Safe development policy
@@ -217,15 +219,13 @@ opencode
 Then:
 
 1. `/adv-status` — check for any active changes to complete first
-2. Archive `refreshOcaPlanningDocs` if not yet done
-3. Create the dedicated Phase 0 proposal and walk the 7-gate workflow
-4. Start Phase 0 with `/adv-discover`, `/adv-design`, `/adv-prep`, and `/adv-apply`
-
-`NEXT_STEPS.md` contains the exact sequence and current state.
+2. If `phase0FoundationBrand` is still active, finish its release / archive steps
+3. Otherwise start the next phase change from `docs/proposals/phases.md`
+4. Use `NEXT_STEPS.md` for the exact resume sequence and current state
 
 ## Contributing
 
-Until implementation begins, most meaningful contributions are:
+While implementation is still early, the most meaningful contributions are:
 
 - design clarification
 - proposal refinement

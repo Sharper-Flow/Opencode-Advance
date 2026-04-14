@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  scaffold-check:
-    name: Scaffold build
+  baseline-verification:
+    name: Baseline verification
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -39,3 +39,8 @@ jobs:
 
       - name: Test
         run: go test ./...
+
+      - name: Shell verification
+        run: |
+          bash tests/shell/brand_helpers_test.sh
+          bash tests/shell/verification_workflow_test.sh

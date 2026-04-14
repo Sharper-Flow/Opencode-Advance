@@ -2,11 +2,11 @@
 
 ## Summary
 
-OpenCode Advance is currently at the **scaffold + design** stage.
+OpenCode Advance is currently at the **Phase 0 foundation + brand** stage.
 
-- Implementation status: **not started**
+- Implementation status: **Phase 0 active / foundation baseline implemented in current change**
 - Repository status: **ready to resume**
-- Recommended next action: create the initial ADV changes and begin **Phase 0**
+- Recommended next action: finish `phase0FoundationBrand`, then continue into the next phase change
 
 ## What is done
 
@@ -27,14 +27,15 @@ OpenCode Advance is currently at the **scaffold + design** stage.
   - phase sequencing
   - first-boot / ADV initialization guide
 - Wordmark unified to the compact 3-line pagga form
+- Shared runtime brand assets + Go renderer added
+- Minimal Cobra CLI added (`oca`, `oca version`)
+- Shell brand helpers added (`lib/palette.sh`, `lib/wordmark.sh`, `lib/boot_splash.sh`)
+- Broader Phase 0 verification added (Go + shell + CI wiring)
 
 ## What is not done
 
 - No ADV umbrella change yet
-- No Phase 0 change yet
-- No real CLI implementation beyond scaffold placeholder
 - No rendering / apply / doctor logic yet
-- No shell integration scripts yet
 - No installer / migration / session lifecycle implementation yet
 
 ## Decision log snapshot
@@ -51,4 +52,4 @@ OpenCode Advance is currently at the **scaffold + design** stage.
 
 ## Resume guidance
 
-If you are returning to this repo later, start with `NEXT_STEPS.md`.
+If you are returning to this repo later, start with `NEXT_STEPS.md` and resume `phase0FoundationBrand` if it is still active.

@@ -115,7 +115,7 @@ The first real work is **Phase 0: Foundation + Brand**. See [`phases.md`](phases
 Recommended structure:
 
 - `opencodeAdvanceV1` = umbrella / tracking change only
-- `opencodeAdvancePhase0` = first implementation change
+- `phase0FoundationBrand` = first implementation change
 
 Create a dedicated Phase 0 change:
 
@@ -126,12 +126,12 @@ Create a dedicated Phase 0 change:
 Then walk the 7-gate workflow:
 
 ```
-/adv-discover opencodeAdvancePhase0
-/adv-agree opencodeAdvancePhase0
-/adv-design opencodeAdvancePhase0
-/adv-present opencodeAdvancePhase0
-/adv-prep opencodeAdvancePhase0
-/adv-apply opencodeAdvancePhase0
+/adv-discover phase0FoundationBrand
+/adv-agree phase0FoundationBrand
+/adv-design phase0FoundationBrand
+/adv-present phase0FoundationBrand
+/adv-prep phase0FoundationBrand
+/adv-apply phase0FoundationBrand
 ```
 
 Each phase follows the same pattern. The `opencodeAdvanceV1` change is the umbrella / tracking change; individual phase changes are where the work actually lives.
