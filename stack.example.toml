@@ -1,8 +1,11 @@
 # stack.example.toml — complete reference example
 #
 # This is a working example grounded in a real OpenCode Advance stack.
-# Copy this file to ~/stack.toml (or ./stack.toml in a project root),
-# edit to taste, and run `oca apply`.
+# Copy this file to ~/stack.toml for a user-wide stack, or ./stack.toml in a project root
+# for a project-scoped stack. Edit to taste, then run `oca apply`.
+#
+# Secrets note: `env_file` paths below are illustrative only. Adjust paths and keys to match your setup, and never commit them.
+# For new setups, prefer native OpenCode `{env:VAR_NAME}` tokens in env tables when possible.
 #
 # See docs/design/stack-toml-schema.md for the full schema reference.
 
@@ -47,7 +50,7 @@ command     = "uvx"
 args        = ["--from", "kagimcp", "kagimcp"]
 timeout     = 15000
 autostart   = true
-env_file    = "~/.config/opencode-advance/secrets/kagi.env"
+env_file    = "~/.config/opencode-advance/secrets/kagi.env"   # example only — prefer `{env:KAGI_API_KEY}` in [mcp.servers.kagi.env] for new setups
 source      = "https://github.com/kagisearch/kagimcp"
 description = "Kagi Search API for fetch and summarizer"
 
@@ -57,7 +60,7 @@ command     = "npx"
 args        = ["-y", "@mendableai/firecrawl-mcp@latest"]
 timeout     = 15000
 autostart   = true
-env_file    = "~/.config/opencode-advance/secrets/firecrawl.env"
+env_file    = "~/.config/opencode-advance/secrets/firecrawl.env"   # example only — prefer `{env:FIRECRAWL_API_KEY}` in [mcp.servers.firecrawl.env] for new setups
 source      = "https://github.com/mendableai/firecrawl"
 description = "Web scraping and crawl"
 
@@ -97,7 +100,7 @@ command     = "npx"
 args        = ["-y", "@sentry/mcp-server@latest"]
 timeout     = 15000
 autostart   = true
-env_file    = "~/.config/opencode-advance/secrets/sentry.env"
+env_file    = "~/.config/opencode-advance/secrets/sentry.env"   # example only — prefer `{env:SENTRY_AUTH_TOKEN}` or provider-native env injection for new setups
 source      = "https://github.com/getsentry/sentry-mcp"
 description = "Sentry error tracking and root cause analysis"
 
@@ -155,6 +158,7 @@ order = [
   "lgrep-tools.md",
   "morph-tools.md",
   "worktree-guide.md",
+  "caveman.md",
   # ADV_INSTRUCTIONS.md appended automatically via [plugins.advance.instructions]
 ]
 
@@ -304,6 +308,48 @@ extensions = [".ts", ".tsx", ".svelte"]
 command    = ["typescript-language-server", "--stdio"]
 extensions = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]
 
+# ─── Skills ──────────────────────────────────────────────────────────────────
+# OCA-owned skills copied from assets/skills/ to ~/.config/opencode/skills/.
+# ADV methodology skills (adv-*) are excluded — they are synced by the Advance plugin.
+
+[skills]
+order = [
+  "lgrep",
+  "mcp-selection",
+  "morph",
+  "prioritizer",
+  "worktree",
+  "caveman",
+  "caveman-commit",
+  "caveman-review",
+]
+
+# ─── Formatters ──────────────────────────────────────────────────────────────
+# Custom code formatters rendered into opencode.json .formatter.
+# $FILE is replaced with the file path. Use disabled=true to disable a built-in formatter.
+
+[formatters.prettier]
+command    = ["npx", "prettier", "--write", "$FILE"]
+extensions = [".ts", ".tsx", ".js", ".jsx", ".svelte", ".json", ".md"]
+
+[formatters.ruff]
+command    = ["ruff", "format", "$FILE"]
+extensions = [".py"]
+
+# ─── Custom Commands ─────────────────────────────────────────────────────────
+# Custom slash commands rendered into opencode.json .command.
+# $ARGUMENTS is replaced with any text the user types after the command name.
+
+[commands.review-pr]
+description = "Review the current PR with conventional comments"
+template    = "Review the pull request at $ARGUMENTS for correctness, security, and clarity. Use conventional comment labels (nit:, fix:, etc.)."
+agent       = "adv"
+
+[commands.test-coverage]
+description = "Run tests with coverage and show failures"
+template    = "Run the full test suite with coverage reporting. Show any failing tests and suggest specific fixes."
+agent       = "build"
+
 # ─── Session / UX ────────────────────────────────────────────────────────────
 
 [session]
@@ -320,7 +366,24 @@ boot_splash_timeout  = 1000
 enabled = false
 mode    = "builtin"
 
-# ─── OpenCode UI ─────────────────────────────────────────────────────────────
+# ─── OpenCode ────────────────────────────────────────────────────────────────
+# Top-level OpenCode behavior toggles rendered directly into opencode.json.
 
 [opencode]
-theme = "obsidian"
+theme         = "obsidian"    # OpenCode UI theme
+default_agent = "adv"         # default primary agent
+share         = "disabled"    # "manual", "auto", or "disabled"
+snapshot      = true          # disable for large repos
+autoupdate    = false         # true, false, or "notify"
+
+[opencode.compaction]
+auto     = true
+prune    = true
+reserved = 10000
+
+# Uncomment to restrict available providers:
+# [opencode.disabled_providers]
+# list = ["ollama"]
+#
+# [opencode.enabled_providers]
+# list = ["google", "openai", "openrouter"]

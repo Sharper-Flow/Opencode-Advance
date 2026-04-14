@@ -131,7 +131,7 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 
 ## Phase 3: Providers + Agents + Permissions + LSP + Watcher
 
-**Goal:** Full `opencode.json` coverage. Every slice of OpenCode configuration the user cares about is now declarative.
+**Goal:** Core `opencode.json` coverage: providers, agents, permissions, watcher ignore globs, and LSP. Every core configuration slice is now declarative. Skills, custom commands, formatters, and OpenCode-level toggles are deferred to Phase 3.5.
 
 **Estimate:** 1 week
 
@@ -167,9 +167,49 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 
 ---
 
+## Phase 3.5: Skills + Commands + Formatters + OpenCode Toggles
+
+**Goal:** Complete declarative coverage of the remaining `opencode.json` surfaces: OCA-owned skill management, custom slash commands, code formatters, and OpenCode-level behavior toggles. Fills the gap between core config (Phase 3) and session/theme work (Phase 4).
+
+**Estimate:** 3-4 days
+
+**Deliverables:**
+
+- `internal/render/skills.go` — skill asset copy from `assets/skills/` to target skills dir, respecting plugin-owned exclusions
+- `internal/render/commands.go` — custom command rendering for `opencode.json` `.command`
+- `internal/render/formatters.go` — formatter rendering for `opencode.json` `.formatter`
+- `internal/render/toggles.go` — OpenCode-level toggle rendering (default_agent, share, snapshot, autoupdate, compaction, disabled/enabled_providers)
+- `cmd/oca/apply.go` extended for skills, commands, formatters, and toggles targets
+- `assets/skills/` populated with canonical copies of all OCA-owned skills
+- Golden-file tests for each new target
+- `oca doctor --scope skills` verifies OCA-owned skills are present and not overwriting plugin-owned skills
+
+**Exit criteria:**
+
+- `oca apply --target skills` copies OCA-owned skills to the target directory without touching ADV-owned skills
+- `oca apply --target commands` renders custom slash commands into `opencode.json`
+- `oca apply --target formatters` renders formatter config into `opencode.json`
+- `oca apply --target toggles` renders OpenCode-level toggles into `opencode.json`
+- All new targets work correctly in isolated test config directories
+- `oca apply` with no `--target` applies all targets in dependency order, including Phase 3.5 targets
+- `oca doctor --scope skills` detects skill ownership violations (OCA writing ADV-owned paths)
+
+**Tasks (high-level):**
+
+- tk-phase3.5-01: Implement skill asset copy logic (enumerate `assets/skills/`, skip plugin-provided categories)
+- tk-phase3.5-02: Implement custom command rendering
+- tk-phase3.5-03: Implement formatter rendering
+- tk-phase3.5-04: Implement OpenCode toggles rendering (default_agent, share, snapshot, autoupdate, compaction, provider lists)
+- tk-phase3.5-05: Populate `assets/skills/` with canonical OCA skill files (lgrep, mcp-selection, morph, prioritizer, worktree, caveman, caveman-commit, caveman-review)
+- tk-phase3.5-06: Golden tests for each new target
+- tk-phase3.5-07: Integration test: apply all targets together with full stack.example.toml
+- tk-phase3.5-08: `oca doctor --scope skills` implementation and test
+
+---
+
 ## Phase 4: Session + Theme
 
-**Goal:** tmux session lifecycle, Obsidian theme (OpenCode UI + tmux), redesigned status bar, new boot splash with animation.
+**Goal:** tmux session lifecycle, Obsidian theme (OpenCode UI + tmux), redesigned status bar, new boot splash with animation. Builds on full config coverage from Phases 3 and 3.5.
 
 **Estimate:** 1-1.5 weeks
 
@@ -332,23 +372,28 @@ Every phase MUST:
 
 ### ADV workflow
 
-Every phase is developed as one or more ADV changes:
+Every phase is developed as one or more ADV changes following the 7-gate workflow:
 
 1. `/adv-proposal` creates the change with the phase goal + deliverables as the proposal
-2. `/adv-research` validates architectural decisions for this phase (Go libraries, patterns, API contracts)
-3. `/adv-prep` expands the high-level tasks into a concrete task graph with TDD intent
-4. `/adv-apply` implements tasks one at a time with red/green TDD evidence
-5. `/adv-review` reviews the implementation across 12 dimensions
-6. `/adv-harden` runs coverage/slop/doc checks
-7. `/adv-validate` checks the change against any specs created during the phase
-8. `/adv-archive` applies deltas and closes the change
+2. `/adv-discover` gathers context, analyzes current state, identifies objectives and knowledge gaps
+3. `/adv-agree` presents objectives and constraints for user acceptance
+4. `/adv-design` validates architecture decisions with mandatory `adv-researcher` validation
+5. `/adv-present` presents concise design overview for user review before planning
+6. `/adv-prep` expands the high-level tasks into a concrete task graph with TDD intent
+7. `/adv-apply` implements tasks one at a time with red/green TDD evidence
+8. `/adv-review` reviews the implementation across 12 dimensions
+9. `/adv-accept` presents deliverable summary and acceptance criteria checklist to user
+10. `/adv-harden` runs coverage/slop/doc checks
+11. `/adv-validate` checks the change against any specs created during the phase
+12. `/adv-archive` applies deltas and closes the change
 
 ### Phase dependencies
 
 - Phase 1 blocks on Phase 0 (needs the wordmark + palette primitives)
 - Phase 2 blocks on Phase 1 (needs config/render/health foundations)
 - Phase 3 blocks on Phase 2 (extends the apply + target system)
-- Phase 4 blocks on Phase 0 only for brand, but on Phase 3 for full apply → recommended to do Phase 4 after Phase 3 for clean end-to-end test
+- Phase 3.5 blocks on Phase 3 (extends the apply + render system with new config surfaces)
+- Phase 4 blocks on Phase 3.5 (session/theme work requires full config coverage to be testable end-to-end)
 - Phase 5 blocks on Phase 4 (install uses the session lifecycle + theme)
 - Phase 6 blocks on Phase 5 (migration produces a stack.toml, which needs full coverage to be useful)
 - Phase 7 blocks on Phase 6 (release is the last step)
@@ -361,22 +406,23 @@ Minor fixes, typos, doc updates, and CI tweaks can be committed outside of ADV c
 
 ## Estimated timeline
 
-| Phase                             | Estimate    | Cumulative  |
-| --------------------------------- | ----------- | ----------- |
-| 0: Foundation + brand             | 3-5 days    | 0.5-1 week  |
-| 1: stack.toml + MCP apply         | 1-2 weeks   | 1.5-3 weeks |
-| 2: Plugin + instruction mgmt      | 1 week      | 2.5-4 weeks |
-| 3: Full opencode.json coverage    | 1 week      | 3.5-5 weeks |
-| 4: Session + theme                | 1-1.5 weeks | 4.5-6.5 weeks |
-| 5: Installer + shell              | 4-5 days    | 5-7 weeks   |
-| 6: Migration + doctor             | 4-5 days    | 5.5-7.5 weeks |
-| 7: Extras + polish                | 3-5 days    | 6-8 weeks   |
+| Phase                                    | Estimate    | Cumulative    |
+| ---------------------------------------- | ----------- | ------------- |
+| 0: Foundation + brand                    | 3-5 days    | 0.5-1 week    |
+| 1: stack.toml + MCP apply                | 1-2 weeks   | 1.5-3 weeks   |
+| 2: Plugin + instruction mgmt             | 1 week      | 2.5-4 weeks   |
+| 3: Core opencode.json coverage           | 1 week      | 3.5-5 weeks   |
+| 3.5: Skills + commands + formatters      | 3-4 days    | 4-5.5 weeks   |
+| 4: Session + theme                       | 1-1.5 weeks | 5-7 weeks     |
+| 5: Installer + shell                     | 4-5 days    | 5.5-7.5 weeks |
+| 6: Migration + doctor                    | 4-5 days    | 6-8 weeks     |
+| 7: Extras + polish                       | 3-5 days    | 6.5-8.5 weeks |
 
 **Total: 6-8 weeks of focused work.** Longer if interleaved with other work.
 
 The estimate intentionally allows for:
 
-- Research time within each phase (ADV workflow includes `/adv-research`)
+- Discovery and design time within each phase (ADV workflow includes `/adv-discover` + `/adv-design`)
 - Code review iteration (ADV `/adv-review` and `/adv-harden` gates)
 - Unforeseen complexity (Go template edge cases, Advance API drift, etc.)
 

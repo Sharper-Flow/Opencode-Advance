@@ -102,7 +102,7 @@ ACTIVE CHANGES
   OpenCode Advance v1.0 — clean rewrite of open-chad...
 
 Suggestions:
-- Research this change: /adv-research opencodeAdvanceV1
+- Discover context for this change: /adv-discover opencodeAdvanceV1
 - Or see docs/proposals/phases.md for the phased work plan
 
 ============================================================
@@ -123,10 +123,13 @@ Create a dedicated Phase 0 change:
 /adv-proposal Phase 0: Foundation + brand — go.mod, wordmark render, palette, boot splash
 ```
 
-Then:
+Then walk the 7-gate workflow:
 
 ```
-/adv-research opencodeAdvancePhase0
+/adv-discover opencodeAdvancePhase0
+/adv-agree opencodeAdvancePhase0
+/adv-design opencodeAdvancePhase0
+/adv-present opencodeAdvancePhase0
 /adv-prep opencodeAdvancePhase0
 /adv-apply opencodeAdvancePhase0
 ```
@@ -161,7 +164,7 @@ Once the first change is active and you're implementing Phase 0:
 ### ADV workflow discipline
 
 - TDD is inline within each task (red → green → refactor → done)
-- Use `/adv-task-ready` to get the next unblocked task
+- Use `adv_task_ready` (MCP tool) to get the next unblocked task
 - Update task status as you work; never leave tasks in `in_progress` across sessions without notes
 - Record wisdom entries (`/adv-wisdom` or `adv_wisdom_add`) for patterns, gotchas, and conventions discovered
 
@@ -209,4 +212,4 @@ If `/adv-proposal` creates an empty or incomplete change:
 
 Once Phase 0 is archived and you have a working `go run ./cmd/oca version` that prints the wordmark, you're ready to start Phase 1: stack.toml + MCP apply.
 
-From that point on, the project is self-sustaining — each phase is an ADV change, ADV drives the workflow, and the repo grows organically through the 6-gate lifecycle toward v1.0.
+From that point on, the project is self-sustaining — each phase is an ADV change, ADV drives the workflow, and the repo grows organically through the 7-gate lifecycle (proposal → discovery → design → planning → execution → acceptance → release) toward v1.0.

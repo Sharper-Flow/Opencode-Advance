@@ -20,10 +20,10 @@ The following agents are owned by the Advance plugin and synced via `advance/scr
 
 | File               | Owned by |
 | ------------------ | -------- |
+| `adv.md`             | Advance  |
 | `plan.md`            | Advance  |
 | `scout.md`           | Advance  |
 | `refine.md`          | Advance  |
-| `orca.md`            | Advance  |
 | `adv-researcher.md`  | Advance  |
 | `tron.md`            | Advance  |
 

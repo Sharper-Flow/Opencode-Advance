@@ -22,7 +22,7 @@ OpenCode Advance depends on Advance; Advance does not depend on OpenCode Advance
 
 - OpenCode Advance clones, builds, and wires the Advance plugin as part of `oca install` / `oca apply`
 - OpenCode Advance delegates all Advance-owned asset sync to `advance/scripts/sync-global.sh --fix`
-- OpenCode Advance does **not** duplicate any files that Advance owns: `adv-*.md` commands, ADV agents (`plan`, `scout`, `refine`, `adv-researcher`, `tron`), ADV skills (`adv-*`), or ADV instructions
+- OpenCode Advance does **not** duplicate any files that Advance owns: `adv-*.md` commands, ADV agents (`adv`, `plan`, `scout`, `refine`, `adv-researcher`, `tron`), ADV skills (`adv-*`), ADV overlays, or ADV instructions
 - OpenCode Advance owns the non-ADV slice of the environment: environment-level agents (`build`, `explore`, `librarian`, `general`, `mechanic`), instructions (rules.yaml, identity, shell_strategy, etc.), MCP server lifecycle, plugin management, providers, session/tmux UX
 
 This clean boundary is the central reason OpenCode Advance exists as a separate project. Each file in `~/.config/opencode/` has exactly one owner.
@@ -48,7 +48,7 @@ opencodeadvance/
 ├── assets/                             # Static files, copied as-is to ~/.config/opencode/
 │   ├── agents/                         # build.md, explore.md, librarian.md, general.md, mechanic.md
 │   ├── instructions/                   # identity.md, rules.yaml, shell_strategy.md, etc.
-│   ├── skills/                         # lgrep, mcp-selection, morph, worktree, prioritizer
+│   ├── skills/                         # lgrep, mcp-selection, morph, worktree, prioritizer, caveman, caveman-commit, caveman-review
 │   └── themes/
 │       ├── obsidian.json               # OpenCode UI theme (obsidian palette, indigo accent)
 │       ├── obsidian.tmux.conf          # Tmux 2-row status bar theme
@@ -106,15 +106,15 @@ opencodeadvance/
 
 ## Development Model
 
-This project is developed through the Advance spec-driven workflow. Every non-trivial change is an ADV change with:
+This project is developed through the Advance spec-driven workflow. Every non-trivial change is an ADV change following the 7-gate lifecycle:
 
-- A proposal (problem statement, success criteria, constraints)
-- Research (validated architectural decisions)
-- Prep (task graph synthesized from research)
-- Apply (TDD-driven implementation)
-- Review (code review across multiple dimensions)
-- Harden (quality verification and cleanup)
-- Signoff (user approval)
+1. **Proposal** — problem statement, success criteria, constraints, discovery agenda
+2. **Discovery** — context analysis, objectives, agreement (`/adv-discover` + `/adv-agree`)
+3. **Design** — architecture decisions with mandatory validator pass (`/adv-design` + `/adv-present`)
+4. **Planning** — task graph synthesized from validated design (`/adv-prep`)
+5. **Execution** — TDD-driven implementation (`/adv-apply`)
+6. **Acceptance** — code review + user sign-off (`/adv-review` + `/adv-accept`)
+7. **Release** — quality verification, spec deltas applied, git finalized (`/adv-harden` + `/adv-archive`)
 
 The v1.0 initial implementation is scoped in [`docs/proposals/v1-implementation.md`](docs/proposals/v1-implementation.md) and phased in [`docs/proposals/phases.md`](docs/proposals/phases.md).
 
@@ -151,26 +151,39 @@ At v1.0 release time, the user runs `oca migrate from-open-chad` which performs 
 | ------------------------------------------- | ------------- | -------------------------------------------------- |
 | `stack.toml`                                  | **user**          | Source of truth. User edits. `oca` reads.            |
 | `~/.config/opencode/opencode.json`            | **oca**           | Rendered from stack.toml + plugin-provided fragments |
-| `~/.config/opencode/agents/build.md`          | **oca**           | Environment-level agent                            |
+| `~/.config/opencode/agents/build.md`          | **oca + overlay** | Base: oca. Advance injects ADV overlay block       |
 | `~/.config/opencode/agents/explore.md`        | **oca**           | Environment-level agent                            |
 | `~/.config/opencode/agents/librarian.md`      | **oca**           | Environment-level agent                            |
-| `~/.config/opencode/agents/general.md`        | **oca**           | Environment-level agent                            |
+| `~/.config/opencode/agents/general.md`        | **oca + overlay** | Base: oca. Advance injects ADV overlay block       |
 | `~/.config/opencode/agents/mechanic.md`       | **oca**           | Environment-level agent                            |
-| `~/.config/opencode/agents/plan.md`           | **Advance**       | ADV agent (via sync-global.sh)                     |
-| `~/.config/opencode/agents/scout.md`          | **Advance**       | ADV agent                                          |
-| `~/.config/opencode/agents/refine.md`         | **Advance**       | ADV agent                                          |
-| `~/.config/opencode/agents/adv-researcher.md` | **Advance**       | ADV agent                                          |
-| `~/.config/opencode/agents/tron.md`           | **Advance**       | ADV agent                                          |
+| `~/.config/opencode/agents/adv.md`            | **Advance**       | ADV orchestrator agent (via sync-global.sh)        |
+| `~/.config/opencode/agents/plan.md`           | **Advance + overlay** | ADV agent with overlay block                   |
+| `~/.config/opencode/agents/scout.md`          | **Advance + overlay** | ADV agent with overlay block                   |
+| `~/.config/opencode/agents/refine.md`         | **Advance + overlay** | ADV agent with overlay block                   |
+| `~/.config/opencode/agents/adv-researcher.md` | **Advance**       | ADV agent (repo-scoped)                            |
+| `~/.config/opencode/agents/tron.md`           | **Advance**       | ADV agent (repo-scoped)                            |
 | `~/.config/opencode/command/adv-*.md`         | **Advance**       | ADV slash commands                                 |
 | `~/.config/opencode/command/oca-*.md`         | **oca**           | OpenCode Advance slash commands (if any)          |
 | `~/.config/opencode/skills/adv-*/`            | **Advance**       | ADV methodology skills                             |
-| `~/.config/opencode/skills/lgrep/`            | **oca**           | Tool selection skills                              |
-| `~/.config/opencode/skills/morph/`            | **oca**           | Tool selection skills                              |
-| `~/.config/opencode/skills/prioritizer/`      | **oca**           | Shared methodology skill                           |
-| `~/.config/opencode/skills/worktree/`         | **oca**           | Shared methodology skill                           |
-| `~/.config/opencode/skills/mcp-selection/`    | **oca**           | Tool selection skill                               |
+| `~/.config/opencode/skills/lgrep/`            | **oca**           | Code exploration tool selection skill               |
+| `~/.config/opencode/skills/morph/`            | **oca**           | Edit tool selection skill                           |
+| `~/.config/opencode/skills/prioritizer/`      | **oca**           | Tradeoff analysis methodology skill                 |
+| `~/.config/opencode/skills/worktree/`         | **oca**           | Git worktree workflow skill                         |
+| `~/.config/opencode/skills/mcp-selection/`    | **oca**           | MCP tool selection decision matrix skill            |
+| `~/.config/opencode/skills/caveman/`          | **oca**           | Compressed communication mode skill                 |
+| `~/.config/opencode/skills/caveman-commit/`   | **oca**           | Compressed commit message skill                     |
+| `~/.config/opencode/skills/caveman-review/`   | **oca**           | Compressed code review comments skill               |
 | `~/.config/opencode/instructions/identity.md` | **oca**           | Environment-level instruction                      |
 | `~/.config/opencode/instructions/rules.yaml`  | **oca**           | Environment-level instruction                      |
+| `~/.config/opencode/instructions/shell_strategy.md` | **oca**     | Environment-level instruction                      |
+| `~/.config/opencode/instructions/test_resource_guardrails.md` | **oca** | Environment-level instruction                      |
+| `~/.config/opencode/instructions/lbp.md`      | **oca**           | Environment-level instruction                      |
+| `~/.config/opencode/instructions/temp_directory.md` | **oca**     | Environment-level instruction                      |
+| `~/.config/opencode/instructions/mcp-tools.md` | **oca**          | Environment-level instruction                      |
+| `~/.config/opencode/instructions/lgrep-tools.md` | **oca**        | Environment-level instruction                      |
+| `~/.config/opencode/instructions/morph-tools.md` | **oca**        | Environment-level instruction                      |
+| `~/.config/opencode/instructions/worktree-guide.md` | **oca**     | Environment-level instruction                      |
+| `~/.config/opencode/instructions/caveman.md`  | **oca**           | Environment-level instruction                      |
 | `~/.config/opencode/instructions/ADV_*.md`    | **Advance**       | Advance instruction (path referenced)              |
 | `~/.config/vision/servers.yaml`               | **oca**           | Rendered from stack.toml                           |
 | `~/.tmux.conf` (OCA block only)               | **oca**           | Managed block, rest is user-owned                  |

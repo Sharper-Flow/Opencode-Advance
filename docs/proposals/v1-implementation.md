@@ -15,7 +15,7 @@ The user currently runs two entangled projects that together provide their OpenC
 
 1. **`open-chad`** (`JRedeker/open-chad`) — a bash-based meta-installer built in early 2025. It provisions a tmux-driven environment (sessions, status bar, boot animation, LLM quota gauges), installs a small set of plugins, and copies canned files into `~/.config/opencode/`. Visual identity is playful — synthwave colors, per-session randomized borders, NvChad-inspired agent palette, "chad"-era branding throughout.
 
-2. **`Advance`** (`Sharper-Flow/Advance`) — a TypeScript OpenCode plugin for spec-driven development. It provides slash commands (`/adv-*`), sub-agents (plan/scout/refine/adv-researcher/tron), skills, and workflow state management. Runs standalone. Has its own sync script (`scripts/sync-global.sh`) that copies its assets to `~/.config/opencode/`.
+2. **`Advance`** (`Sharper-Flow/Advance`) — a TypeScript OpenCode plugin for spec-driven development. It provides slash commands (`/adv-*`), a dedicated ADV orchestrator agent, sub-agents (plan/scout/refine/adv-researcher/tron), skills, and workflow state management. Runs standalone. Has its own sync script (`scripts/sync-global.sh`) that copies its assets and injects overlay blocks into shared agents in `~/.config/opencode/`.
 
 Both projects write to `~/.config/opencode/`. The overlap is 19 files (4 agents, 15 commands, plus skills). The agent files are divergent supersets — Advance versions add ADV tool grants and overlay markers that the open-chad versions lack. Whichever project's sync script runs last wins.
 
@@ -95,14 +95,20 @@ The v1.0 release is ready when all of the following are true:
 
 `stack.toml` and `oca apply` manage all of:
 
-- [ ] MCP servers (all 9 in the user's actual stack): vision, context7, svelte-mcp, kagi, firecrawl, lgrep, playwright, grep-app, sentry
-- [ ] Plugins (all 6): advance, morph-fast-apply, vision-opencode, openai-codex-auth, md-table-formatter, anthropic-auth
-- [ ] Instructions (all 11): identity, rules, shell_strategy, test_resource_guardrails, lbp, temp_directory, mcp-tools, lgrep-tools, morph-tools, worktree-guide, ADV_INSTRUCTIONS (auto-wired)
-- [ ] Providers: google (4 Gemini variants), openai (GPT-5.1, 5.1-codex, 5.1-codex-max, 5.1-codex-mini, 5.2, 5.2-codex with all reasoning variants), openrouter (Claude Haiku 4.5 Nitro)
-- [ ] Agents: build, plan, scout, refine, librarian, explore → model mapping
-- [ ] Permissions: default, external_directory, bash
+**Curated v1 baseline (not an exact mirror of the maintainer's live environment):**
+
+- [ ] MCP servers: all relevant servers can be declared with explicit `autostart` / `enabled` semantics; the curated v1 example includes 9 core servers (vision, context7, svelte-mcp, kagi, firecrawl, lgrep, playwright, grep-app, sentry), while additional on-demand servers (arxiv-mcp, pokeedge data/sync ops, etc.) remain modelable in `stack.toml`
+- [ ] Plugins: advance, morph-fast-apply, vision-opencode, openai-codex-auth, md-table-formatter, anthropic-auth — mix of git checkout and npm sources
+- [ ] Skills: 8 OCA-owned skills (lgrep, mcp-selection, morph, prioritizer, worktree, caveman, caveman-commit, caveman-review) copied from `assets/skills/` to `~/.config/opencode/skills/`; ADV methodology skills remain plugin-owned
+- [ ] Instructions: identity, rules, shell_strategy, test_resource_guardrails, lbp, temp_directory, mcp-tools, lgrep-tools, morph-tools, worktree-guide, caveman, ADV_INSTRUCTIONS (auto-wired via plugin)
+- [ ] Providers: google (Gemini 2.5-flash, 2.5-pro, 3-flash-preview, 3-pro-preview), openai (GPT-5.2 with reasoning variants), openrouter (Claude Haiku 4.5 Nitro) — curated baseline, not all live models
+- [ ] Agents: adv, build, plan, scout, refine, librarian, explore, general, mechanic, tron, adv-researcher → model mapping
+- [ ] Permissions: default, doom_loop, external_directory, bash
 - [ ] Watcher: ignore globs
 - [ ] LSP: pyrefly, pyright, typescript, typescript-language-server
+- [ ] Formatters: custom formatter config rendered into `opencode.json` `.formatter`
+- [ ] Custom commands: project-specific slash commands rendered into `opencode.json` `.command`
+- [ ] OpenCode toggles: default_agent, share, snapshot, autoupdate, compaction, disabled_providers, enabled_providers
 - [ ] Session/UX: prefix, reaper, theme, boot_splash
 - [ ] Discord: enabled, mode
 
@@ -151,7 +157,7 @@ Explicitly out of scope for the first release:
 - Plugin marketplace / discovery
 - Non-OpenCode IDE integration
 - Multi-user / team configuration sharing
-- Encrypted secrets management beyond `env_file` references
+- Custom secrets management layer — OpenCode natively supports `{env:VARIABLE_NAME}` and `{file:path}` variable substitution which should be preferred over OCA-specific abstractions; `env_file` remains supported for `.env` file loading; password manager integration deferred to v1.1
 - Automatic plugin version updates (user must run `oca update` explicitly)
 
 ---
@@ -213,18 +219,19 @@ See [`phases.md`](phases.md) for the full phase sequencing. Rough shape:
 1. **Phase 0: Foundation + brand** — repo, scaffold, palette, wordmark, theme specs
 2. **Phase 1: stack.toml + MCP apply** — parser, schema, MCP rendering, Vision integration
 3. **Phase 2: Plugin + instruction management** — plugin lifecycle, ADV delegation, instructions rendering
-4. **Phase 3: Providers + agents + permissions + LSP + watcher** — full opencode.json coverage, diff command
-5. **Phase 4: Session + theme** — tmux lifecycle, obsidian theme, new status bar, boot splash
-6. **Phase 5: Installer + shell** — `oca install`, shell profile wiring, completions
-7. **Phase 6: Migration + doctor** — `oca migrate from-open-chad`, expanded doctor, ADV state integration
-8. **Phase 7: Extras + polish** — Discord (new taglines), release pipeline, final README
+4. **Phase 3: Core opencode.json coverage** — providers, agents, permissions, LSP, watcher, diff command
+5. **Phase 3.5: Skills + commands + formatters + toggles** — OCA-owned skills, custom commands, formatter config, OpenCode-level toggles
+6. **Phase 4: Session + theme** — tmux lifecycle, obsidian theme, new status bar, boot splash
+7. **Phase 5: Installer + shell** — `oca install`, shell profile wiring, completions
+8. **Phase 6: Migration + doctor** — `oca migrate from-open-chad`, expanded doctor, ADV state integration
+9. **Phase 7: Extras + polish** — Discord (new taglines), release pipeline, final README
 
-Estimated total: 6-9 weeks of focused work.
+Estimated total: 6.5-8.5 weeks of focused work.
 
 ### Development methodology
 
 - Every phase is one or more ADV changes in this repository
-- Each change follows the full 6-gate workflow: research → prep → implementation → review → harden → signoff
+- Each change follows the full 7-gate workflow: proposal → discovery → design → planning → execution → acceptance → release
 - TDD is mandatory for all Go code (test before implementation)
 - Phase dependencies are strict: Phase N cannot start until Phase N-1 archives successfully
 - Integration tests run the full oca install → apply → doctor cycle against isolated test environments
@@ -261,63 +268,33 @@ Estimated total: 6-9 weeks of focused work.
 | Vision daemon YAML format changes                                              | Low        | Low    | Vision is self-owned, can coordinate changes                                                 |
 | Go template complexity for nested opencode.json structures                     | Medium     | Medium | Write golden-file tests for every template; keep templates flat where possible                |
 | Migration from open-chad loses user customizations                             | Medium     | High   | Conservative migration: emit to file for user review, don't auto-apply; preserve `.bak` files |
-| 6-9 week estimate is too optimistic                                            | High       | Medium | Phase boundaries allow re-planning between phases; deferring polish to v1.1 if needed        |
+| 6.5-8.5 week estimate is too optimistic                                        | High       | Medium | Phase boundaries allow re-planning between phases; deferring polish to v1.1 if needed        |
 | New obsidian theme looks worse than open-chad's synthwave theme                | Low        | Low    | Preview early in Phase 4; get user feedback before committing                                |
 | Clean cutover fails (open-chad residue left behind)                            | Medium     | Medium | Migration script includes `open-chad uninstall` verification; doctor reports open-chad residue |
 | Dependency on Vision daemon availability during install                        | High       | Low    | Vision install is required; document as prerequisite; non-fatal degradation if Vision missing |
 
 ---
 
-## Open questions (to resolve during research phase)
+## Open questions (to resolve during per-phase research)
 
-1. **Exact OpenCode theme JSON schema.** What keys does OpenCode expect in `themes/obsidian.json`? Verify against OpenCode's theme documentation before implementing.
+### Resolved during planning
 
-2. **cobra vs urfave/cli.** Both are mature. cobra is more standard. Final choice: cobra unless research reveals specific urfave/cli advantages.
+1. **cobra vs urfave/cli.** ✅ Resolved: cobra. Standard, well-maintained, widely adopted.
 
-3. **TOML parser choice.** `pelletier/go-toml/v2` is the de facto standard; `BurntSushi/toml` is the older alternative. Final choice: pelletier v2 unless performance or API surface issues arise.
+2. **TOML parser choice.** ✅ Resolved: `pelletier/go-toml/v2`. De facto standard.
 
-4. **Secrets handling.** `env_file` references in stack.toml assume a `.env` file format. Consider: should OCA support fetching secrets from a password manager (pass, bitwarden, etc.) as an alternative? Deferred to v1.1.
+3. **Secrets handling.** ✅ Resolved: prefer OpenCode native `{env:VARIABLE_NAME}` and `{file:path}` variable substitution in rendered `opencode.json` values. OCA passes these tokens through unchanged — it does not resolve them itself. `env_file` remains supported for cases where `.env` file loading is preferred. Password manager integration deferred to v1.1.
 
-5. **Cross-platform boot splash.** The ASCII wordmark uses Unicode box-drawing characters. Verify rendering on WSL2 Windows Terminal, mosh, SSH, and tmux across multiple terminal emulators.
+4. **Provider allow/deny lists.** ✅ Resolved: use `disabled_providers` and `enabled_providers` in `[opencode]` table; `disabled_providers` takes precedence over `enabled_providers`.
 
-6. **Go binary size.** Expect ~15-25 MB static binary. Acceptable for CLI tool but worth measuring.
+### Open (to resolve during discovery for each relevant phase)
 
-7. **`oca add mcp <name>` interactive UX.** How interactive should the add wizard be? Full prompt-by-prompt, or a one-shot `--port 6280 --command npx --args "..."` flag style? Research what users prefer.
+1. **Exact OpenCode theme JSON schema.** What keys does OpenCode expect in `themes/obsidian.json`? Verify against OpenCode's theme documentation before implementing in Phase 4.
 
----
+2. **Cross-platform boot splash.** The ASCII wordmark uses Unicode box-drawing characters. Verify rendering on WSL2 Windows Terminal, mosh, SSH, and tmux across multiple terminal emulators. Needs verification in Phase 0.
 
-## Deliverables
+3. **Go binary size.** Expect ~15-25 MB static binary. Acceptable for CLI tool but worth measuring.
 
-When v1.0 is archived:
+4. **`oca add mcp <name>` interactive UX.** How interactive should the add wizard be? Full prompt-by-prompt, or a one-shot `--port 6280 --command npx --args "..."` flag style? Decide in Phase 1.
 
-### Code
-
-- `cmd/oca/` — complete CLI binary
-- `internal/config/`, `internal/render/`, `internal/health/`, `internal/migrate/` — Go packages
-- `lib/` — bash integration scripts (theme, status bar, boot splash, session lifecycle)
-- `assets/` — agents, instructions, skills, themes
-- `templates/` — Go templates for rendering
-
-### Documentation
-
-- Updated `README.md` with install instructions and command reference
-- `INSTALL.md` with detailed installation guide
-- `docs/design/*` — all design documents finalized
-- `docs/proposals/*` — archived (or moved to `docs/history/`)
-- `CHANGELOG.md` — generated from git log
-- Per-command help via `oca help`
-
-### Release artifacts
-
-- GitHub Release with cross-platform binaries (linux/amd64, linux/arm64)
-- SHA256SUMS.txt
-- Signed release notes
-- Docker image (optional, stretch goal)
-
-### Verification
-
-- `oca doctor` returns clean on a reference stack
-- `oca migrate from-open-chad` successfully reads the maintainer's personal open-chad state and emits a valid stack.toml
-- End-to-end install in a fresh Ubuntu 22.04 VM succeeds
-- All CI jobs pass on trunk
-- Manual smoke test on a fresh WSL2 Ubuntu environment
+5. **On-demand MCP health checks.** Should `oca doctor` check on-demand servers at all, or only autostart ones? Decide in Phase 1.

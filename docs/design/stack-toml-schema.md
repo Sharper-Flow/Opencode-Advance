@@ -17,6 +17,10 @@ This document is the canonical reference for the `stack.toml` schema. A complete
 | `[lsp.*]`          | no       | LSP server configurations                          |
 | `[session]`        | no       | tmux session / UX settings                          |
 | `[discord]`        | no       | Discord Rich Presence config                       |
+| `[skills]`         | no       | OCA-owned skills to copy to `~/.config/opencode/skills/` |
+| `[formatters.*]`   | no       | Custom code formatters rendered into `opencode.json` `.formatter` |
+| `[commands.*]`     | no       | Custom slash commands rendered into `opencode.json` `.command`    |
+| `[opencode]`       | no       | OpenCode-level toggles (default_agent, sharing, updates, compaction, provider lists) |
 
 Missing optional tables mean "use defaults" — OCA ships sane defaults for each.
 
@@ -61,13 +65,18 @@ enabled   = true
 | `command`       | string   | yes\*    | —       | Executable to spawn. Required for `type=stdio`.                            |
 | `args`          | string[] | no       | `[]`      | Command arguments                                                        |
 | `env`           | table    | no       | `{}`      | Environment variables passed to the server                               |
-| `env_file`      | string   | no       | —       | Path to a `.env` file with sensitive values; not committed              |
+| `env_file`      | string   | no       | —       | Path to a `.env` file with sensitive values; not committed. For new configs, prefer `{env:VAR_NAME}` values in `env`. |
 | `url`           | string   | no       | —       | For `type=remote` only                                                     |
 | `timeout`       | integer  | no       | `5000`    | Request timeout in milliseconds                                          |
 | `autostart`     | boolean  | no       | `true`    | Whether Vision should auto-start this server                            |
 | `required`      | boolean  | no       | `false`   | If true, `oca apply` aborts on failure to install/verify                   |
 | `source`        | string   | no       | —       | Source URL for documentation / traceability                              |
 | `enabled`       | boolean  | no       | `true`    | Set false to keep the declaration but disable                           |
+
+**Type-specific requirements:**
+- `type=stdio` (default) → `command` is required; `args` are optional
+- `type=remote` → `url` is required
+- `type=daemon` → neither `command` nor `url` is used; the daemon is managed externally
 
 ### Required MCP servers
 
@@ -291,21 +300,178 @@ Tagline pool lives separately at `lib/discord/taglines.toml` (data-driven, repla
 
 ---
 
+## `[skills]`
+
+Declares which OCA-owned skills should be copied from `assets/skills/` to `~/.config/opencode/skills/` during `oca apply`.
+
+```toml
+[skills]
+order = [
+  "lgrep",
+  "mcp-selection",
+  "morph",
+  "prioritizer",
+  "worktree",
+  "caveman",
+  "caveman-commit",
+  "caveman-review",
+]
+```
+
+| Field  | Type     | Required | Default | Notes                                                              |
+| ------ | -------- | -------- | ------- | ------------------------------------------------------------------ |
+| `order`  | string[] | no       | all     | Skills to copy in declared order. Omit to copy all OCA-owned skills. |
+
+**Ownership rule:** Only OCA-owned skills may be listed here. Plugin-owned skills (for example ADV methodology skills under `adv-*/`) are managed by their plugin's sync script and MUST NOT appear in this list.
+
+---
+
+## `[formatters.<name>]`
+
+Custom code formatters rendered into `opencode.json` `.formatter`. Each entry defines one formatter. Use `disabled = true` to disable a built-in formatter without defining a replacement.
+
+```toml
+[formatters.prettier]
+command     = ["npx", "prettier", "--write", "$FILE"]
+extensions  = [".ts", ".tsx", ".js", ".jsx", ".svelte", ".json", ".md"]
+
+[formatters.prettier.environment]
+NODE_OPTIONS = "--max-old-space-size=4096"
+
+[formatters.ruff]
+command    = ["ruff", "format", "$FILE"]
+extensions = [".py"]
+
+# Disable a built-in formatter:
+[formatters.gofmt]
+disabled = true
+```
+
+| Field       | Type     | Required | Default | Notes                                                             |
+| ----------- | -------- | -------- | ------- | ----------------------------------------------------------------- |
+| `command`     | string[] | yes*     | —       | Formatter command + args. `$FILE` is replaced with the file path. Required unless `disabled = true`. |
+| `extensions`  | string[] | yes*     | —       | File extensions this formatter handles. Required unless `disabled = true`. |
+| `disabled`    | boolean  | no       | `false`   | Set true to disable a built-in formatter. Omit `command`/`extensions` when set. |
+| `environment` | table    | no       | `{}`      | Environment variables for the formatter process.                  |
+
+Rendered into `opencode.json` `.formatter.<name>`.
+
+---
+
+## `[commands.<name>]`
+
+Custom slash commands rendered into `opencode.json` `.command`. Each entry defines one command available in the OpenCode command palette.
+
+```toml
+[commands.review-pr]
+description = "Review the current PR with conventional comments"
+template    = "Review the pull request at $ARGUMENTS for correctness, security, and clarity."
+agent       = "adv"
+model       = "anthropic/claude-opus-4-6"
+
+[commands.test-coverage]
+description = "Run tests with coverage and report failures"
+template    = "Run the full test suite with coverage. Show failures and suggest fixes."
+agent       = "build"
+```
+
+| Field        | Type   | Required | Default | Notes                                                          |
+| ------------ | ------ | -------- | ------- | -------------------------------------------------------------- |
+| `description`  | string | yes      | —       | Shown in the OpenCode command picker                           |
+| `template`     | string | yes      | —       | Prompt template. `$ARGUMENTS` is replaced with user-provided text. |
+| `agent`        | string | no       | —       | Target agent name                                              |
+| `model`        | string | no       | —       | Override model for this command. Falls back to agent default.  |
+
+Rendered into `opencode.json` `.command.<name>`.
+
+---
+
+## `[opencode]`
+
+Top-level OpenCode behavior toggles rendered directly into `opencode.json`. These map to native OpenCode config keys without transformation.
+
+```toml
+[opencode]
+theme          = "obsidian"    # OpenCode UI theme name
+default_agent  = "adv"        # default primary agent
+share          = "disabled"   # "manual", "auto", or "disabled"
+snapshot       = true         # file change snapshots (set false for large repos)
+autoupdate     = false        # true, false, or "notify"
+
+[opencode.compaction]
+auto     = true
+prune    = true
+reserved = 10000              # token buffer to reserve during compaction
+
+[opencode.disabled_providers]
+list = ["ollama"]
+
+[opencode.enabled_providers]
+list = ["google", "openai", "openrouter"]
+```
+
+| Field                     | Type          | Required | Default    | Notes                                                            |
+| ------------------------- | ------------- | -------- | ---------- | ---------------------------------------------------------------- |
+| `theme`                     | string        | no       | —          | OpenCode UI theme name (controls terminal color scheme)          |
+| `default_agent`             | string        | no       | —          | Default primary agent used for new sessions                      |
+| `share`                     | string        | no       | `"manual"`   | `"manual"` (on-demand), `"auto"`, or `"disabled"`                  |
+| `snapshot`                  | boolean       | no       | `true`       | Disable for large repos where file change tracking is slow       |
+| `autoupdate`                | bool/string   | no       | `true`       | `true`, `false`, or `"notify"` (alert without auto-downloading)    |
+| `compaction.auto`           | boolean       | no       | `true`       | Auto-compact context when approaching token limits               |
+| `compaction.prune`          | boolean       | no       | `true`       | Prune old tool outputs during compaction                         |
+| `compaction.reserved`       | integer       | no       | —          | Token buffer to keep free during compaction                      |
+| `disabled_providers.list`   | string[]      | no       | `[]`         | Blocklist. Takes precedence over `enabled_providers`.            |
+| `enabled_providers.list`    | string[]      | no       | `[]`         | Allowlist. If set, only listed providers are available.          |
+
+Note: `disabled_providers` takes precedence over `enabled_providers`. If a provider appears in both, it is disabled.
+
+Rendered directly into `opencode.json` at the top level.
+
+---
+
 ## Variable interpolation
 
-The following tokens are resolved at parse time:
+OCA supports two classes of token resolution:
 
-| Token          | Resolves to                                  |
-| -------------- | --------------------------------------------- |
-| `$HOME`          | User home directory                          |
-| `~/...`          | Same as `$HOME/...`                             |
-| `{checkout}`     | Value of `checkout` field in the same plugin block |
-| `{subdir}`       | Value of `subdir` field in the same plugin block   |
-| `$XDG_CONFIG_HOME` | Resolved environment variable                |
-| `$XDG_DATA_HOME`   | Resolved environment variable                |
-| `${ENV_VAR}`     | Any environment variable                     |
+### OCA-resolved tokens (resolved at parse time)
 
-Unknown tokens cause a validation error.
+The following tokens are resolved by OCA before rendering to `opencode.json`:
+
+| Token              | Resolves to                                          |
+| ------------------ | ---------------------------------------------------- |
+| `$HOME`              | User home directory                                  |
+| `~/...`              | Same as `$HOME/...`                                    |
+| `{checkout}`         | Value of `checkout` field in the same plugin block   |
+| `{subdir}`           | Value of `subdir` field in the same plugin block     |
+| `$XDG_CONFIG_HOME`   | Resolved environment variable                        |
+| `$XDG_DATA_HOME`     | Resolved environment variable                        |
+| `${ENV_VAR}`         | Any environment variable                             |
+
+Unknown OCA tokens cause a validation error.
+
+### Native OpenCode tokens (passed through to opencode.json)
+
+OpenCode itself supports native variable substitution in config values. OCA **passes these tokens through unchanged** — it does not resolve them. OpenCode resolves them at runtime:
+
+| Token                  | OpenCode behavior                                                |
+| ---------------------- | ---------------------------------------------------------------- |
+| `{env:VARIABLE_NAME}`    | Substituted with the value of the named environment variable     |
+| `{file:path/to/file}`    | Substituted with the contents of the file at the given path      |
+
+**Use `{env:...}` and `{file:...}` for secrets and dynamic values** instead of OCA-specific `env_file` references where possible. These tokens are natively understood by OpenCode and avoid the need for OCA to resolve or store sensitive values.
+
+Example:
+```toml
+[mcp.servers.kagi]
+port    = 6279
+command = "uvx"
+args    = ["--from", "kagimcp", "kagimcp"]
+
+[mcp.servers.kagi.env]
+KAGI_API_KEY = "{env:KAGI_API_KEY}"
+```
+
+The `env_file` field on MCP servers remains supported for cases where `.env` file loading is preferred over runtime environment variable injection.
 
 ---
 

@@ -9,43 +9,50 @@ This file is the fastest way to resume work in `~/dev/opencodeadvance` later.
 - The compact 3-line pagga wordmark is the canonical form everywhere
 - CI verifies the scaffold builds and tests cleanly
 - No real implementation work has started yet
-- No ADV change has been created in this repo yet
+- **Active ADV change:** `refreshOcaPlanningDocs` — planning doc refresh (complete through planning gate)
 
 ## Resume from here
 
-Open OpenCode in this repo and start the ADV workflow:
+Open OpenCode in this repo:
 
 ```bash
 cd ~/dev/opencodeadvance
 opencode
 ```
 
-Then run these in order:
+### If planning doc refresh is not yet archived
 
-1. `/adv-status`
-2. `/adv-proposal OpenCode Advance v1.0 — clean rewrite of open-chad as a declarative Go-based configuration platform`
-3. Use `docs/proposals/v1-implementation.md` as the proposal body
-4. `/adv-proposal Phase 0: Foundation + brand — go.mod, wordmark render, palette, boot splash`
-5. `/adv-research opencodeAdvancePhase0`
-6. `/adv-prep opencodeAdvancePhase0`
-7. `/adv-apply opencodeAdvancePhase0`
+Check status and finish the `refreshOcaPlanningDocs` change first:
+
+```
+/adv-status
+```
+
+Then apply, review, and archive it before starting Phase 0.
+
+### After planning doc refresh is archived — start Phase 0
+
+1. `/adv-proposal Phase 0: Foundation + brand — go.mod, wordmark render, palette, boot splash`
+2. `/adv-discover opencodeAdvancePhase0`
+3. `/adv-agree opencodeAdvancePhase0`
+4. `/adv-design opencodeAdvancePhase0`
+5. `/adv-prep opencodeAdvancePhase0`
+6. `/adv-apply opencodeAdvancePhase0`
 
 ## Recommended workflow
 
-- Keep `opencodeAdvanceV1` as the umbrella / tracking change
-- Do implementation in separate per-phase changes
-- Start with **Phase 0** as its own change
+- Keep `refreshOcaPlanningDocs` archived before starting any implementation change
+- Do implementation in separate per-phase changes following `docs/proposals/phases.md`
+- Start with **Phase 0** as the first implementation change
 - Archive each phase before starting the next one
 
-## Immediate implementation target
+## Immediate implementation target (Phase 0)
 
-Phase 0 deliverables:
-
-- add `cobra`
-- replace the scaffold CLI with a minimal `oca version` flow
-- implement `lib/palette.sh`
-- implement `lib/wordmark.sh`
-- implement `lib/boot_splash.sh` (minimal, no fancy animation required yet)
+- initialize `go.mod` and add `cobra` dependency
+- replace the scaffold CLI with a minimal `oca version` subcommand
+- implement `lib/palette.sh` with all color constants
+- implement `lib/wordmark.sh` with render function
+- implement `lib/boot_splash.sh` (minimal — no animation yet, just render the wordmark)
 - keep CI green
 
 ## Constraints to keep in mind
@@ -59,7 +66,8 @@ Phase 0 deliverables:
 
 - `STATUS.md` — project snapshot
 - `docs/proposals/first-boot.md` — exact ADV startup flow
-- `docs/proposals/v1-implementation.md` — umbrella proposal content
-- `docs/proposals/phases.md` — implementation sequencing
+- `docs/proposals/v1-implementation.md` — umbrella proposal content (refreshed)
+- `docs/proposals/phases.md` — implementation sequencing (refreshed, includes Phase 3.5)
 - `docs/design/architecture.md` — system shape
-- `docs/design/stack-toml-schema.md` — declarative config model
+- `docs/design/stack-toml-schema.md` — declarative config model (refreshed)
+- `stack.example.toml` — complete reference example (refreshed)

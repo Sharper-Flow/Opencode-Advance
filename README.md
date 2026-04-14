@@ -207,7 +207,7 @@ Detailed installation guidance will land closer to v1.0 in `INSTALL.md`.
 
 ## Quick start for future resume
 
-When you come back later and want to start implementation:
+When you come back later and want to start or continue implementation:
 
 ```bash
 cd ~/dev/opencodeadvance
@@ -216,12 +216,12 @@ opencode
 
 Then:
 
-1. `/adv-status`
-2. create the umbrella v1 proposal
-3. create the dedicated Phase 0 proposal
-4. start Phase 0 with `/adv-research`, `/adv-prep`, and `/adv-apply`
+1. `/adv-status` — check for any active changes to complete first
+2. Archive `refreshOcaPlanningDocs` if not yet done
+3. Create the dedicated Phase 0 proposal and walk the 7-gate workflow
+4. Start Phase 0 with `/adv-discover`, `/adv-design`, `/adv-prep`, and `/adv-apply`
 
-`NEXT_STEPS.md` contains the exact sequence.
+`NEXT_STEPS.md` contains the exact sequence and current state.
 
 ## Contributing
 
