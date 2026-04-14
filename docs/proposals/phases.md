@@ -169,7 +169,7 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 
 ## Phase 3.5: Skills + Commands + Formatters + OpenCode Toggles
 
-**Goal:** Complete declarative coverage of the remaining `opencode.json` surfaces: OCA-owned skill management, custom slash commands, code formatters, and OpenCode-level behavior toggles. Fills the gap between core config (Phase 3) and session/theme work (Phase 4).
+**Goal:** Complete declarative coverage of the remaining `opencode.json` surfaces: OCA-owned skill management, custom slash commands, code formatters, and OpenCode-level behavior toggles. Fills the gap between core config (Phase 3) and primary client/theme work (Phase 4).
 
 **Estimate:** 3-4 days
 
@@ -207,15 +207,15 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 
 ---
 
-## Phase 4: Session + Theme
+## Phase 4: Primary Client UX + Theme
 
-**Goal:** tmux session lifecycle, Obsidian theme (OpenCode UI + tmux), redesigned status bar, new boot splash with animation. Builds on full config coverage from Phases 3 and 3.5.
+**Goal:** current tmux-first client/session lifecycle, Obsidian theme, redesigned status bar, and new boot splash with animation. Builds on full config coverage from Phases 3 and 3.5.
 
 **Estimate:** 1-1.5 weeks
 
 **Deliverables:**
 
-- `assets/themes/obsidian.json` — OpenCode UI theme
+- `assets/themes/obsidian.json` — primary client theme asset (current OpenCode/TUI target)
 - `assets/themes/obsidian.tmux.conf` — tmux status bar theme
 - `lib/status_bar.sh` — status bar renderers (replaces `status_left.sh`, `status_right.sh`)
 - `lib/boot_splash.sh` — full boot splash with animation (indigo pulse, wordmark reveal)
@@ -226,9 +226,9 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 
 **Exit criteria:**
 
-- `oca session new` creates a tmux session, shows the boot splash, drops into OpenCode in the current directory
+- `oca session new` creates a tmux session, shows the boot splash, and launches the configured primary client in the current directory
 - `oca session list` shows active sessions
-- Obsidian theme loads cleanly in OpenCode with all palette colors applied
+- Obsidian theme loads cleanly in the current primary client with all palette colors applied
 - Status bar shows: session title + ADV change (row 0 left), repo/branch/worktree (row 0 right), window name (row 1 left), metrics + LLM gauges + clock (row 1 right)
 - Boot splash renders wordmark with indigo+ pulse effect on truecolor terminals
 - Stale session reaper cleans up unattached `oca-*` sessions
@@ -246,7 +246,7 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 - tk-phase4-08: Implement ADV state reading for status bar
 - tk-phase4-09: Implement LLM fuel gauge renderer (reuse open-chad logic, rewrite in clean form)
 - tk-phase4-10: Write tmux config block template
-- tk-phase4-11: Integration test: session new → boot splash → OpenCode launches
+- tk-phase4-11: Integration test: session new → boot splash → primary client launches
 - tk-phase4-12: Manual verification: visual check of status bar on truecolor + 256-color terminals
 
 ---
@@ -406,17 +406,17 @@ Minor fixes, typos, doc updates, and CI tweaks can be committed outside of ADV c
 
 ## Estimated timeline
 
-| Phase                                    | Estimate    | Cumulative    |
-| ---------------------------------------- | ----------- | ------------- |
-| 0: Foundation + brand                    | 3-5 days    | 0.5-1 week    |
-| 1: stack.toml + MCP apply                | 1-2 weeks   | 1.5-3 weeks   |
-| 2: Plugin + instruction mgmt             | 1 week      | 2.5-4 weeks   |
-| 3: Core opencode.json coverage           | 1 week      | 3.5-5 weeks   |
-| 3.5: Skills + commands + formatters      | 3-4 days    | 4-5.5 weeks   |
-| 4: Session + theme                       | 1-1.5 weeks | 5-7 weeks     |
-| 5: Installer + shell                     | 4-5 days    | 5.5-7.5 weeks |
-| 6: Migration + doctor                    | 4-5 days    | 6-8 weeks     |
-| 7: Extras + polish                       | 3-5 days    | 6.5-8.5 weeks |
+| Phase                               | Estimate    | Cumulative    |
+| ----------------------------------- | ----------- | ------------- |
+| 0: Foundation + brand               | 3-5 days    | 0.5-1 week    |
+| 1: stack.toml + MCP apply           | 1-2 weeks   | 1.5-3 weeks   |
+| 2: Plugin + instruction mgmt        | 1 week      | 2.5-4 weeks   |
+| 3: Core opencode.json coverage      | 1 week      | 3.5-5 weeks   |
+| 3.5: Skills + commands + formatters | 3-4 days    | 4-5.5 weeks   |
+| 4: Primary client UX + theme        | 1-1.5 weeks | 5-7 weeks     |
+| 5: Installer + shell                | 4-5 days    | 5.5-7.5 weeks |
+| 6: Migration + doctor               | 4-5 days    | 6-8 weeks     |
+| 7: Extras + polish                  | 3-5 days    | 6.5-8.5 weeks |
 
 **Total: 6-8 weeks of focused work.** Longer if interleaved with other work.
 

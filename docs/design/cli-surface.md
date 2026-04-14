@@ -10,13 +10,13 @@ The complete command reference for the `oca` binary. All commands share:
 
 Exit codes:
 
-| Code | Meaning                                    |
-| ---- | ------------------------------------------ |
-| `0`    | Success                                    |
-| `1`    | User error (bad arguments, missing file)   |
-| `2`    | Validation error (stack.toml invalid)      |
-| `3`    | Runtime error (network, IO, subprocess)    |
-| `130`  | Interrupted (Ctrl+C)                       |
+| Code  | Meaning                                  |
+| ----- | ---------------------------------------- |
+| `0`   | Success                                  |
+| `1`   | User error (bad arguments, missing file) |
+| `2`   | Validation error (stack.toml invalid)    |
+| `3`   | Runtime error (network, IO, subprocess)  |
+| `130` | Interrupted (Ctrl+C)                     |
 
 ---
 
@@ -30,7 +30,7 @@ First-time setup. Performs the full sequence:
 2. Install system prerequisites (prompts for sudo if needed)
 3. Clone and build all declared plugins
 4. Install/verify MCP server dependencies (Vision, etc.)
-5. Render `opencode.json`, `vision/servers.yaml`, tmux config block
+5. Render `opencode.json`, `vision/servers.yaml`, and tmux/client session config block
 6. Copy static assets to `~/.config/opencode/`
 7. Delegate ADV asset sync to Advance
 8. Wire shell profile (zsh/bash completions, PATH)
@@ -38,12 +38,12 @@ First-time setup. Performs the full sequence:
 
 Flags:
 
-| Flag          | Purpose                                         |
-| ------------- | ----------------------------------------------- |
-| `--yes`         | Non-interactive mode (for CI / unattended)     |
-| `--dry-run`     | Show what would happen without making changes |
-| `--skip-shell`  | Don't wire shell profile                       |
-| `--skip-tmux`   | Don't inject tmux config block                |
+| Flag           | Purpose                                       |
+| -------------- | --------------------------------------------- |
+| `--yes`        | Non-interactive mode (for CI / unattended)    |
+| `--dry-run`    | Show what would happen without making changes |
+| `--skip-shell` | Don't wire shell profile                      |
+| `--skip-tmux`  | Don't inject tmux config block                |
 
 ### `oca apply`
 
@@ -51,10 +51,10 @@ Re-render `stack.toml` into config files. Idempotent. Safe to re-run.
 
 Flags:
 
-| Flag       | Purpose                                |
-| ---------- | -------------------------------------- |
-| `--dry-run`  | Print the plan without applying       |
-| `--force`    | Re-render even if no changes detected |
+| Flag              | Purpose                                                                                                              |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `--dry-run`       | Print the plan without applying                                                                                      |
+| `--force`         | Re-render even if no changes detected                                                                                |
 | `--target <name>` | Apply only a specific target (mcp, plugins, instructions, providers, agents, permissions, lsp, watcher, theme, tmux) |
 
 ### `oca diff`
@@ -90,15 +90,15 @@ Checks:
 - All providers have at least one model declared
 - All agent model assignments reference known providers
 - Advance plugin state is readable
-- tmux theme is sourced in `~/.tmux.conf`
+- current tmux client-session theme is sourced in `~/.tmux.conf`
 
 Flags:
 
-| Flag              | Purpose                                        |
-| ----------------- | ---------------------------------------------- |
-| `--scope <scope>`   | Limit to one scope: `mcp`, `plugins`, `adv`, `shell` |
-| `--timeout <sec>`   | Per-check timeout (default 5s)                 |
-| `--parallel <n>`    | Max concurrent checks (default 8)              |
+| Flag              | Purpose                                              |
+| ----------------- | ---------------------------------------------------- |
+| `--scope <scope>` | Limit to one scope: `mcp`, `plugins`, `adv`, `shell` |
+| `--timeout <sec>` | Per-check timeout (default 5s)                       |
+| `--parallel <n>`  | Max concurrent checks (default 8)                    |
 
 ### `oca update`
 
@@ -180,11 +180,11 @@ Create a minimal starter `stack.toml` in the current directory.
 
 ---
 
-## Session commands
+## Primary client/session commands
 
 ### `oca session new [<project-path>]`
 
-Create a new tmux session. Replaces `openchad`/`oc` session creation.
+Create a new session in the current tmux-first client workflow. Replaces `openchad`/`oc` session creation.
 
 ```bash
 oca session new                    # launch in current directory
@@ -257,9 +257,9 @@ Disable Discord presence.
 Print the wordmark, version, commit SHA, build date, and Go version.
 
 ```
-  OpenCode ADVANCE
-  v1.0.0  ·  commit d4f5e6a  ·  built 2026-04-06  ·  go1.22.1
-  ~/dev/opencodeadvance
+OpenCode ADVANCE
+v1.0.0  ·  commit d4f5e6a  ·  built 2026-04-06  ·  go1.22.1
+~/dev/opencodeadvance
 ```
 
 ### `oca info`
@@ -267,12 +267,12 @@ Print the wordmark, version, commit SHA, build date, and Go version.
 Print resolved configuration paths:
 
 ```
-  stack.toml:               /home/jrede/stack.toml
-  opencode config:          /home/jrede/.config/opencode
-  vision config:            /home/jrede/.config/vision
-  plugin checkout root:     /home/jrede/dev/oc-plugins
-  cache dir:                /run/user/1000/opencode-advance
-  session log:              /run/user/1000/opencode-advance/sessions.log
+stack.toml:               /home/jrede/stack.toml
+opencode config:          /home/jrede/.config/opencode
+vision config:            /home/jrede/.config/vision
+plugin checkout root:     /home/jrede/dev/oc-plugins
+cache dir:                /run/user/1000/opencode-advance
+session log:              /run/user/1000/opencode-advance/sessions.log
 ```
 
 ### `oca completion <shell>`
@@ -303,15 +303,15 @@ List all available doctor checks without running them.
 
 ## Environment variables
 
-| Variable                    | Default                                     | Purpose                                        |
-| --------------------------- | ------------------------------------------- | ---------------------------------------------- |
-| `OCA_CONFIG`                  | `./stack.toml` or XDG path                    | Path to stack.toml                             |
-| `OCA_OPENCODE_CONFIG_DIR`     | `~/.config/opencode`                          | Target OpenCode config dir                    |
-| `OCA_VISION_CONFIG_DIR`       | `~/.config/vision`                            | Target Vision config dir                      |
-| `OCA_PLUGIN_CHECKOUT_ROOT`    | `~/dev/oc-plugins`                            | Where to clone plugins                        |
-| `OCA_CACHE_DIR`               | `$XDG_RUNTIME_DIR/opencode-advance`           | Runtime cache dir                             |
-| `OCA_LOG_LEVEL`               | `info`                                        | `debug`, `info`, `warn`, `error`                  |
-| `OCA_NO_COLOR`                | unset                                       | Disable ANSI color in output                  |
-| `OCA_BOOT_SPLASH`             | `1`                                           | Set `0` to disable boot splash                  |
+| Variable                   | Default                             | Purpose                          |
+| -------------------------- | ----------------------------------- | -------------------------------- |
+| `OCA_CONFIG`               | `./stack.toml` or XDG path          | Path to stack.toml               |
+| `OCA_OPENCODE_CONFIG_DIR`  | `~/.config/opencode`                | Target OpenCode config dir       |
+| `OCA_VISION_CONFIG_DIR`    | `~/.config/vision`                  | Target Vision config dir         |
+| `OCA_PLUGIN_CHECKOUT_ROOT` | `~/dev/oc-plugins`                  | Where to clone plugins           |
+| `OCA_CACHE_DIR`            | `$XDG_RUNTIME_DIR/opencode-advance` | Runtime cache dir                |
+| `OCA_LOG_LEVEL`            | `info`                              | `debug`, `info`, `warn`, `error` |
+| `OCA_NO_COLOR`             | unset                               | Disable ANSI color in output     |
+| `OCA_BOOT_SPLASH`          | `1`                                 | Set `0` to disable boot splash   |
 
 All environment overrides are respected for development, testing, and isolation.

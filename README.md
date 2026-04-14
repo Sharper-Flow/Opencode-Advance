@@ -10,7 +10,7 @@
 
 **A declarative, reproducible OpenCode environment and workflow platform.**
 
-*Status: Phase 0 foundation baseline implemented. Next milestone: Phase 1 config loading + validation. First stable release will be v1.0.*
+_Status: Phase 0 foundation baseline implemented. Next milestone: Phase 1 config loading + validation. First stable release will be v1.0._
 
 </div>
 
@@ -18,7 +18,7 @@
 
 ## What OpenCode Advance is
 
-OpenCode Advance (`oca`) is the configuration, installation, and session-management layer for [OpenCode](https://opencode.ai), paired with the [Advance](https://github.com/Sharper-Flow/Advance) spec-driven workflow plugin.
+OpenCode Advance (`oca`) is the configuration, installation, and client/session UX layer for [OpenCode](https://opencode.ai), paired with the [Advance](https://github.com/Sharper-Flow/Advance) spec-driven workflow plugin.
 
 The goal is simple:
 
@@ -26,7 +26,7 @@ The goal is simple:
 - one command to apply it: `oca apply`
 - one command to verify it: `oca doctor`
 
-The MCP servers, plugins, instructions, providers, agent model assignments, permissions, LSP config, watcher config, theme, and session behavior that make up an opinionated OpenCode environment are declared in a single file, rendered to the places OpenCode expects, and tracked for reproducibility.
+The MCP servers, plugins, instructions, providers, agent model assignments, permissions, LSP config, watcher config, theme, and primary client behavior that make up an opinionated OpenCode environment are declared in a single file, rendered to the places OpenCode expects, and tracked for reproducibility.
 
 ## Why it exists
 
@@ -50,10 +50,10 @@ OpenCode Advance is the clean rewrite:
 
 OpenCode Advance and Advance are paired, but separate.
 
-| Project | Repo | Role |
-| --- | --- | --- |
-| **Advance** | [Sharper-Flow/Advance](https://github.com/Sharper-Flow/Advance) | Spec-driven workflow plugin: specs, changes, tasks, gates, TDD evidence |
-| **OpenCode Advance** | [Sharper-Flow/Opencode-Advance](https://github.com/Sharper-Flow/Opencode-Advance) | Environment, installer, configuration, session UX, migration |
+| Project              | Repo                                                                              | Role                                                                    |
+| -------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Advance**          | [Sharper-Flow/Advance](https://github.com/Sharper-Flow/Advance)                   | Spec-driven workflow plugin: specs, changes, tasks, gates, TDD evidence |
+| **OpenCode Advance** | [Sharper-Flow/Opencode-Advance](https://github.com/Sharper-Flow/Opencode-Advance) | Environment, installer, configuration, client/session UX, migration     |
 
 You can run Advance without OpenCode Advance.
 
@@ -83,7 +83,7 @@ This repository now has a **real Phase 0 foundation baseline** in place.
 - no umbrella ADV change created yet
 - no `stack.toml` parser yet
 - no apply / doctor implementation yet
-- no installer / session lifecycle logic yet
+- no installer / client-session lifecycle logic yet
 
 ### Resume here
 
@@ -101,23 +101,23 @@ At v1.0, OpenCode Advance is intended to provide:
 - instruction, provider, agent, permission, watcher, and LSP rendering
 - clean ownership boundaries between OCA-owned and Advance-owned assets
 - migration from existing `open-chad` state into `stack.toml`
-- tmux session lifecycle, theme, boot splash, and shell integration
+- primary client/session lifecycle, theme, boot splash, and shell integration
 - doctor / diff / debug flows to verify and explain rendered state
 
 ## Planned command surface
 
 These commands describe the intended v1.0 UX. They are **design targets**, not current implementation status.
 
-| Command | Purpose |
-| --- | --- |
-| `oca apply` | Render declared stack config into target files |
-| `oca doctor` | Verify rendered environment health |
-| `oca diff` | Show drift between `stack.toml` and rendered state |
-| `oca pin` | Capture current plugin refs / SHAs for reproducibility |
-| `oca update` | Update dependencies and re-apply |
+| Command                      | Purpose                                                        |
+| ---------------------------- | -------------------------------------------------------------- |
+| `oca apply`                  | Render declared stack config into target files                 |
+| `oca doctor`                 | Verify rendered environment health                             |
+| `oca diff`                   | Show drift between `stack.toml` and rendered state             |
+| `oca pin`                    | Capture current plugin refs / SHAs for reproducibility         |
+| `oca update`                 | Update dependencies and re-apply                               |
 | `oca migrate from-open-chad` | Import current open-chad-managed environment into `stack.toml` |
-| `oca session` | Tmux session lifecycle management |
-| `oca debug` | Explain plans, validation, and rendered output |
+| `oca session`                | Primary client/session lifecycle management                    |
+| `oca debug`                  | Explain plans, validation, and rendered output                 |
 
 ## Development model
 
@@ -158,7 +158,7 @@ internal/health/         doctor checks
 internal/migrate/        open-chad import path
 assets/                  agent / instruction / skill / theme assets
 templates/               render targets for config files
-lib/                     shell-only helpers (palette, wordmark, tmux, splash)
+lib/                     shell/client UX helpers (palette, wordmark, tmux, splash)
 tests/                   integration and shell-level tests
 docs/design/             architecture, schema, brand, CLI, theme
 docs/proposals/          v1 proposal, phase plan, first-boot guide
@@ -171,7 +171,7 @@ Current intended target environment:
 
 - Linux (Ubuntu / Debian primary target; others best-effort)
 - `git`
-- `tmux` 3.2+
+- `tmux` 3.2+ (current planned primary session runtime)
 - OpenCode CLI
 - internet access for initial plugin and MCP setup
 - `vision` daemon available on `PATH`

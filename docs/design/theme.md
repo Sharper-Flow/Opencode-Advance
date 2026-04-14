@@ -1,8 +1,8 @@
 # Obsidian Theme Specification
 
-The default OpenCode Advance theme is **Obsidian** — a cohesive dark theme that applies the OCA brand palette to:
+The default OpenCode Advance theme is **Obsidian** — a cohesive dark theme that applies the OCA brand palette to current primary client surfaces and tmux/session surfaces:
 
-1. The OpenCode chat/input UI (`~/.config/opencode/themes/obsidian.json`)
+1. The current OpenCode chat/input UI target (`~/.config/opencode/themes/obsidian.json`)
 2. The tmux status bar and window decorations (`~/dev/opencodeadvance/lib/obsidian.tmux.conf`)
 3. CLI output from `oca` itself
 4. The boot splash and doctor output
@@ -16,9 +16,9 @@ This document specifies each of those surfaces. The canonical implementation liv
 - **Readable before beautiful.** Contrast ratios meet WCAG AA for text. The theme never sacrifices readability for aesthetics.
 - **Calm at rest, focused on action.** Idle UI is quiet. Active elements stand out through the Indigo accent, not through color noise.
 
-## OpenCode UI theme (`obsidian.json`)
+## Current primary client theme (`obsidian.json`)
 
-OpenCode uses a JSON theme file referenced in `opencode.json` via `"theme": "obsidian"`. The file will live at `assets/themes/obsidian.json` in this repo and be installed to `~/.config/opencode/themes/obsidian.json` by `oca apply`.
+Current v1 planning assumes OpenCode uses a JSON theme file referenced in `opencode.json` via `"theme": "obsidian"`. The file will live at `assets/themes/obsidian.json` in this repo and be installed to `~/.config/opencode/themes/obsidian.json` by `oca apply`.
 
 Canonical structure (to be finalized in Phase 4):
 
@@ -79,25 +79,25 @@ Row 1 (bottom):
 
 ### Colors
 
-| Element                       | Color        | Notes                                         |
-| ----------------------------- | ------------ | --------------------------------------------- |
-| Status bar background         | Slate        | Both rows                                     |
-| Status bar foreground         | Ivory        | Default text                                  |
-| Inactive window name          | Muted Ivory  | Dimmed                                        |
-| Active window name            | Indigo       | Bold, no background change                    |
-| Session title                 | Ivory        | Left of row 0                                 |
-| ADV change indicator          | Indigo       | When an ADV change is active; uses gate progress glyph |
-| Repo / branch                 | Muted Ivory  | Right of row 0                                |
-| Worktree marker               | Indigo+      | Only when current pane is in a worktree       |
-| CPU/RAM/LOAD metrics          | Muted Ivory  | Not color-coded                               |
-| LLM fuel gauge ≥50%           | Success      |                                               |
-| LLM fuel gauge 20–49%         | Warning      |                                               |
-| LLM fuel gauge <20%           | Error        |                                               |
-| Clock                         | Muted Ivory  |                                               |
-| Pane border (inactive)        | Graphite     |                                               |
-| Pane border (active)          | Indigo       | Subtle focus indicator                        |
-| Message text (tmux messages)  | Ivory        |                                               |
-| Message background            | Slate        |                                               |
+| Element                      | Color       | Notes                                                  |
+| ---------------------------- | ----------- | ------------------------------------------------------ |
+| Status bar background        | Slate       | Both rows                                              |
+| Status bar foreground        | Ivory       | Default text                                           |
+| Inactive window name         | Muted Ivory | Dimmed                                                 |
+| Active window name           | Indigo      | Bold, no background change                             |
+| Session title                | Ivory       | Left of row 0                                          |
+| ADV change indicator         | Indigo      | When an ADV change is active; uses gate progress glyph |
+| Repo / branch                | Muted Ivory | Right of row 0                                         |
+| Worktree marker              | Indigo+     | Only when current pane is in a worktree                |
+| CPU/RAM/LOAD metrics         | Muted Ivory | Not color-coded                                        |
+| LLM fuel gauge ≥50%          | Success     |                                                        |
+| LLM fuel gauge 20–49%        | Warning     |                                                        |
+| LLM fuel gauge <20%          | Error       |                                                        |
+| Clock                        | Muted Ivory |                                                        |
+| Pane border (inactive)       | Graphite    |                                                        |
+| Pane border (active)         | Indigo      | Subtle focus indicator                                 |
+| Message text (tmux messages) | Ivory       |                                                        |
+| Message background           | Slate       |                                                        |
 
 ### No more
 
@@ -109,7 +109,7 @@ Row 1 (bottom):
 
 ### Section separators
 
-Use thin Graphite vertical bars as dividers where sections meet: ` │ `. No angular "powerline" arrows. No colored fills.
+Use thin Graphite vertical bars as dividers where sections meet: `│`. No angular "powerline" arrows. No colored fills.
 
 ## CLI output styling
 

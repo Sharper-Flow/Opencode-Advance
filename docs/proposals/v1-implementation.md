@@ -54,7 +54,7 @@ Both projects write to `~/.config/opencode/`. The overlap is 19 files (4 agents,
 
 - **A professional brand.** New name ("OpenCode Advance"), new wordmark (GBA-stylized "Advance" with frosted indigo accent), new palette (obsidian/slate/graphite), new theme, new boot animation, new Discord taglines. No "chad" heritage.
 
-- **A declarative stack.** One `stack.toml` file that owns every slice of the OpenCode configuration the user cares about. `oca apply` renders it. `oca doctor` verifies it. `oca diff` shows drift. `oca pin` captures reproducibility. Full coverage: MCP servers, plugins, instructions, providers, agents, permissions, watcher, LSP, session UX, theme.
+- **A declarative stack.** One `stack.toml` file that owns every slice of the OpenCode configuration the user cares about. `oca apply` renders it. `oca doctor` verifies it. `oca diff` shows drift. `oca pin` captures reproducibility. Full coverage: MCP servers, plugins, instructions, providers, agents, permissions, watcher, LSP, primary client/session UX, theme.
 
 - **Tight MCP integration.** All 9 MCP servers managed through one tool. No more hand-editing `opencode.json`. No more drift between `vision/servers.yaml` and what OpenCode actually knows about.
 
@@ -62,7 +62,7 @@ Both projects write to `~/.config/opencode/`. The overlap is 19 files (4 agents,
 
 - **Clean cutover.** Development happens in isolated test config directories. open-chad stays the daily driver until v1.0 is ready. At release time: one-shot migration, clean uninstall of open-chad, clean install of OpenCode Advance.
 
-- **Vertical integration with Advance.** The tmux status bar shows active ADV changes and gate progress. `oca doctor` verifies ADV plugin state. The boot splash knows about the workflow context.
+- **Vertical integration with Advance.** The current status UI shows active ADV changes and gate progress. `oca doctor` verifies ADV plugin state. The boot splash knows about the workflow context.
 
 ---
 
@@ -76,7 +76,7 @@ The v1.0 release is ready when all of the following are true:
 - [ ] No references to "chad", "open-chad", or "openchad" anywhere in the repository
 - [ ] Wordmark ("OpenCode" over "ADVANCE") renders correctly in terminal with indigo coloring
 - [ ] Color palette (Obsidian/Slate/Graphite/Ivory/Indigo) is implemented in `lib/palette.sh` and used consistently
-- [ ] New Obsidian theme exists for both OpenCode UI (`assets/themes/obsidian.json`) and tmux status bar (`assets/themes/obsidian.tmux.conf`)
+- [ ] New Obsidian theme assets exist for the current primary client and tmux status bar (`assets/themes/obsidian.tmux.conf`)
 - [ ] Boot splash renders wordmark with frosted indigo effect, opt-out via `OCA_BOOT_SPLASH=0`
 - [ ] All Discord Rich Presence taglines are rewritten (no "chad"-era jokes)
 - [ ] README presents the new brand with wordmark, palette, and professional tone
@@ -115,7 +115,7 @@ The v1.0 release is ready when all of the following are true:
 - [ ] Formatters: custom formatter config rendered into `opencode.json` `.formatter`
 - [ ] Custom commands: project-specific slash commands rendered into `opencode.json` `.command`
 - [ ] OpenCode toggles: default_agent, share, snapshot, autoupdate, compaction, disabled_providers, enabled_providers
-- [ ] Session/UX: prefix, reaper, theme, boot_splash
+- [ ] Primary client/session UX: prefix, reaper, theme, boot_splash
 - [ ] Discord: enabled, mode
 
 ### Advance integration
@@ -124,11 +124,11 @@ The v1.0 release is ready when all of the following are true:
 - [ ] `oca apply` clones/updates the Advance checkout, runs `pnpm install && pnpm build`, wires the plugin path into `opencode.json`, and invokes `advance/scripts/sync-global.sh --fix` to let Advance sync its own assets
 - [ ] OCA does NOT copy or duplicate any file that Advance owns
 - [ ] `oca doctor` includes checks for: Advance checkout present, plugin built (`dist/index.js` exists), ADV state directory readable (`~/.local/share/opencode/plugins/advance/{project-id}/`)
-- [ ] tmux status bar shows active ADV change + gate progress when an ADV change is active in the current session's project
+- [ ] current status UI shows active ADV change + gate progress when an ADV change is active in the current session's project
 
-### Session lifecycle
+### Primary client/session lifecycle
 
-- [ ] `oca session new` creates a tmux session (`oca-<epoch>-<pid>`), renders obsidian theme, shows boot splash, drops into OpenCode
+- [ ] `oca session new` creates a tmux session (`oca-<epoch>-<pid>`), renders obsidian theme, shows boot splash, and launches the configured primary client
 - [ ] `oca session list` lists active sessions with window count and memory
 - [ ] `oca session attach` / `switch` / `killall` / `restart` work
 - [ ] Stale session reaper cleans up unattached sessions after 4 hours (configurable)
@@ -159,7 +159,7 @@ Explicitly out of scope for the first release:
 
 - Windows native support (WSL2 is supported as a special case of Linux)
 - macOS support (can come in v1.1+)
-- Web UI / TUI picker for configuration
+- Multi-client picker/configuration abstraction
 - Plugin marketplace / discovery
 - Non-OpenCode IDE integration
 - Multi-user / team configuration sharing
@@ -214,7 +214,7 @@ Explicitly out of scope for the first release:
 - **stdlib `text/template`** for rendering (no external template engine)
 - **stdlib `encoding/json`** for JSON manipulation
 - **goreleaser** for release builds (cross-platform binaries to GitHub Releases)
-- **Bash** for tmux theme, boot splash, status bar (tmux scripting is cleanest in bash)
+- **Bash** for the current tmux-first theme, boot splash, and status bar (tmux scripting is cleanest in bash)
 - **Go stdlib `testing`** + golden files for unit tests
 - **Shell test scripts** for tmux/shell integration tests
 
@@ -227,7 +227,7 @@ See [`phases.md`](phases.md) for the full phase sequencing. Rough shape:
 3. **Phase 2: Plugin + instruction management** — plugin lifecycle, ADV delegation, instructions rendering
 4. **Phase 3: Core opencode.json coverage** — providers, agents, permissions, LSP, watcher, diff command
 5. **Phase 3.5: Skills + commands + formatters + toggles** — OCA-owned skills, custom commands, formatter config, OpenCode-level toggles
-6. **Phase 4: Session + theme** — tmux lifecycle, obsidian theme, new status bar, boot splash
+6. **Phase 4: Primary client UX + theme** — current tmux-first lifecycle, obsidian theme, new status bar, boot splash
 7. **Phase 5: Installer + shell** — `oca install`, shell profile wiring, completions
 8. **Phase 6: Migration + doctor** — `oca migrate from-open-chad`, expanded doctor, ADV state integration
 9. **Phase 7: Extras + polish** — Discord (new taglines), release pipeline, final README
@@ -244,17 +244,17 @@ Estimated total: 6.5-8.5 weeks of focused work.
 
 ### Testing strategy
 
-| Layer                 | Test type                                                                         |
-| --------------------- | --------------------------------------------------------------------------------- |
-| TOML parser           | Go unit tests + golden files for valid/invalid inputs                             |
-| Schema validation     | Go unit tests covering every validation rule                                      |
-| Template rendering    | Go unit tests with golden JSON outputs                                            |
-| Plugin lifecycle      | Go integration tests with a local mock git remote                                 |
-| MCP health checks     | Go integration tests with a mock HTTP server                                      |
-| ADV state reading     | Go integration tests with a mock ADV state directory                              |
-| Shell integration     | Bash tests (`bats`-style or plain assertions) for tmux/boot splash/status bar      |
-| End-to-end install    | Bash test running `oca install --yes` in a containerized / chroot-like environment |
-| Migration             | Bash test with a canned open-chad state snapshot as input                        |
+| Layer              | Test type                                                                          |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| TOML parser        | Go unit tests + golden files for valid/invalid inputs                              |
+| Schema validation  | Go unit tests covering every validation rule                                       |
+| Template rendering | Go unit tests with golden JSON outputs                                             |
+| Plugin lifecycle   | Go integration tests with a local mock git remote                                  |
+| MCP health checks  | Go integration tests with a mock HTTP server                                       |
+| ADV state reading  | Go integration tests with a mock ADV state directory                               |
+| Shell integration  | Bash tests (`bats`-style or plain assertions) for tmux/boot splash/status bar      |
+| End-to-end install | Bash test running `oca install --yes` in a containerized / chroot-like environment |
+| Migration          | Bash test with a canned open-chad state snapshot as input                          |
 
 ### Observability
 
@@ -267,17 +267,17 @@ Estimated total: 6.5-8.5 weeks of focused work.
 
 ## Risks
 
-| Risk                                                                           | Likelihood | Impact | Mitigation                                                                                   |
-| ------------------------------------------------------------------------------ | ---------- | ------ | -------------------------------------------------------------------------------------------- |
-| OpenCode's opencode.json schema changes during development                     | Medium     | High   | Use schema_version field in stack.toml, pin to a specific OpenCode schema version, test against latest OC |
-| Advance's sync-global.sh contract changes                                      | Low        | Medium | Document the delegation contract; coordinate with Advance maintainer (self); test cross-repo changes |
-| Vision daemon YAML format changes                                              | Low        | Low    | Vision is self-owned, can coordinate changes                                                 |
-| Go template complexity for nested opencode.json structures                     | Medium     | Medium | Write golden-file tests for every template; keep templates flat where possible                |
-| Migration from open-chad loses user customizations                             | Medium     | High   | Conservative migration: emit to file for user review, don't auto-apply; preserve `.bak` files |
-| 6.5-8.5 week estimate is too optimistic                                        | High       | Medium | Phase boundaries allow re-planning between phases; deferring polish to v1.1 if needed        |
-| New obsidian theme looks worse than open-chad's synthwave theme                | Low        | Low    | Preview early in Phase 4; get user feedback before committing                                |
-| Clean cutover fails (open-chad residue left behind)                            | Medium     | Medium | Migration script includes `open-chad uninstall` verification; doctor reports open-chad residue |
-| Dependency on Vision daemon availability during install                        | High       | Low    | Vision install is required; document as prerequisite; non-fatal degradation if Vision missing |
+| Risk                                                            | Likelihood | Impact | Mitigation                                                                                                |
+| --------------------------------------------------------------- | ---------- | ------ | --------------------------------------------------------------------------------------------------------- |
+| OpenCode's opencode.json schema changes during development      | Medium     | High   | Use schema_version field in stack.toml, pin to a specific OpenCode schema version, test against latest OC |
+| Advance's sync-global.sh contract changes                       | Low        | Medium | Document the delegation contract; coordinate with Advance maintainer (self); test cross-repo changes      |
+| Vision daemon YAML format changes                               | Low        | Low    | Vision is self-owned, can coordinate changes                                                              |
+| Go template complexity for nested opencode.json structures      | Medium     | Medium | Write golden-file tests for every template; keep templates flat where possible                            |
+| Migration from open-chad loses user customizations              | Medium     | High   | Conservative migration: emit to file for user review, don't auto-apply; preserve `.bak` files             |
+| 6.5-8.5 week estimate is too optimistic                         | High       | Medium | Phase boundaries allow re-planning between phases; deferring polish to v1.1 if needed                     |
+| New obsidian theme looks worse than open-chad's synthwave theme | Low        | Low    | Preview early in Phase 4; get user feedback before committing                                             |
+| Clean cutover fails (open-chad residue left behind)             | Medium     | Medium | Migration script includes `open-chad uninstall` verification; doctor reports open-chad residue            |
+| Dependency on Vision daemon availability during install         | High       | Low    | Vision install is required; document as prerequisite; non-fatal degradation if Vision missing             |
 
 ---
 

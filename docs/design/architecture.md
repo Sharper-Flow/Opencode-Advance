@@ -1,6 +1,6 @@
 # Architecture Overview
 
-OpenCode Advance is a Go CLI + static asset bundle + shell integration layer that turns a single declarative file (`stack.toml`) into a fully configured OpenCode environment.
+OpenCode Advance is a Go CLI + static asset bundle + shell/client integration layer that turns a single declarative file (`stack.toml`) into a fully configured OpenCode environment and primary client UX.
 
 This document is the canonical high-level architecture reference. Implementation details live in package-level docs and the source code itself.
 
@@ -9,33 +9,33 @@ This document is the canonical high-level architecture reference. Implementation
 The user owns one file: `stack.toml`. Everything else is rendered from it or delegated to declared dependencies.
 
 ```
-                        ┌─────────────────┐
-                        │   stack.toml    │ ← user-owned source of truth
-                        └────────┬────────┘
-                                 │
-                                 ▼
-                       ┌──────────────────┐
-                       │   oca apply      │
-                       └────────┬─────────┘
-                                │
-              ┌─────────────────┼─────────────────┐
-              ▼                 ▼                 ▼
-    ┌──────────────────┐ ┌────────────┐ ┌──────────────────┐
-    │  opencode.json   │ │ vision/    │ │ ~/.tmux.conf     │
-    │  (mcp, plugins,  │ │ servers.   │ │ (managed block)  │
-    │  instructions,   │ │ yaml       │ │                  │
-    │  providers,      │ └────────────┘ └──────────────────┘
-    │  agents, perms,  │
-    │  lsp, watcher)   │
-    └──────────────────┘
-              │
-              │   delegates ADV asset sync to:
-              ▼
-    ┌────────────────────────────────────────┐
-    │ advance/scripts/sync-global.sh --fix   │
-    │ (syncs adv-*.md commands, ADV agents,  │
-    │  ADV skills, ADV instructions)         │
-    └────────────────────────────────────────┘
+                    ┌─────────────────┐
+                    │   stack.toml    │ ← user-owned source of truth
+                    └────────┬────────┘
+                             │
+                             ▼
+                   ┌──────────────────┐
+                   │   oca apply      │
+                   └────────┬─────────┘
+                            │
+          ┌─────────────────┼─────────────────┐
+          ▼                 ▼                 ▼
+┌──────────────────┐ ┌────────────┐ ┌──────────────────┐
+│  opencode.json   │ │ vision/    │ │ ~/.tmux.conf     │
+│  (mcp, plugins,  │ │ servers.   │ │ (managed block,  │
+│  instructions,   │ │ yaml       │ │ current client/  │
+│  providers,      │ └────────────┘ │ session path)    │
+│  agents, perms,  │                └──────────────────┘
+│  lsp, watcher)   │
+└──────────────────┘
+          │
+          │   delegates ADV asset sync to:
+          ▼
+┌────────────────────────────────────────┐
+│ advance/scripts/sync-global.sh --fix   │
+│ (syncs adv-*.md commands, ADV agents,  │
+│  ADV skills, ADV instructions)         │
+└────────────────────────────────────────┘
 ```
 
 ## Subsystems
@@ -110,16 +110,18 @@ func Apply(plan *Plan, opts ApplyOptions) error
 - Once the user reviews and places `stack.toml`, they run `oca install` for the actual cutover
 - Preserves user-specific values (plugin paths, provider model lists, agent model assignments)
 
-### 5. Session lifecycle (`lib/` + `cmd/oca/session*.go`)
+### 5. Primary client/session lifecycle (`lib/` + `cmd/oca/session*.go`)
+
+v1 planning is currently tmux-first, but this subsystem should be treated as the client/session layer rather than a permanent commitment to one frontend.
 
 - Tmux session creation, listing, attach, switch, killall, restart
 - Session name convention: `oca-<epoch>-<pid>`
 - Per-session cache directory: `$OCA_CACHE_DIR/<session-id>/`
 - Stale session reaper: kills unattached `oca-*` sessions older than `session.reaper_timeout_hours` (default 4)
 - Safe CWD resolution: fallback chain if the pane's current path is invalid or deleted
-- Integration with Advance state: reads `~/.local/share/opencode/plugins/advance/{project-id}/` to surface active change + gate progress in the status bar
+- Integration with Advance state: current tmux status surfaces read `~/.local/share/opencode/plugins/advance/{project-id}/` to show active change + gate progress in the status UI
 
-The tmux-level theme, boot splash, and status bar renderers are bash because tmux scripting is genuinely cleaner in bash than in Go. These live in `lib/`.
+The current tmux-level theme, boot splash, and status bar renderers are bash because tmux scripting is genuinely cleaner in bash than in Go. These live in `lib/`.
 
 ### 6. CLI entry (`cmd/oca/`)
 
@@ -142,7 +144,7 @@ The tmux-level theme, boot splash, and status bar renderers are bash because tmu
  7. Backup existing target files (render.Backup)
  8. Render opencode.json         (render.OpencodeJSON)
  9. Render vision/servers.yaml   (render.VisionServers)
-10. Render tmux.conf block       (render.TmuxBlock)
+10. Render tmux/client session block(s) (render.TmuxBlock)
 11. Clone/build declared plugins (render.ResolvePlugins)
 12. Delegate to Advance sync     (render.DelegateAdvanceSync)
 13. Copy static assets           (render.CopyAssets)
@@ -155,13 +157,13 @@ Each step is a pure function over validated inputs. Failures abort the whole app
 ## Data flow: `oca doctor`
 
 ```
- 1. Load stack.toml               (config.Load — non-fatal on missing)
- 2. Load actual state             (health.LoadActual)
- 3. Build check list              (health.BuildChecks)
- 4. Run checks in parallel        (health.RunAll)
- 5. Aggregate results              (health.Aggregate)
- 6. Render report                  (cli.RenderDoctor)
- 7. Exit with status               (0 if all pass, 1 if any warnings, 2 if any errors)
+1. Load stack.toml               (config.Load — non-fatal on missing)
+2. Load actual state             (health.LoadActual)
+3. Build check list              (health.BuildChecks)
+4. Run checks in parallel        (health.RunAll)
+5. Aggregate results              (health.Aggregate)
+6. Render report                  (cli.RenderDoctor)
+7. Exit with status               (0 if all pass, 1 if any warnings, 2 if any errors)
 ```
 
 ## Plugin lifecycle
@@ -179,12 +181,12 @@ OpenCode Advance manages plugin checkouts declaratively. Each `[plugins.<name>]`
 
 Plugin operations:
 
-| Action       | Command        | Behavior                                                       |
-| ------------ | -------------- | -------------------------------------------------------------- |
-| Install new  | `oca apply`      | Clones, builds, wires                                          |
-| Update       | `oca update`     | Fetches latest (respects pin), rebuilds, re-wires              |
-| Pin          | `oca pin`        | Writes current SHAs for all plugins into stack.toml            |
-| Remove       | `oca apply` after removing from stack.toml — leaves checkout intact, removes from opencode.json |
+| Action      | Command                                                                                         | Behavior                                            |
+| ----------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Install new | `oca apply`                                                                                     | Clones, builds, wires                               |
+| Update      | `oca update`                                                                                    | Fetches latest (respects pin), rebuilds, re-wires   |
+| Pin         | `oca pin`                                                                                       | Writes current SHAs for all plugins into stack.toml |
+| Remove      | `oca apply` after removing from stack.toml — leaves checkout intact, removes from opencode.json |                                                     |
 
 ## Advance as a declared dependency
 
