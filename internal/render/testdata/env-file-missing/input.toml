@@ -1,0 +1,8 @@
+[meta]
+version = "1.0.0"
+
+[mcp.servers.kagi]
+port = 6279
+command = "uvx"
+args = ["--from", "kagimcp", "kagimcp"]
+env_file = "~/.config/opencode-advance/secrets/missing.env"

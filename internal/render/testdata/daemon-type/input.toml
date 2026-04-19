@@ -1,0 +1,12 @@
+[meta]
+version = "1.0.0"
+
+[mcp.servers.vision]
+port = 6275
+type = "daemon"
+required = true
+
+[mcp.servers.context7]
+port = 6276
+command = "npx"
+args = ["-y", "@upstash/context7-mcp@latest"]

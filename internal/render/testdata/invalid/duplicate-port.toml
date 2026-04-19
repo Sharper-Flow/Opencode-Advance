@@ -1,0 +1,10 @@
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[mcp.servers.b]
+port = 6276
+command = "echo"

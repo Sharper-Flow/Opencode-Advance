@@ -1,0 +1,10 @@
+[meta]
+version = "1.0.0"
+
+[mcp.servers.vision]
+port = 6275
+type = "daemon"
+
+[mcp.servers.vision2]
+port = 6276
+type = "daemon"

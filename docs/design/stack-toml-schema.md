@@ -2,14 +2,16 @@
 
 This document is the canonical reference for the `stack.toml` schema. A complete working example lives at [`stack.example.toml`](../../stack.example.toml).
 
+> Phase 1 note: only `[meta]` and `[mcp]` are typed and actively rendered today. The other top-level sections below are part of the long-term schema and are accepted as deferred input for later phases unless otherwise noted.
+
 ## Top-level tables
 
 | Table            | Required | Purpose                                              |
 | ---------------- | -------- | ---------------------------------------------------- |
 | `[meta]`           | yes      | Stack name, version, description                    |
 | `[mcp]`            | yes      | MCP server declarations                             |
-| `[plugins.*]`      | yes      | Plugin declarations with source, build, wiring     |
-| `[instructions]`   | yes      | Ordered list of instruction files to load           |
+| `[plugins.*]`      | deferred | Plugin declarations with source, build, wiring     |
+| `[instructions]`   | deferred | Ordered list of instruction files to load           |
 | `[providers.*]`    | no       | Provider/model configurations                      |
 | `[agents]`         | no       | Agent → model assignments                           |
 | `[permissions]`    | no       | Permission rules (bash, external_directory)         |
@@ -61,22 +63,58 @@ enabled   = true
 | Field         | Type     | Required | Default | Notes                                                                    |
 | ------------- | -------- | -------- | ------- | ------------------------------------------------------------------------ |
 | `port`          | integer  | yes      | —       | Port Vision will listen on for this server                              |
-| `type`          | string   | no       | `"stdio"` | `"stdio"` (command+args), `"remote"` (url), or `"daemon"` (Vision itself)    |
-| `command`       | string   | yes\*    | —       | Executable to spawn. Required for `type=stdio`.                            |
+| `type`          | string   | no       | inferred | OCA transport hint: `"stdio"`, `"http"`, `"sse"`, or OCA-only `"daemon"` (Vision admin MCP itself). `transport` is accepted as a Vision-compatible alias. |
+| `transport`     | string   | no       | inferred | Vision-native alias for `type`; values `"stdio"`, `"http"`, `"sse"`. OCA accepts either field. |
+| `command`       | string   | yes\*    | —       | Executable to spawn. Required for stdio transport.                            |
 | `args`          | string[] | no       | `[]`      | Command arguments                                                        |
 | `env`           | table    | no       | `{}`      | Environment variables passed to the server                               |
 | `env_file`      | string   | no       | —       | Path to a `.env` file with sensitive values; not committed. For new configs, prefer `{env:VAR_NAME}` values in `env`. |
-| `url`           | string   | no       | —       | For `type=remote` only                                                     |
+| `url`           | string   | no       | —       | For `http` / `sse` transports. `http` URLs must end in `/mcp`.             |
 | `timeout`       | integer  | no       | `5000`    | Request timeout in milliseconds                                          |
 | `autostart`     | boolean  | no       | `true`    | Whether Vision should auto-start this server                            |
-| `required`      | boolean  | no       | `false`   | If true, `oca apply` aborts on failure to install/verify                   |
+| `required`      | boolean  | no       | `false`   | Required server. Vision preserves the flag; `oca doctor` upgrades missing/failed required servers to `fail`. |
 | `source`        | string   | no       | —       | Source URL for documentation / traceability                              |
+| `description`   | string   | no       | —       | Human-readable summary preserved into `vision/servers.yaml`               |
 | `enabled`       | boolean  | no       | `true`    | Set false to keep the declaration but disable                           |
+| `restart_policy`| string   | no       | Vision default | Vision passthrough: `always`, `on-failure`, `never`                 |
+| `max_restarts`  | integer  | no       | Vision default | Vision passthrough                                                 |
+| `stateful`      | boolean  | no       | Vision default | Vision passthrough                                                  |
+| `availability_profile` | string | no | Vision default | Vision passthrough; currently `networked` supported                |
+| `session_timeout` | string | no | Vision default | Vision duration string passthrough                                        |
+| `max_sessions`  | integer | no | Vision default | Vision passthrough                                                        |
+| `session_ttl`   | string | no | Vision default | Vision duration string passthrough                                         |
+| `health_check_interval` | string | no | Vision default | Vision duration string passthrough                                |
+| `request_timeout` | string | no | Vision default | Vision duration string passthrough. OCA's integer `timeout` convenience field renders here. |
+| `headers`       | table | no | `{}` | Vision passthrough for upstream HTTP/SSE servers                                   |
+| `retry`         | table | no | — | Vision passthrough (`max_attempts`, `initial_delay`, `max_delay`, `retryable_errors`) |
+| `circuit_breaker` | table | no | — | Vision passthrough (`failure_threshold`, `recovery_timeout`)               |
+| `shared_read_only_tools` | string[] | no | `[]` | Vision passthrough                                            |
+| `shared_result_cache_ttl` | string | no | — | Vision passthrough                                                     |
+| `shared_result_cache_size` | integer | no | 0 | Vision passthrough                                                    |
+| `max_in_flight_requests` | integer | no | 0 | Vision passthrough                                                     |
 
 **Type-specific requirements:**
-- `type=stdio` (default) → `command` is required; `args` are optional
-- `type=remote` → `url` is required
-- `type=daemon` → neither `command` nor `url` is used; the daemon is managed externally
+- inferred / `type=stdio` / `transport=stdio` → `command` required; `args` optional
+- `type=http` / `transport=http` → `url` required and must end in `/mcp`
+- `type=sse` / `transport=sse` → `url` required
+- `type=daemon` → OCA-only special case for the Vision admin MCP itself. It renders an `opencode.json` `.mcp.vision` entry pointing at `http://localhost:<port>/mcp` but **does not** emit a `vision` entry into `vision/servers.yaml`.
+
+### Native OpenCode token pass-through
+
+OCA expands its own shell-style variables at parse time:
+
+- `~/...`
+- `$HOME`
+- `$XDG_CONFIG_HOME`
+- `$XDG_DATA_HOME`
+- `${VAR}` / `${VAR:-default}`
+
+OCA **does not** resolve native OpenCode tokens. These pass through unchanged:
+
+- `{env:VAR_NAME}`
+- `{file:/path/to/file}`
+
+This keeps OCA secret-blind: it records references but never reads the underlying env vars or files.
 
 ### Required MCP servers
 

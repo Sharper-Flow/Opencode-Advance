@@ -1,0 +1,45 @@
+package render
+
+import "os"
+
+// Fragment is one rendered MCP entry under opencode.json .mcp.
+type Fragment map[string]any
+
+// TargetOp is one planned file operation.
+type TargetOp struct {
+	Name       string
+	Path       string
+	Op         string // merge | write | noop
+	Before     []byte
+	After      []byte
+	Mode       os.FileMode
+	BackupPath string
+	Reason     string
+}
+
+// Plan is the deterministic render plan for one apply run.
+type Plan struct {
+	Source   string
+	LockPath string
+	Targets  []TargetOp
+}
+
+// ApplyOptions controls write execution.
+type ApplyOptions struct {
+	DryRun     bool
+	MaxBackups int
+	LockPath   string
+}
+
+// TargetResult summarizes one applied target.
+type TargetResult struct {
+	Path       string
+	Op         string
+	BackupPath string
+	Wrote      bool
+}
+
+// ApplyResult aggregates target write results.
+type ApplyResult struct {
+	Targets []TargetResult
+}

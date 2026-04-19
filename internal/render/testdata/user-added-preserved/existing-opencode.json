@@ -1,0 +1,9 @@
+{
+  "mcp": {
+    "user-added": {
+      "type": "remote",
+      "url": "https://example.com/mcp"
+    }
+  },
+  "theme": "obsidian"
+}

@@ -1,0 +1,7 @@
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+restart_policy = "sometimes"

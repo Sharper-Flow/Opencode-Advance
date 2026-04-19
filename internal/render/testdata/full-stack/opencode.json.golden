@@ -1,0 +1,67 @@
+{
+  "mcp": {
+    "context7": {
+      "enabled": true,
+      "oauth": false,
+      "timeout": 10000,
+      "type": "remote",
+      "url": "http://localhost:6276/mcp"
+    },
+    "firecrawl": {
+      "enabled": true,
+      "oauth": false,
+      "timeout": 15000,
+      "type": "remote",
+      "url": "http://localhost:6281/mcp"
+    },
+    "grep-app": {
+      "enabled": true,
+      "oauth": false,
+      "timeout": 5000,
+      "type": "remote",
+      "url": "http://localhost:6288/mcp"
+    },
+    "kagi": {
+      "enabled": true,
+      "oauth": false,
+      "timeout": 15000,
+      "type": "remote",
+      "url": "http://localhost:6279/mcp"
+    },
+    "lgrep": {
+      "enabled": true,
+      "oauth": false,
+      "timeout": 5000,
+      "type": "remote",
+      "url": "http://localhost:6285/mcp"
+    },
+    "playwright": {
+      "enabled": true,
+      "oauth": false,
+      "timeout": 30000,
+      "type": "remote",
+      "url": "http://localhost:6287/mcp"
+    },
+    "sentry": {
+      "enabled": true,
+      "oauth": false,
+      "timeout": 15000,
+      "type": "remote",
+      "url": "http://localhost:6289/mcp"
+    },
+    "svelte-mcp": {
+      "enabled": true,
+      "oauth": false,
+      "timeout": 10000,
+      "type": "remote",
+      "url": "http://localhost:6278/mcp"
+    },
+    "vision": {
+      "enabled": true,
+      "oauth": false,
+      "timeout": 5000,
+      "type": "remote",
+      "url": "http://localhost:6275/mcp"
+    }
+  }
+}

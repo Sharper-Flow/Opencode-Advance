@@ -2,11 +2,11 @@
 
 ## Summary
 
-OpenCode Advance currently has a **completed Phase 0 foundation baseline** and is ready for **Phase 1: stack.toml + MCP apply**.
+OpenCode Advance currently has a **completed Phase 1 MCP implementation** and is ready for **Phase 2: plugin + instruction management**.
 
-- Implementation status: **Phase 0 archived and merged to `trunk`**
-- Repository status: **ready for next phase planning**
-- Recommended next action: start the Phase 1 change for config parsing, MCP rendering, and isolated apply/doctor foundations
+- Implementation status: **Phase 1 accepted, in release gate hardening/archive flow**
+- Repository status: **parser + MCP apply/doctor/debug shipped on the change branch**
+- Recommended next action after archive: start the Phase 2 change from `docs/proposals/phases.md`
 
 ## What is done
 
@@ -29,16 +29,21 @@ OpenCode Advance currently has a **completed Phase 0 foundation baseline** and i
 - Wordmark unified to the compact 3-line pagga form
 - Shared runtime brand assets + Go renderer added
 - Minimal Cobra CLI added (`oca`, `oca version`)
+- `stack.toml` parser, resolver, validator, and deferred-section handling added
+- `oca apply --target mcp` added with atomic writes, backups, and flock locking
+- `oca doctor --scope mcp` added with Vision capability negotiation and per-server checks
+- `oca debug plan` and `oca debug validate` added
+- Phase 1 design/spec docs updated to match shipped code
 - Shell brand helpers added (`lib/palette.sh`, `lib/wordmark.sh`, `lib/boot_splash.sh`)
 - Broader Phase 0 verification added (Go + shell + CI wiring)
 - `phase0FoundationBrand` archived and merged to `trunk`
 
 ## What is not done
 
-- No ADV umbrella change yet
-- No `stack.toml` parser or schema validation implementation yet
-- No render / apply / doctor command implementation yet
+- No plugin lifecycle / Advance sync delegation implementation yet
+- No full non-MCP config rendering yet
 - No installer / migration / session lifecycle implementation yet
+- No release packaging workflow yet
 
 ## Decision log snapshot
 
@@ -54,4 +59,4 @@ OpenCode Advance currently has a **completed Phase 0 foundation baseline** and i
 
 ## Resume guidance
 
-If you are returning to this repo later, start with `NEXT_STEPS.md`, verify there are no new active changes, and begin the Phase 1 change.
+If you are returning to this repo later, start with `NEXT_STEPS.md`, verify Phase 1 archived cleanly, and begin the Phase 2 change.
