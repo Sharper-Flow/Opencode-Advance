@@ -67,6 +67,10 @@ var (
 	loadedError error
 )
 
+// MustAssets returns the embedded wordmark asset bundle, loading it on
+// first call via sync.Once. Panics if the embedded files are malformed —
+// this is a compile-time-adjacent failure and should never happen in a
+// correctly built binary.
 func MustAssets() Assets {
 	loadOnce.Do(func() {
 		loaded, loadedError = loadAssets()
@@ -77,6 +81,9 @@ func MustAssets() Assets {
 	return loaded
 }
 
+// DetectColorMode picks the richest color mode the environment advertises.
+// Non-TTY or NO_COLOR=1 forces mono. COLORTERM containing "truecolor" or
+// "24bit" selects truecolor. TERM containing "256color" selects 256. Else mono.
 func DetectColorMode(env Environment) ColorMode {
 	if !env.IsTTY || env.NoColor {
 		return ColorModeMono
@@ -94,6 +101,9 @@ func DetectColorMode(env Environment) ColorMode {
 	return ColorModeMono
 }
 
+// Render returns the wordmark text colored for the given mode. VariantFull
+// emits the multi-line banner; VariantShort emits a single word; any other
+// variant (including VariantMedium) emits the inline "OpenCode ADVANCE" form.
 func Render(variant Variant, mode ColorMode) string {
 	assets := MustAssets()
 

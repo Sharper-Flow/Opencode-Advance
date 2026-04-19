@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+// flockRetryInterval is the sleep between Flock(LOCK_EX|LOCK_NB) attempts
+// while waiting for another oca apply to release the lock. Kept short so
+// waiters notice release quickly without busy-spinning the CPU.
+const flockRetryInterval = 50 * time.Millisecond
+
 func AcquireApplyLock(cacheDir string, timeout time.Duration) (*os.File, error) {
 	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
 		return nil, err
@@ -29,7 +34,7 @@ func AcquireApplyLock(cacheDir string, timeout time.Duration) (*os.File, error) 
 			_ = f.Close()
 			return nil, fmt.Errorf("timed out acquiring apply lock after %s", timeout)
 		}
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(flockRetryInterval)
 	}
 }
 

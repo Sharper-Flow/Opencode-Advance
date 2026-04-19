@@ -26,7 +26,7 @@ type visionServerYAML struct {
 	SessionTTL            string              `yaml:"session_ttl,omitempty"`
 	HealthCheckInterval   string              `yaml:"health_check_interval,omitempty"`
 	RequestTimeout        string              `yaml:"request_timeout,omitempty"`
-	Retry                 *cfg.Retry          `yaml:"retry,omitempty"`
+	Retry                 *cfg.RetryConfig    `yaml:"retry,omitempty"`
 	CircuitBreaker        *cfg.CircuitBreaker `yaml:"circuit_breaker,omitempty"`
 	SharedReadOnlyTools   []string            `yaml:"shared_read_only_tools,omitempty"`
 	SharedResultCacheTTL  string              `yaml:"shared_result_cache_ttl,omitempty"`

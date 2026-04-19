@@ -61,7 +61,7 @@ type Server struct {
     RequestTimeout      string `toml:"request_timeout,omitempty"`
 
     // Resilience (Vision)
-    Retry          *Retry          `toml:"retry,omitempty"`
+    Retry          *RetryConfig    `toml:"retry,omitempty"`
     CircuitBreaker *CircuitBreaker `toml:"circuit_breaker,omitempty"`
 
     // Sharing (Vision)
@@ -83,7 +83,7 @@ type Server struct {
     ExtraFields map[string]any `toml:"-" yaml:"-"`
 }
 
-type Retry struct {
+type RetryConfig struct {
     MaxAttempts     int      `toml:"max_attempts,omitempty"`
     InitialDelay    string   `toml:"initial_delay,omitempty"`
     MaxDelay        string   `toml:"max_delay,omitempty"`

@@ -227,6 +227,8 @@ func commandPathChecks(stack *cfg.Stack) []Check {
 	return checks
 }
 
+// HasFailures reports whether any check has StatusFail. Used by doctor
+// and apply to determine whether to exit non-zero after a health pass.
 func HasFailures(checks []Check) bool {
 	for _, c := range checks {
 		if c.Status == StatusFail {
@@ -236,6 +238,8 @@ func HasFailures(checks []Check) bool {
 	return false
 }
 
+// HasWarnings reports whether any check has StatusWarn. Callers use this
+// to surface a non-fatal advisory summary without forcing a failure exit.
 func HasWarnings(checks []Check) bool {
 	for _, c := range checks {
 		if c.Status == StatusWarn {
@@ -245,6 +249,8 @@ func HasWarnings(checks []Check) bool {
 	return false
 }
 
+// Summary returns a compact "N pass, M warn, K fail" string suitable for
+// a single-line status report. Zero-count buckets are omitted.
 func Summary(checks []Check) string {
 	pass := 0
 	warn := 0

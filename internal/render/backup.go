@@ -8,8 +8,13 @@ import (
 	"strings"
 )
 
+// backupGlob returns the glob pattern matching all historical backups for
+// a rendered target (e.g. opencode.json.bak.1729875000).
 func backupGlob(path string) string { return path + ".bak.*" }
 
+// orphanBackupTempGlob returns the glob pattern matching half-written
+// backup temp files left over from a crashed apply (e.g. opencode.json.bak.NNNN.tmp).
+// These are cleaned up at the start of each apply run.
 func orphanBackupTempGlob(path string) string { return path + ".bak.*.tmp" }
 
 func cleanupOrphanBackupTemps(path string) error {

@@ -75,7 +75,7 @@ type Server struct {
 	Timeout             int    `toml:"timeout,omitempty" yaml:"-"` // OCA-side alias (ms) → Vision request_timeout
 
 	// Resilience (Vision)
-	Retry          *Retry          `toml:"retry,omitempty" yaml:"retry,omitempty"`
+	Retry          *RetryConfig    `toml:"retry,omitempty" yaml:"retry,omitempty"`
 	CircuitBreaker *CircuitBreaker `toml:"circuit_breaker,omitempty" yaml:"circuit_breaker,omitempty"`
 
 	// Sharing (Vision)
@@ -97,8 +97,11 @@ type Server struct {
 	EnvFile string `toml:"env_file,omitempty" yaml:"-"`
 }
 
-// Retry configures retryable-failure behavior (Vision passthrough).
-type Retry struct {
+// RetryConfig configures retryable-failure behavior (Vision passthrough).
+// Named RetryConfig (not Retry) so usage at call sites reads as a noun
+// describing configuration data, not a verb that could be misread as an
+// action. Field name on Server remains Retry; TOML/YAML keys remain "retry".
+type RetryConfig struct {
 	MaxAttempts     int      `toml:"max_attempts,omitempty" yaml:"max_attempts,omitempty"`
 	InitialDelay    string   `toml:"initial_delay,omitempty" yaml:"initial_delay,omitempty"`
 	MaxDelay        string   `toml:"max_delay,omitempty" yaml:"max_delay,omitempty"`
