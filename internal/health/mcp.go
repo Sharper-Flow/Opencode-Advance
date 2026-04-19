@@ -29,14 +29,14 @@ type serversResponse struct {
 }
 
 type serverStatus struct {
-	Name        string `json:"name"`
-	State       string `json:"state"`
-	Port        int    `json:"port"`
-	Transport   string `json:"transport"`
-	Autostart   bool   `json:"autostart"`
-	Required    bool   `json:"required"`
-	LastError   string `json:"last_error"`
-	RestartCount int   `json:"restart_count"`
+	Name         string `json:"name"`
+	State        string `json:"state"`
+	Port         int    `json:"port"`
+	Transport    string `json:"transport"`
+	Autostart    bool   `json:"autostart"`
+	Required     bool   `json:"required"`
+	LastError    string `json:"last_error"`
+	RestartCount int    `json:"restart_count"`
 }
 
 func CheckMCP(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check, error) {

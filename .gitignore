@@ -1,6 +1,7 @@
 # ─── Go build artifacts ──────────────────────────────────────────────────────
 /bin/oca
 /bin/oca-*
+/oca
 /dist/
 *.exe
 *.test

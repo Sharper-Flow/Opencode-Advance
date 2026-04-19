@@ -53,7 +53,7 @@ type MCPSection struct {
 type Server struct {
 	// Core transport (Vision)
 	Port      int               `toml:"port" yaml:"port"`
-	Type      string            `toml:"type,omitempty" yaml:"-"`            // OCA "daemon"|"stdio"|"http"|"sse"
+	Type      string            `toml:"type,omitempty" yaml:"-"`                        // OCA "daemon"|"stdio"|"http"|"sse"
 	Transport string            `toml:"transport,omitempty" yaml:"transport,omitempty"` // Vision passthrough alias
 	Command   string            `toml:"command,omitempty" yaml:"command,omitempty"`
 	Args      []string          `toml:"args,omitempty" yaml:"args,omitempty"`

@@ -9,32 +9,32 @@ import (
 )
 
 type visionServerYAML struct {
-	Port                 int                  `yaml:"port,omitempty"`
-	Transport            string               `yaml:"transport,omitempty"`
-	Command              string               `yaml:"command,omitempty"`
-	Args                 []string             `yaml:"args,omitempty"`
-	Env                  map[string]string    `yaml:"env,omitempty"`
-	URL                  string               `yaml:"url,omitempty"`
-	Headers              map[string]string    `yaml:"headers,omitempty"`
-	Autostart            bool                 `yaml:"autostart,omitempty"`
-	RestartPolicy        string               `yaml:"restart_policy,omitempty"`
-	MaxRestarts          int                  `yaml:"max_restarts,omitempty"`
-	Stateful             bool                 `yaml:"stateful,omitempty"`
-	AvailabilityProfile  string               `yaml:"availability_profile,omitempty"`
-	SessionTimeout       string               `yaml:"session_timeout,omitempty"`
-	MaxSessions          int                  `yaml:"max_sessions,omitempty"`
-	SessionTTL           string               `yaml:"session_ttl,omitempty"`
-	HealthCheckInterval  string               `yaml:"health_check_interval,omitempty"`
-	RequestTimeout       string               `yaml:"request_timeout,omitempty"`
-	Retry                *cfg.Retry           `yaml:"retry,omitempty"`
-	CircuitBreaker       *cfg.CircuitBreaker  `yaml:"circuit_breaker,omitempty"`
-	SharedReadOnlyTools  []string             `yaml:"shared_read_only_tools,omitempty"`
-	SharedResultCacheTTL string               `yaml:"shared_result_cache_ttl,omitempty"`
+	Port                  int                 `yaml:"port,omitempty"`
+	Transport             string              `yaml:"transport,omitempty"`
+	Command               string              `yaml:"command,omitempty"`
+	Args                  []string            `yaml:"args,omitempty"`
+	Env                   map[string]string   `yaml:"env,omitempty"`
+	URL                   string              `yaml:"url,omitempty"`
+	Headers               map[string]string   `yaml:"headers,omitempty"`
+	Autostart             bool                `yaml:"autostart,omitempty"`
+	RestartPolicy         string              `yaml:"restart_policy,omitempty"`
+	MaxRestarts           int                 `yaml:"max_restarts,omitempty"`
+	Stateful              bool                `yaml:"stateful,omitempty"`
+	AvailabilityProfile   string              `yaml:"availability_profile,omitempty"`
+	SessionTimeout        string              `yaml:"session_timeout,omitempty"`
+	MaxSessions           int                 `yaml:"max_sessions,omitempty"`
+	SessionTTL            string              `yaml:"session_ttl,omitempty"`
+	HealthCheckInterval   string              `yaml:"health_check_interval,omitempty"`
+	RequestTimeout        string              `yaml:"request_timeout,omitempty"`
+	Retry                 *cfg.Retry          `yaml:"retry,omitempty"`
+	CircuitBreaker        *cfg.CircuitBreaker `yaml:"circuit_breaker,omitempty"`
+	SharedReadOnlyTools   []string            `yaml:"shared_read_only_tools,omitempty"`
+	SharedResultCacheTTL  string              `yaml:"shared_result_cache_ttl,omitempty"`
 	SharedResultCacheSize int                 `yaml:"shared_result_cache_size,omitempty"`
-	MaxInFlightRequests  int                  `yaml:"max_in_flight_requests,omitempty"`
-	Required             bool                 `yaml:"required,omitempty"`
-	Source               string               `yaml:"source,omitempty"`
-	Description          string               `yaml:"description,omitempty"`
+	MaxInFlightRequests   int                 `yaml:"max_in_flight_requests,omitempty"`
+	Required              bool                `yaml:"required,omitempty"`
+	Source                string              `yaml:"source,omitempty"`
+	Description           string              `yaml:"description,omitempty"`
 }
 
 // RenderVisionServers renders full vision/servers.yaml. daemon-type servers are skipped.

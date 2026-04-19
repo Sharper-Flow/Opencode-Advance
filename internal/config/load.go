@@ -5,10 +5,10 @@ import (
 )
 
 // Load runs the full pipeline for a stack.toml file on disk:
-//   1. Parse (TOML decode → typed Stack with deferred sections)
-//   2. Resolve (variable expansion: $HOME, ~/, $XDG_*, ${VAR})
-//   3. Validate (aggregate ValidationErrors with field paths)
-//   4. Collect warnings (e.g. env_file path does not exist)
+//  1. Parse (TOML decode → typed Stack with deferred sections)
+//  2. Resolve (variable expansion: $HOME, ~/, $XDG_*, ${VAR})
+//  3. Validate (aggregate ValidationErrors with field paths)
+//  4. Collect warnings (e.g. env_file path does not exist)
 //
 // Order rationale: Resolve runs before Validate so validation sees
 // resolved paths (e.g. env_file paths with ~/expanded). This corrects

@@ -8,4 +8,4 @@ import (
 )
 
 func AcquireApplyLock(_ string, _ time.Duration) (*os.File, error) { return nil, nil }
-func ReleaseApplyLock(_ *os.File) error                           { return nil }
+func ReleaseApplyLock(_ *os.File) error                            { return nil }
