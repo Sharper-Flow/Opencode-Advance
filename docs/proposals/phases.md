@@ -40,7 +40,7 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 
 ## Phase 1: stack.toml + MCP apply
 
-**Status:** Next recommended phase.
+**Status:** Implemented on change `phase1StackTomlParserMcpApply`; currently in release-stage hardening/archive flow.
 
 **Goal:** Parse `stack.toml`, validate it, and render the `[mcp.servers.*]` section into both `opencode.json` and `vision/servers.yaml`.
 
@@ -49,13 +49,11 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 **Deliverables:**
 
 - `internal/config/` — TOML parser, schema types, validation, variable resolution
-- `internal/render/` — JSON merge, YAML writing, template rendering
+- `internal/render/` — JSON merge, YAML writing, programmatic rendering
 - `internal/health/mcp.go` — MCP server HTTP health checks
 - `cmd/oca/apply.go` — `oca apply --target mcp`
 - `cmd/oca/doctor.go` — `oca doctor --scope mcp`
 - `cmd/oca/debug.go` — `oca debug plan`, `oca debug validate`
-- `templates/vision-servers.yaml.gotmpl`
-- `templates/opencode.json.mcp.gotmpl` (fragment)
 - Golden-file tests for every schema variant
 
 **Exit criteria:**
@@ -69,14 +67,14 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 **Tasks (high-level):**
 
 - tk-phase1-01: Define Stack, MCP, MCPServer struct types in `internal/config/types.go`
-- tk-phase1-02: Implement TOML parser with pelletier v2
+- tk-phase1-02: Implement TOML parser with BurntSushi/toml
 - tk-phase1-03: Implement schema validation (required fields, value ranges)
 - tk-phase1-04: Implement variable resolution ($HOME, ~/, {checkout}, env vars)
 - tk-phase1-05: Implement idempotent JSON merge
 - tk-phase1-06: Implement atomic file write (temp + rename)
 - tk-phase1-07: Implement backup rotation
-- tk-phase1-08: Write `vision-servers.yaml.gotmpl`
-- tk-phase1-09: Write `opencode.json.mcp.gotmpl` fragment
+- tk-phase1-08: Implement programmatic `vision/servers.yaml` renderer
+- tk-phase1-09: Implement programmatic `opencode.json` MCP fragment renderer
 - tk-phase1-10: Implement `oca apply --target mcp` command
 - tk-phase1-11: Implement `oca doctor --scope mcp` with HTTP health checks
 - tk-phase1-12: Implement `oca debug plan` and `oca debug validate`

@@ -8,8 +8,9 @@ This file is the fastest way to resume work in `~/dev/opencodeadvance` later.
 - Brand, wordmark, palette, architecture, schema, and CLI docs are written
 - The compact 3-line pagga wordmark is the canonical form everywhere
 - Phase 0 foundation work is archived and merged to `trunk`
-- CI and local verification cover the Phase 0 baseline (`go test`, shell tests, `go vet`, `go build`)
-- **Current ADV focus:** start Phase 1 (`stack.toml` + MCP apply)
+- Phase 1 parser + MCP apply/doctor/debug work is implemented on the current change branch
+- CI and local verification now cover Phase 1 (`go test`, shell tests, `go vet`, `go build ./cmd/oca`)
+- **Current ADV focus:** finish release/archive for Phase 1, then start Phase 2
 
 ## Resume from here
 
@@ -25,22 +26,22 @@ Then:
 1. Run `/adv-status`
 2. Confirm there are no new active changes to finish first
 3. Start the next implementation change from the roadmap in `docs/proposals/phases.md`
-4. Begin with Phase 1 discovery/design/planning, not another Phase 0 change
+4. Begin with Phase 2 discovery/design/planning, not another Phase 0/1 change
 
 ## Recommended workflow
 
 - Treat `phase0FoundationBrand` as the shipped reference baseline for later phases
-- Start the next implementation change for **Phase 1: stack.toml + MCP apply**
+- Start the next implementation change for **Phase 2: plugin + instruction management**
 - Keep implementation in separate per-phase changes following `docs/proposals/phases.md`
 - Archive each phase before starting the next one
 
-## Immediate implementation target (Phase 1)
+## Immediate implementation target (Phase 2)
 
-- define `stack.toml` parser + validation scope in `internal/config/`
-- render MCP declarations into isolated OpenCode + Vision config targets
-- add early `oca apply --target mcp` and `oca doctor --scope mcp` command surface
+- implement plugin lifecycle and Advance sync delegation
+- render instructions into `opencode.json`
+- keep Phase 1 MCP behavior stable while broadening target coverage
 - keep all writes isolated from live user config
-- do not pull Phase 2 plugin/session/theme work forward
+- do not pull session/theme work forward yet
 
 ## Constraints to keep in mind
 

@@ -154,6 +154,21 @@ restart_policy = "wat"
 			wantSub: "restart_policy",
 		},
 		{
+			name: "invalid request_timeout duration",
+			src: `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+request_timeout = "soon"
+`,
+			wantErr:  true,
+			wantPath: "mcp.servers.a.request_timeout",
+			wantSub:  "invalid duration",
+		},
+		{
 			name: "deferred sections accepted, unknown rejected",
 			src: `
 [meta]

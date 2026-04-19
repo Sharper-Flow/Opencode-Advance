@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Port range allocated to Vision MCP servers (mirrors Vision's
@@ -235,6 +236,22 @@ func (s *Stack) validateMCPServers() ValidationErrors {
 				Path:    path + ".availability_profile",
 				Message: fmt.Sprintf("unknown value %q (allowed: networked)", srv.AvailabilityProfile),
 			})
+		}
+
+		// request_timeout must be a positive duration when set because OCA
+		// derives the OpenCode-side timeout field from it.
+		if srv.RequestTimeout != "" {
+			d, err := time.ParseDuration(srv.RequestTimeout)
+			if err != nil || d <= 0 {
+				message := fmt.Sprintf("invalid duration %q", srv.RequestTimeout)
+				if err == nil && d <= 0 {
+					message += " (must be > 0)"
+				}
+				errs = append(errs, ValidationError{
+					Path:    path + ".request_timeout",
+					Message: message,
+				})
+			}
 		}
 	}
 

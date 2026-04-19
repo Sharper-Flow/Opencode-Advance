@@ -10,7 +10,7 @@
 
 **A declarative, reproducible OpenCode environment and workflow platform.**
 
-_Status: Phase 0 foundation baseline implemented. Next milestone: Phase 1 config loading + validation. First stable release will be v1.0._
+_Status: Phase 1 (`stack.toml` parser + MCP apply/doctor/debug) is implemented on the release branch. Next milestone: Phase 2 plugin + instruction management. First stable release remains v1.0._
 
 </div>
 
@@ -61,7 +61,7 @@ You cannot run OpenCode Advance without Advance — Advance is a required depend
 
 ## Current status
 
-This repository now has a **real Phase 0 foundation baseline** in place.
+This repository now has a **real Phase 1 implementation** in place.
 
 ### Done
 
@@ -75,15 +75,20 @@ This repository now has a **real Phase 0 foundation baseline** in place.
 - compact canonical wordmark finalized
 - shared runtime brand assets and Go renderer added
 - minimal Cobra CLI added (`oca`, `oca version`)
+- `stack.toml` parse / resolve / validate implemented for `[meta]` + `[mcp]`
+- `oca apply --target mcp` shipped with atomic writes, backups, and locking
+- `oca doctor --scope mcp` shipped with Vision `/version` + `/v1/servers` checks
+- `oca debug plan` and `oca debug validate` shipped
+- MCP render / health / concurrency / JSON-shape test coverage added
 - shell brand helpers added (`lib/palette.sh`, `lib/wordmark.sh`, `lib/boot_splash.sh`)
 - broader Go + shell verification wiring added
 
 ### Not done yet
 
-- no umbrella ADV change created yet
-- no `stack.toml` parser yet
-- no apply / doctor implementation yet
-- no installer / client-session lifecycle logic yet
+- plugin lifecycle / Advance sync delegation beyond Phase 1 MCP scope
+- full `opencode.json` coverage for providers, agents, permissions, watcher, LSP, skills, commands, and formatters
+- installer / migration / client-session lifecycle logic
+- release packaging / distribution workflow
 
 ### Resume here
 
@@ -127,7 +132,7 @@ Recommended flow:
 
 1. run `/adv-status` first and finish any already-active implementation change
 2. use `phase0FoundationBrand` as the archived reference baseline for future work
-3. start the next phase change from `docs/proposals/phases.md` (currently Phase 1 config loading / validation)
+3. start the next phase change from `docs/proposals/phases.md` (currently Phase 2 plugin + instruction management)
 4. archive each phase before starting the next one
 
 In other words:
@@ -153,11 +158,11 @@ The intent is that all development and testing happen in a disposable sandbox un
 ```text
 cmd/oca/                 Go CLI entry point
 internal/config/         stack.toml parser + validation
-internal/render/         template rendering + merge logic
-internal/health/         doctor checks
+internal/render/         programmatic MCP rendering + merge logic
+internal/health/         MCP doctor checks
 internal/migrate/        open-chad import path
 assets/                  agent / instruction / skill / theme assets
-templates/               render targets for config files
+templates/               reserved for later phases (Phase 1 render is programmatic)
 lib/                     shell/client UX helpers (palette, wordmark, tmux, splash)
 tests/                   integration and shell-level tests
 docs/design/             architecture, schema, brand, CLI, theme

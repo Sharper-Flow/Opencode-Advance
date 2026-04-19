@@ -1,205 +1,218 @@
 # Phase 1 Design — stack.toml parser + MCP apply
 
-Canonical design for change `phase1StackTomlParserMcpApply`. Validated inline by the agent (adv-researcher inline pass).
+Canonical design for change `phase1StackTomlParserMcpApply`, updated to match the code shipped on the Phase 1 release branch.
 
 ## Architecture
 
+```text
+stack.toml
+  └─► config.Load()
+        ├─► ParseFile()
+        ├─► Resolve()
+        └─► Validate()
+              ├─► render.PlanMCP()
+              │     ├─► MergeMCP()
+              │     └─► RenderVisionServers()
+              └─► render.Apply()
 ```
- stack.toml ──► config.Load() ──► Stack ──► render.Plan() ──► Plan ──► render.Apply() ──► files
-                    │                                │                          │
-                    ▼                                ▼                          ▼
-             config.Validate()               template execution         atomic.Write()
-                    │                                │                          │
-                    ▼                                ▼                          ▼
-             config.Resolve()                  stable sort keys           .bak.<epoch> rotate
+
+`oca doctor --scope mcp` is a separate path:
+
+```text
+config.Load() -> health.CheckMCP() -> CLI report
 ```
 
-`oca doctor --scope mcp` is a separate path: `config.Load()` → `health.CheckMCP()` (hits Vision `/v1/servers`) → report.
+Phase 1 render logic is **programmatic**. No templates are used.
 
-## Packages
+## `internal/config`
 
-### `internal/config`
+### Current core types
 
 ```go
 type Stack struct {
-    Meta Meta                  `toml:"meta"`
-    MCP  MCPSection            `toml:"mcp"`
-}
-
-type Meta struct {
-    Version     string `toml:"version"`
-    Name        string `toml:"name"`
-    Description string `toml:"description"`
+    Meta             Meta
+    MCP              MCPSection
+    DeferredSections map[string]map[string]any
+    Warnings         []Warning
 }
 
 type MCPSection struct {
-    Servers map[string]Server `toml:"servers"`
-}
-
-// Server mirrors Vision's ServerConfig with OCA-only additions.
-// Unknown Vision fields decode into ExtraFields for forward-compat passthrough.
-type Server struct {
-    // Core transport (Vision)
-    Port      int               `toml:"port"`
-    Transport string            `toml:"transport,omitempty"`      // "stdio"|"http"|"sse"
-    Command   string            `toml:"command,omitempty"`
-    Args      []string          `toml:"args,omitempty"`
-    Env       map[string]string `toml:"env,omitempty"`
-    URL       string            `toml:"url,omitempty"`
-    Headers   map[string]string `toml:"headers,omitempty"`
-
-    // Lifecycle (Vision)
-    Autostart           bool   `toml:"autostart,omitempty"`
-    RestartPolicy       string `toml:"restart_policy,omitempty"`
-    MaxRestarts         int    `toml:"max_restarts,omitempty"`
-    Stateful            bool   `toml:"stateful,omitempty"`
-    AvailabilityProfile string `toml:"availability_profile,omitempty"`
-    SessionTimeout      string `toml:"session_timeout,omitempty"` // e.g. "30m"
-    MaxSessions         int    `toml:"max_sessions,omitempty"`
-    SessionTTL          string `toml:"session_ttl,omitempty"`
-    HealthCheckInterval string `toml:"health_check_interval,omitempty"`
-    RequestTimeout      string `toml:"request_timeout,omitempty"`
-
-    // Resilience (Vision)
-    Retry          *RetryConfig    `toml:"retry,omitempty"`
-    CircuitBreaker *CircuitBreaker `toml:"circuit_breaker,omitempty"`
-
-    // Sharing (Vision)
-    SharedReadOnlyTools   []string `toml:"shared_read_only_tools,omitempty"`
-    SharedResultCacheTTL  string   `toml:"shared_result_cache_ttl,omitempty"`
-    SharedResultCacheSize int      `toml:"shared_result_cache_size,omitempty"`
-    MaxInFlightRequests   int      `toml:"max_in_flight_requests,omitempty"`
-
-    // OCA-only / Vision (after V2+V3)
-    Required    bool   `toml:"required,omitempty"`    // Vision respects after V3
-    Source      string `toml:"source,omitempty"`      // Vision accepts after V2
-    Description string `toml:"description,omitempty"` // Vision accepts after V2
-    Enabled     *bool  `toml:"enabled,omitempty"`     // nil = default true; tri-state for explicit disable
-
-    // OCA-side only (not written out)
-    EnvFile string `toml:"env_file,omitempty"`
-
-    // Passthrough for unknown Vision fields
-    ExtraFields map[string]any `toml:"-" yaml:"-"`
-}
-
-type RetryConfig struct {
-    MaxAttempts     int      `toml:"max_attempts,omitempty"`
-    InitialDelay    string   `toml:"initial_delay,omitempty"`
-    MaxDelay        string   `toml:"max_delay,omitempty"`
-    RetryableErrors []string `toml:"retryable_errors,omitempty"`
-}
-
-type CircuitBreaker struct {
-    FailureThreshold int    `toml:"failure_threshold,omitempty"`
-    RecoveryTimeout  string `toml:"recovery_timeout,omitempty"`
+    Servers map[string]Server
 }
 ```
 
-Functions:
+`Server` mirrors the Phase 1 Vision-facing fields plus OCA-owned convenience fields:
+
+- transport and connection: `Port`, `Type`, `Transport`, `Command`, `Args`, `Env`, `URL`, `Headers`
+- lifecycle: `Autostart`, `RestartPolicy`, `MaxRestarts`, `Stateful`, `AvailabilityProfile`, `SessionTimeout`, `MaxSessions`, `SessionTTL`, `HealthCheckInterval`, `RequestTimeout`
+- resilience: `Retry`, `CircuitBreaker`
+- sharing: `SharedReadOnlyTools`, `SharedResultCacheTTL`, `SharedResultCacheSize`, `MaxInFlightRequests`
+- Vision-pass-through fields now supported: `Required`, `Source`, `Description`
+- OCA-only fields: `Enabled`, `Timeout`, `EnvFile`
+
+Phase 1 does **not** capture arbitrary per-server unknown keys into `ExtraFields`. Forward compatibility is handled at the deferred top-level section layer, not per-server passthrough.
+
+### Current functions
 
 ```go
-func Load(path string) (*Stack, error)                  // read+parse+validate+resolve
-func Parse(data []byte) (*Stack, error)                 // parse-only
-func (s *Stack) Validate() error                        // aggregate errors
-func (s *Stack) Resolve(env Env) error                  // in-place var resolution
-type Env struct { Home, XDGConfig, XDGData string; Lookup func(string) (string, bool) }
-type ValidationError struct { Path string; Msg string; Cause error }
-type ValidationErrors []ValidationError // Error() pretty-prints all
+func Load(path string) (*Stack, error)
+func Parse(data []byte) (*Stack, error)
+func ParseFile(path string) (*Stack, error)
+func (s *Stack) Resolve()
+func (s *Stack) Validate() error
+
+type ValidationError struct {
+    Path    string
+    Message string
+}
+
+type ValidationErrors []ValidationError
 ```
 
-**Validation rules (mirroring Vision):**
-- `[meta].version` must be `"1.0.0"` (only supported schema version)
-- `[mcp.servers.<name>].port` in `[6276, 6300]`
-- Transport inference: explicit `transport` wins, else `stdio` if `command` set, else `http` if `url` ends with `/mcp`, else `sse` if url set, else error
-- Cannot set both `command` and `url`
-- `http` transport requires `url` ending in `/mcp`
-- Port uniqueness across declared servers
-- Unknown `restart_policy` / `availability_profile` rejected
-- Native OpenCode tokens (`{env:...}`, `{file:...}`) pass through; unknown OCA tokens (starts with `{` but not a native token) error with field path
+### Validation rules
 
-**Variable resolution:**
-- `$HOME`, `~/...` → user home dir
-- `$XDG_CONFIG_HOME`, `$XDG_DATA_HOME` → env or XDG defaults
-- `${ENV_VAR}` / `${ENV_VAR:-default}` → env lookup (mirrors Vision's pattern)
-- Native OpenCode tokens NOT resolved — written literally to output
+- `meta.version` must be `"1.0.0"`
+- server `port` required and must be within `[6275, 6300]`
+- ports must be unique
+- `type` must be one of `stdio|http|sse|daemon` when set
+- `type = "daemon"`:
+  - only one allowed
+  - must be named `vision`
+  - must not set `command`, `args`, or `url`
+- non-daemon transport inference:
+  - explicit `transport`
+  - else explicit non-daemon `type`
+  - else `stdio` if `command` is set
+  - else `http` if `url` ends with `/mcp`
+  - else `sse` if `url` is set
+  - else `stdio`
+- cannot set both `command` and `url`
+- `http` URLs must end with `/mcp`
+- `restart_policy` must be `always|on-failure|never`
+- `availability_profile` currently accepts `networked`
+- `request_timeout`, when set, must be a positive duration string
+- known future top-level sections are accepted as deferred
+- truly unknown top-level sections error with field path
 
-### `internal/render`
+### Resolution rules
+
+`Resolve()` expands:
+
+- `$HOME`
+- `~/...`
+- `$XDG_CONFIG_HOME`, `$XDG_DATA_HOME`
+- `${VAR}`
+- `${VAR:-default}`
+
+Native OpenCode tokens such as `{env:...}` and `{file:...}` are preserved literally.
+
+### Load pipeline
+
+Actual order is:
+
+```text
+Parse -> Resolve -> Validate -> collect env_file warnings
+```
+
+That order matters because validation runs on resolved values.
+
+## `internal/render`
+
+### Current plan/apply types
 
 ```go
 type Plan struct {
-    Source  string       // path to stack.toml
-    Targets []TargetOp   // ordered operations
+    Source   string
+    LockPath string
+    Targets  []TargetOp
 }
 
 type TargetOp struct {
-    Path      string     // destination
-    Op        string     // "write" | "merge" | "noop"
-    Before    []byte     // existing content (may be nil)
-    After     []byte     // final content
-    BackupPath string    // ".bak.<epoch>" if backup created
-    Reason    string     // human-readable what-and-why
-}
-
-func PlanMCP(stack *config.Stack, paths Paths) (*Plan, error)
-func Apply(plan *Plan, opts ApplyOptions) (*ApplyResult, error)
-
-type Paths struct {
-    OpencodeJSON string // $OCA_OPENCODE_CONFIG_DIR/opencode.json
-    VisionYAML   string // $OCA_VISION_CONFIG_DIR/servers.yaml
+    Name       string
+    Path       string
+    Op         string
+    Mode       os.FileMode
+    Reason     string
+    Before     []byte
+    After      []byte
+    BackupPath string
 }
 
 type ApplyOptions struct {
-    DryRun   bool
-    MaxBackups int  // default 3
+    DryRun     bool
+    MaxBackups int
 }
 ```
 
-**JSON merge algorithm for `opencode.json`:**
+### `opencode.json` MCP merge
 
-1. Read existing file, parse as `map[string]any`, preserve all top-level keys
-2. If `.mcp` missing or not an object, set it to `{}`
-3. For each declared server in stack.toml:
-   - Render the OCA-shape entry `{type: "remote", url: "http://localhost:<port>/mcp", enabled, oauth: false, timeout}`
-   - Write to `.mcp[<name>]`, overwriting any existing value
-4. Leave other `.mcp` keys untouched (user-added servers)
-5. Sort `.mcp` keys alphabetically before marshalling
-6. Marshal with `json.MarshalIndent(obj, "", "  ")` + trailing newline
-7. If marshalled bytes equal existing bytes → `Op: noop`, no backup, no write
+`RenderMCPFragment` emits:
 
-**YAML write for `vision/servers.yaml`:**
-
-1. Build Vision-shape `map[string]any` with `servers:` key + per-server entries
-2. Strip OCA-only fields (`required`, `source`, `description`, `env_file`, `enabled` when nil) — BUT after V2+V3 land in Vision, pass them through
-3. Emit keys in stable alphabetical order
-4. Include a header comment: `# vision/servers.yaml — generated by oca apply\n# source: <stack.toml>\n\n`
-5. If bytes equal existing → `Op: noop`
-
-**Atomic write (`internal/render/atomic.go`):**
-
-```go
-func WriteAtomic(path string, data []byte, maxBackups int) error {
-    // 1. stat existing file; if exists and content == data → return nil (noop at I/O level)
-    // 2. rotate backups: keep newest maxBackups-1 .bak.<epoch> files, delete older
-    // 3. if existing file present, rename it to .bak.<now>
-    // 4. write temp file in same directory (os.CreateTemp with prefix)
-    // 5. os.Rename temp → target
-    // 6. on any failure after temp write, best-effort remove temp
+```json
+{
+  "type": "remote",
+  "url": "http://localhost:<port>/mcp",
+  "enabled": true,
+  "oauth": false,
+  "timeout": <ms>
 }
 ```
 
-**Determinism tests:** run `PlanMCP` twice on the same stack.toml; assert byte-equal outputs.
+Timeout precedence:
 
-### `internal/health`
+1. `Server.Timeout`
+2. parsed positive `Server.RequestTimeout`
+3. default `5000`
+
+`MergeMCP`:
+
+- preserves all non-MCP top-level keys
+- preserves undeclared `.mcp` entries
+- overwrites declared `.mcp` entries
+- sorts `.mcp` keys alphabetically
+- emits indented JSON with trailing newline
+
+### `vision/servers.yaml` render
+
+`RenderVisionServers` writes the full authoritative file.
+
+- skips `type = "daemon"` entries entirely
+- writes stable sorted server names
+- passes through Vision-supported fields including `required`, `source`, and `description`
+- strips OCA-only behavior (`Type`, `EnvFile`, OpenCode-only `Enabled`)
+- converts integer `Timeout` to `request_timeout: <N>ms` when needed
+
+### Atomic writes and locking
+
+Actual write signature:
 
 ```go
-type Status string
-const (
-    StatusPass Status = "pass"
-    StatusWarn Status = "warn"
-    StatusFail Status = "fail"
-)
+func WriteAtomic(path string, data []byte, mode os.FileMode, maxBackups int) (string, error)
+```
 
+Behavior:
+
+1. clean orphan `*.bak.*.tmp`
+2. short-circuit on byte-identical no-op
+3. rotate existing backups
+4. create same-directory temp file
+5. apply explicit mode
+6. rename into place atomically
+7. return backup path when one was created
+
+`Apply()` acquires one lock for the whole run via:
+
+```text
+$OCA_CACHE_DIR/apply.lock
+```
+
+using `flock` on Unix with a 30s timeout.
+
+## `internal/health`
+
+### Current types
+
+```go
 type Check struct {
     Name    string
     Status  Status
@@ -208,104 +221,73 @@ type Check struct {
     Elapsed time.Duration
 }
 
-func CheckMCP(ctx context.Context, stack *config.Stack, opts Options) ([]Check, error)
-
 type Options struct {
-    VisionAdminURL string        // default http://localhost:6275
-    Timeout        time.Duration // per-request, default 5s
-    HTTPClient     *http.Client  // injectable for tests
+    VisionAdminURL string
+    Timeout        time.Duration
+    HTTPClient     *http.Client
 }
 ```
 
-**MCP check flow:**
-1. GET `{VisionAdminURL}/v1/servers` (new endpoint from Vision V1)
-2. Decode `[]{name, port, transport, state, last_error, uptime_seconds}`
-3. For each declared server in stack.toml:
-   - If present in response with `state == "running"` → pass
-   - If present with `state == "failed"|"crashed"` → fail with last_error
-   - If present but `state == "stopped"` and `autostart: false` → pass (intentionally stopped)
-   - If absent from response → warn "declared but not registered with Vision"
-4. If Vision unreachable → single warn check "Vision admin unreachable — run `vision start`"
+Default Vision URL is:
 
-### `cmd/oca`
-
-- `apply.go` — `oca apply [--target mcp] [--dry-run]`. Flag wiring to `render.PlanMCP` + `render.Apply`.
-- `doctor.go` — `oca doctor [--scope mcp] [--timeout DUR] [--output text|json]`.
-- `debug.go` — `oca debug plan` (prints Plan JSON), `oca debug validate` (prints validation result, no writes).
-
-All commands share:
-- `--config <path>` — defaults to `./stack.toml` or `$XDG_CONFIG_HOME/opencode-advance/stack.toml`
-- `--output text|json` — output format
-- Respect `OCA_OPENCODE_CONFIG_DIR`, `OCA_VISION_CONFIG_DIR` env overrides
-
-### `templates/`
-
-- `opencode.json.mcp.gotmpl` — renders one `.mcp[<name>]` entry per declared server
-- `vision-servers.yaml.gotmpl` — renders the full servers.yaml
-
-Template engine: stdlib `text/template` with safe JSON escaping for the JSON template. Each template is self-contained; no shared includes.
-
-### Paths resolution (`internal/config/paths.go`)
-
-```go
-type Paths struct {
-    OpencodeConfigDir string // default ~/.config/opencode
-    VisionConfigDir   string // default ~/.config/vision
-}
-
-func ResolvePaths() Paths {
-    // honor OCA_OPENCODE_CONFIG_DIR, OCA_VISION_CONFIG_DIR
-    // fall back to defaults
-}
+```text
+http://127.0.0.1:6275
 ```
+
+### Current MCP check flow
+
+1. GET `/version`
+2. require `api.v1_servers = true`
+3. GET `/v1/servers`
+4. classify declared servers:
+   - `running` -> pass
+   - `failed|crashed` -> fail
+   - `stopped` -> warn unless `required`, then fail
+   - missing from response -> warn
+5. add local `env_file` and command-path advisory checks
+6. if Vision is unreachable or incompatible, return warn checks plus the local advisories
+
+## `cmd/oca`
+
+Shipped Phase 1 commands:
+
+- `oca apply --target mcp [--dry-run] [--config PATH]`
+- `oca doctor --scope mcp [--timeout DUR] [--output text|json]`
+- `oca debug plan`
+- `oca debug validate`
+
+Shared shipped flags:
+
+- `--config`
+- `--output text|json`
+- `--verbose` / `-v`
+- `--quiet` / `-q`
+
+Phase 1 intentionally rejects unimplemented targets/scopes with clear errors.
+
+## Cross-repo Vision work (V1-V5)
+
+Phase 1 depends on the following landed Vision deltas:
+
+- **V1** `GET /v1/servers` and `GET /v1/servers/{name}`
+- **V1 refinement** `scrubSecrets()` on serialized `last_error`
+- **V2** `source` / `description` fields on `ServerConfig`
+- **V3** required-server semantics surfaced for OCA doctor classification
+- **V4** README external-tool contract
+- **V5** `GET /version` with API capability flags
 
 ## Test strategy
 
-- **Unit tests** per package: parse, validate, resolve, plan, merge, atomic, health
-- **Golden tests** under `internal/render/testdata/`:
-  - Each MCP server variant has input TOML + expected `opencode.json.mcp` + expected `servers.yaml` fragment
-  - Full `stack.example.toml` → full golden output
-  - `-update` flag regenerates goldens
-- **E2E test** under `tests/apply_test.go`:
-  - Load `stack.example.toml`
-  - Set env overrides to `t.TempDir()`
-  - Run `oca apply --target mcp --dry-run` → inspect plan
-  - Run `oca apply --target mcp` → compare output dir to golden dir
-  - Run again → assert no-op (byte-identical, no new backup)
-- **Doctor test** with `httptest.Server` emulating Vision `/v1/servers`
+Current coverage includes:
 
-## Cross-repo Vision work (V1-V4)
+- package tests for config parse / validate / resolve / paths
+- package tests for render atomic / merge / redact / vision YAML / MCP fragment timeout precedence
+- package tests for health version/server classification
+- e2e tests for apply, doctor, concurrency, deferred sections, and JSON output shape
+- golden outputs under `internal/render/testdata/`
 
-Tasks in prep phase will carry `metadata.target_repo: vision`, `metadata.target_path: /home/jrede/dev/vision`. ADV switches workdir per task. Sequencing: V1-V4 land first, then OCA code integrates against them.
+## Notes
 
-**V1 concrete shape:**
-```go
-// GET /v1/servers
-// Response: { servers: [ { name, port, transport, state, autostart, last_error, uptime_seconds, restart_count } ] }
-// GET /v1/servers/{name}
-// Response: { name, port, transport, state, autostart, last_error, uptime_seconds, restart_count, args, env_keys }
-```
-
-**V2**: add `Source string `yaml:"source,omitempty"`` and `Description string `yaml:"description,omitempty"`` to `ServerConfig` in `internal/config/schema.go`.
-
-**V3**: in Vision's server startup path, if `Required=true && Autostart=true` and initial start fails after max_restarts, daemon returns non-nil startup error.
-
-**V4**: doc block in Vision README titled "External configuration tools" explaining the contract.
-
-## Validator verdict (inline adv-researcher pass)
-
-**Architecture soundness:** ✓ Clean separation of config (parse/validate/resolve), render (plan/merge/atomic), health (checks). Mirrors Vision's own package layout. Pure-function plan stage is unit-testable independently.
-
-**Simplicity:** ✓ No ORM, no reflection-heavy codegen, no DI framework. Stdlib + two small deps (BurntSushi/toml, yaml.v3). Template engine is stdlib.
-
-**Potential pitfalls considered:**
-- **Map iteration non-determinism** — mitigated by sorting keys before marshal
-- **JSON pretty-print rendering drift** — fixed indent (2 spaces), trailing newline, determinism test enforces
-- **Cross-filesystem temp+rename** — temp is created in target dir via `os.CreateTemp(dir, prefix)`, so same filesystem guaranteed
-- **Vision version drift** — doctor+apply emit clear "Vision V1 required" hint on 404
-- **TOML decoder strictness** — BurntSushi/toml `DisallowUnknownFields` via `MetaData` + post-decode check; unknown fields in root cause errors; unknown fields under `[mcp.servers.*]` land in `ExtraFields` (passthrough)
-- **BOM handling** — BurntSushi handles by default; add a regression test
-
-**LBP check:** BurntSushi/toml + yaml.v3 + stdlib testing is the 2026 go-to for CLI config tools. No deprecated pattern used.
-
-**Verdict:** PROCEED — no CONFLICT found.
+- Phase 1 uses **programmatic renderers**, not template files
+- broader v1 command surface still lives in planning docs, not in shipped code
+- schema reference remains canonical for field definitions, with Phase 1 deferral notes called out there
