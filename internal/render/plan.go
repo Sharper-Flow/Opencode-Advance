@@ -12,7 +12,7 @@ import (
 func PlanMCP(stack *cfg.Stack, paths cfg.Paths, source string) (*Plan, error) {
 	declared := map[string]Fragment{}
 	for name, srv := range stack.MCP.Servers {
-		declared[name] = RenderMCPFragment(name, srv)
+		declared[name] = RenderMCPFragment(srv)
 	}
 	opPath := paths.OpencodeJSON()
 	opBefore, err := readIfExists(opPath)

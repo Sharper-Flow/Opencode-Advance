@@ -8,9 +8,6 @@ import (
 	"time"
 )
 
-// Package render produces and applies opencode.json and vision servers.yaml
-// render plans from a resolved stack configuration.
-
 // WriteAtomic writes data to path using temp-file + rename in the same
 // directory. If path exists, a .bak.<UnixNano> copy is created first.
 //

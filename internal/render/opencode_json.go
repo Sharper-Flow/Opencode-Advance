@@ -7,8 +7,13 @@ import (
 	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
 )
 
-// RenderMCPFragment renders one opencode.json .mcp entry.
-func RenderMCPFragment(_ string, s cfg.Server) Fragment {
+// defaultTimeoutMS is the fallback per-request timeout for an MCP server
+// when neither Server.Timeout nor Server.RequestTimeout yields a positive
+// value. Emitted into opencode.json as the .timeout field.
+const defaultTimeoutMS = 5000
+
+// RenderMCPFragment renders one opencode.json .mcp entry for a server.
+func RenderMCPFragment(s cfg.Server) Fragment {
 	return Fragment{
 		"type":    "remote",
 		"url":     fmt.Sprintf("http://localhost:%d/mcp", s.Port),
@@ -27,5 +32,5 @@ func effectiveTimeoutMS(s cfg.Server) int {
 			return int(d.Milliseconds())
 		}
 	}
-	return 5000
+	return defaultTimeoutMS
 }
