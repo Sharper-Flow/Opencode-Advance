@@ -18,3 +18,5 @@ Phase 1 capability spec for parsing `stack.toml` and rendering MCP configuration
 - `rq-mcp-daemon-type01` — `type = "daemon"` renders only an OpenCode `.mcp` entry and never a Vision managed server entry.
 - `rq-mcp-env-file01` — `env_file` paths are recorded as-is; missing paths warn, not fail; file contents are never read.
 - `rq-mcp-secret-scrub01` — Vision status surfaces scrub secrets from diagnostic strings before exposing them over HTTP.
+- `rq-mcp-source-provenance01` — `source` on `[mcp.*]` and `[plugins.*]` is a provenance URL (documentation / traceability), not a package resolution directive. For `[plugins.*]`, package resolution uses `source` only when it is a `git+https://`, `https://...git`, or `npm:<pkg>` URI; other `source` values are informational and MUST NOT drive install behavior.
+- `rq-mcp-restart-policy01` — `restart_policy` on `[mcp.*]` is an enum with exactly three legal values: `always`, `on-failure`, `never`. Any other value is a validation error surfaced with the field path. Unset defers to Vision default.
