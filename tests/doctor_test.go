@@ -19,8 +19,10 @@ func TestDoctorMCP_WithMockVision(t *testing.T) {
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/version":
+			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"version":"dev","api":{"v1_servers":true}}`))
 		case "/v1/servers":
+			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"servers":[{"name":"vision","state":"running","port":6275,"required":true},{"name":"context7","state":"running","port":6276},{"name":"sentry","state":"failed","port":6289,"required":true,"last_error":"boom"}]}`))
 		default:
 			http.NotFound(w, r)
