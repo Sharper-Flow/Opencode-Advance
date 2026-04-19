@@ -1,3 +1,8 @@
+// Package health provides configuration health checks surfaced via
+// `oca doctor`. Each Check represents a single probe (e.g. Vision reachable,
+// opencode.json parses) with a status, human-readable message, and optional
+// remediation hint. Callers aggregate Checks and render them as text or JSON;
+// HasFailures/HasWarnings/Summary helpers drive the doctor exit code.
 package health
 
 import "time"

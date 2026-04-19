@@ -23,9 +23,9 @@ func newDebugPlanCmd(state *commandState) *cobra.Command {
 			}
 			plan, err := render.PlanMCP(stack, config.ResolvePaths(), state.configPath)
 			if err != nil {
-				return newCLIError(3, "debug plan: %v", err)
+				return newCLIError(3, "debug plan: %w", err)
 			}
-			return printJSON(state.opts.Stdout, plan)
+			return printJSON(state.opts.Stdout, render.RedactPlan(plan))
 		},
 	}
 }

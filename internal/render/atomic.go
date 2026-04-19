@@ -8,9 +8,18 @@ import (
 	"time"
 )
 
+// Package render produces and applies opencode.json and vision servers.yaml
+// render plans from a resolved stack configuration.
+
 // WriteAtomic writes data to path using temp-file + rename in the same
 // directory. If path exists, a .bak.<UnixNano> copy is created first.
-// Returns the created backup path, or empty string when no backup was needed.
+//
+// The returned backupPath is non-empty whenever a backup file was created,
+// even if a subsequent step (tmp write, chmod, rename) failed. This lets the
+// caller restore the previous content on partial failure. backupPath is
+// empty only when no backup was needed (file did not exist, or new content
+// matched existing) or when the failure occurred before the backup was
+// written.
 func WriteAtomic(path string, data []byte, mode os.FileMode, maxBackups int) (string, error) {
 	if err := cleanupOrphanBackupTemps(path); err != nil {
 		return "", err

@@ -31,7 +31,7 @@ func newDoctorCmd(state *commandState) *cobra.Command {
 			defer cancel()
 			checks, err := health.CheckMCP(ctx, stack, health.Options{Timeout: timeout})
 			if err != nil {
-				return newCLIError(3, "doctor mcp: %v", err)
+				return newCLIError(3, "doctor mcp: %w", err)
 			}
 			if state.output == "json" {
 				if err := printJSON(state.opts.Stdout, checks); err != nil {

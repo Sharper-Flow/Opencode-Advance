@@ -38,17 +38,17 @@ func newApplyCmd(state *commandState) *cobra.Command {
 			paths := config.ResolvePaths()
 			plan, err := render.PlanMCP(stack, paths, state.configPath)
 			if err != nil {
-				return newCLIError(3, "plan mcp: %v", err)
+				return newCLIError(3, "plan mcp: %w", err)
 			}
 			if dryRun {
 				if state.output == "json" {
-					return printJSON(state.opts.Stdout, plan)
+					return printJSON(state.opts.Stdout, render.RedactPlan(plan))
 				}
 				return printPlanText(state.opts.Stdout, plan)
 			}
 			result, err := render.Apply(plan, render.ApplyOptions{DryRun: false, MaxBackups: 3, LockPath: paths.ApplyLockPath()})
 			if err != nil {
-				return newCLIError(3, "apply mcp: %v", err)
+				return newCLIError(3, "apply mcp: %w", err)
 			}
 			if state.output == "json" {
 				return printJSON(state.opts.Stdout, result)
