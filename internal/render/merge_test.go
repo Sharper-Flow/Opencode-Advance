@@ -19,11 +19,17 @@ func TestMergeMCP_PreservesUserAddedAndOverwritesDeclared(t *testing.T) {
 	if err := json.Unmarshal(out, &root); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	mcp := root["mcp"].(map[string]any)
+	mcp, ok := root["mcp"].(map[string]any)
+	if !ok {
+		t.Fatalf("mcp is not an object: %#v", root["mcp"])
+	}
 	if _, ok := mcp["user_added"]; !ok {
 		t.Fatal("user_added key lost")
 	}
-	ctx := mcp["context7"].(map[string]any)
+	ctx, ok := mcp["context7"].(map[string]any)
+	if !ok {
+		t.Fatalf("context7 is not an object: %#v", mcp["context7"])
+	}
 	if ctx["url"] != "http://localhost:6276/mcp" {
 		t.Fatalf("declared url not overwritten: %#v", ctx)
 	}
