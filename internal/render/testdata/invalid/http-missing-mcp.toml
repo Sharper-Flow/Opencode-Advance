@@ -1,0 +1,7 @@
+[meta]
+version = "1.0.0"
+
+[mcp.servers.bad]
+port = 6276
+transport = "http"
+url = "http://localhost:6276"

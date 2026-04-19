@@ -1,0 +1,9 @@
+[meta]
+version = "1.0.0"
+
+[mcp.servers.remote-http]
+port = 6290
+transport = "http"
+url = "https://api.example.com/mcp"
+availability_profile = "networked"
+request_timeout = "30s"
