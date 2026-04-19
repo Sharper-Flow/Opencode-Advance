@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
+	"github.com/Sharper-Flow/Opencode-Advance/internal/render"
 )
 
 type Options struct {
@@ -65,6 +67,7 @@ func CheckMCP(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check, err
 			Elapsed: time.Since(start),
 		})
 		checks = append(checks, envFileChecks(stack)...)
+		checks = append(checks, commandPathChecks(stack)...)
 		return checks, nil
 	}
 	if !vr.API["v1_servers"] {
@@ -76,6 +79,7 @@ func CheckMCP(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check, err
 			Elapsed: time.Since(start),
 		})
 		checks = append(checks, envFileChecks(stack)...)
+		checks = append(checks, commandPathChecks(stack)...)
 		return checks, nil
 	}
 	checks = append(checks, Check{Name: "vision.version", Status: StatusPass, Message: fmt.Sprintf("Vision %s supports /v1/servers", vr.Version), Elapsed: time.Since(start)})
@@ -91,6 +95,7 @@ func CheckMCP(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check, err
 			Elapsed: time.Since(start),
 		})
 		checks = append(checks, envFileChecks(stack)...)
+		checks = append(checks, commandPathChecks(stack)...)
 		return checks, nil
 	}
 	statusByName := map[string]serverStatus{}
@@ -125,12 +130,14 @@ func CheckMCP(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check, err
 			if ss.Required || declared.Required {
 				st = StatusFail
 			}
-			checks = append(checks, Check{Name: "mcp." + name, Status: st, Message: fmt.Sprintf("%s: %s", ss.State, ss.LastError), Hint: "inspect Vision logs or the server configuration"})
+			redactedErr := string(render.Redact([]byte(ss.LastError)))
+			checks = append(checks, Check{Name: "mcp." + name, Status: st, Message: fmt.Sprintf("%s: %s", ss.State, redactedErr), Hint: "inspect Vision logs or the server configuration"})
 		default:
 			checks = append(checks, Check{Name: "mcp." + name, Status: StatusWarn, Message: fmt.Sprintf("unknown state %q", ss.State)})
 		}
 	}
 	checks = append(checks, envFileChecks(stack)...)
+	checks = append(checks, commandPathChecks(stack)...)
 	return checks, nil
 }
 
@@ -190,6 +197,32 @@ func envFileChecks(stack *cfg.Stack) []Check {
 		} else {
 			checks = append(checks, Check{Name: "mcp." + name + ".env_file", Status: StatusPass, Message: "env_file present"})
 		}
+	}
+	return checks
+}
+
+// commandPathChecks warns when an enabled stdio server declares a non-absolute
+// command. Vision resolves such commands via $PATH at spawn time, which makes
+// the stack non-hermetic and can cause surprises across hosts. OCA never
+// reads the command value beyond this advisory path check.
+func commandPathChecks(stack *cfg.Stack) []Check {
+	checks := []Check{}
+	for name, s := range stack.MCP.Servers {
+		if !s.IsEnabled() {
+			continue
+		}
+		if s.Command == "" {
+			continue
+		}
+		if filepath.IsAbs(s.Command) {
+			continue
+		}
+		checks = append(checks, Check{
+			Name:    "mcp." + name + ".command_path",
+			Status:  StatusWarn,
+			Message: "command is not an absolute path: " + s.Command,
+			Hint:    "prefer an absolute path (e.g. /usr/local/bin/" + s.Command + ") so spawns do not depend on $PATH resolution",
+		})
 	}
 	return checks
 }
