@@ -2,7 +2,7 @@
 
 This document is the canonical reference for the `stack.toml` schema. A complete working example lives at [`stack.example.toml`](../../stack.example.toml).
 
-> Phase 1 note: only `[meta]` and `[mcp]` are typed and actively rendered today. The other top-level sections below are part of the long-term schema and are accepted as deferred input for later phases unless otherwise noted.
+> Status note: `[meta]`, `[mcp]`, `[plugins.*]`, and `[instructions]` are typed and actively rendered as of Phase 2. `[temporal]` is typed but reserved for Phase 6.5 (accepted without rendering). The remaining top-level sections below are part of the long-term schema and are accepted as deferred input for later phases unless otherwise noted.
 
 ## Top-level tables
 
@@ -10,8 +10,8 @@ This document is the canonical reference for the `stack.toml` schema. A complete
 | ---------------- | -------- | ---------------------------------------------------- |
 | `[meta]`           | yes      | Stack name, version, description                    |
 | `[mcp]`            | yes      | MCP server declarations                             |
-| `[plugins.*]`      | deferred | Plugin declarations with source, build, wiring     |
-| `[instructions]`   | deferred | Ordered list of instruction files to load           |
+| `[plugins.*]`      | active   | Plugin declarations with source, build, wiring (Phase 2) |
+| `[instructions]`   | active   | Ordered list of instruction files to load (Phase 2) |
 | `[providers.*]`    | no       | Provider/model configurations                      |
 | `[agents]`         | no       | Agent → model assignments                           |
 | `[permissions]`    | no       | Permission rules (bash, external_directory)         |

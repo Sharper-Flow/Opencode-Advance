@@ -10,7 +10,7 @@
 
 **A declarative, reproducible OpenCode environment and workflow platform.**
 
-_Status: Phase 1 (`stack.toml` parser + MCP apply/doctor/debug) is implemented on the release branch. Next milestone: Phase 2 plugin + instruction management. First stable release remains v1.0._
+_Status: Phase 1 (`stack.toml` parser + MCP apply/doctor/debug) and Phase 2 (plugin + instruction management, including `oca pin` and `oca update`) are both implemented on the release branch. Next milestone: Phase 3. First stable release remains v1.0._
 
 </div>
 
@@ -61,9 +61,11 @@ You cannot run OpenCode Advance without Advance — Advance is a required depend
 
 ## Current status
 
-This repository now has a **real Phase 1 implementation** in place.
+This repository has **Phase 1 + Phase 2 implementations** in place.
 
 ### Done
+
+#### Phase 1 — foundation
 
 - repo scaffolded
 - `go.mod` initialized
@@ -83,12 +85,29 @@ This repository now has a **real Phase 1 implementation** in place.
 - shell brand helpers added (`lib/palette.sh`, `lib/wordmark.sh`, `lib/boot_splash.sh`)
 - broader Go + shell verification wiring added
 
+#### Phase 2 — plugin + instruction management
+
+- typed `[plugins.*]`, `[instructions]`, and reserved `[temporal]` sections in `stack.toml` with 6-category `provides` enum
+- generic `internal/subprocess` runner with timeout / signal / env-merge semantics
+- `internal/plugin` package: git clone/fetch/checkout/status with protocol hardening and ref allowlist, build-step runner, npm literal handler, clone-or-update orchestrator with symlink rejection and remote-URL drift detection
+- `internal/render.MergeArray` primitive + `.bak.<epoch>` backup rotation with per-target suppression
+- `internal/sync.InvokeAdvance` for post-apply plugin sync with best-effort output redaction
+- pluggable health-check registry with `ResetForTesting()` contract
+- `oca apply --target plugins --target instructions --target temporal` extensions
+- `oca pin [plugin...]` — atomic stack.toml SHA capture under the apply lock
+- `oca update [plugin...]` — fetch + checkout + build + sync (with `--force` on pinned refs)
+- `oca doctor --scope plugins` with local-only default and `--network` opt-in for remote probes
+- integration tests covering plugin apply end-to-end + backup rotation policy
+- new `.adv/specs/plugin-apply/` capability spec with 13 rq-* requirements
+- `OCA_PLUGIN_CHECKOUT_ROOT` env override documented in `AGENTS.md`
+- trust-boundary + secret-redaction docs in `docs/design/stack-toml-schema.md`
+
 ### Not done yet
 
-- plugin lifecycle / Advance sync delegation beyond Phase 1 MCP scope
-- full `opencode.json` coverage for providers, agents, permissions, watcher, LSP, skills, commands, and formatters
+- full `opencode.json` coverage for providers, agents, permissions, watcher, LSP, skills, commands, and formatters (Phase 3+)
 - installer / migration / client-session lifecycle logic
 - release packaging / distribution workflow
+- `oca install`, `oca diff`, `oca migrate` commands
 
 ### Resume here
 
@@ -100,10 +119,10 @@ This repository now has a **real Phase 1 implementation** in place.
 
 At v1.0, OpenCode Advance is intended to provide:
 
-- declarative `stack.toml` parsing and validation
-- MCP server rendering into both OpenCode and Vision config
-- plugin clone / build / pin / update workflows
-- instruction, provider, agent, permission, watcher, and LSP rendering
+- declarative `stack.toml` parsing and validation **(shipped Phase 1)**
+- MCP server rendering into both OpenCode and Vision config **(shipped Phase 1)**
+- plugin clone / build / pin / update workflows **(shipped Phase 2)**
+- instruction, provider, agent, permission, watcher, and LSP rendering (instructions shipped Phase 2; rest in Phase 3+)
 - clean ownership boundaries between OCA-owned and Advance-owned assets
 - migration from existing `open-chad` state into `stack.toml`
 - primary client/session lifecycle, theme, boot splash, and shell integration
