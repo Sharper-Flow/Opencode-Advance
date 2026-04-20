@@ -8,6 +8,16 @@ import (
 	"time"
 )
 
+var renameFile = os.Rename
+
+// SetRenameForTesting overrides the rename function used by WriteAtomic.
+// Tests can inject rename failures or delays to exercise rollback/locking.
+func SetRenameForTesting(fn func(oldPath, newPath string) error) func() {
+	prev := renameFile
+	renameFile = fn
+	return func() { renameFile = prev }
+}
+
 // WriteAtomic writes data to path using temp-file + rename in the same
 // directory. If path exists, a .bak.<UnixNano> copy is created first.
 //
@@ -39,7 +49,7 @@ func WriteAtomic(path string, data []byte, mode os.FileMode, maxBackups int) (st
 			if err := os.WriteFile(backupPath+".tmp", existing, mode); err != nil {
 				return "", err
 			}
-			if err := os.Rename(backupPath+".tmp", backupPath); err != nil {
+			if err := renameFile(backupPath+".tmp", backupPath); err != nil {
 				return "", err
 			}
 		}
@@ -63,7 +73,7 @@ func WriteAtomic(path string, data []byte, mode os.FileMode, maxBackups int) (st
 	if err := os.Chmod(tmpPath, mode); err != nil {
 		return backupPath, err
 	}
-	if err := os.Rename(tmpPath, path); err != nil {
+	if err := renameFile(tmpPath, path); err != nil {
 		return backupPath, err
 	}
 	return backupPath, nil

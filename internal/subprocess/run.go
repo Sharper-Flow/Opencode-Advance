@@ -90,8 +90,11 @@ func Run(ctx context.Context, c Cmd) (Result, error) {
 		res.ExitClass = ExitTimeout
 		return res, fmt.Errorf("subprocess %s: timeout after %v", c.Name, c.Timeout)
 
-	case errors.Is(ctx.Err(), context.Canceled), errors.Is(execCtx.Err(), context.Canceled):
-		// Parent cancellation (not the derived timeout).
+	case errors.Is(execCtx.Err(), context.Canceled):
+		// Parent cancellation propagates into execCtx (derived via
+		// WithTimeout), so a single check on execCtx.Err() covers both
+		// direct cancellation of execCtx and inherited cancellation from
+		// the caller's ctx. Distinguished from DeadlineExceeded above.
 		res.ExitClass = ExitSignal
 		return res, fmt.Errorf("subprocess %s: cancelled", c.Name)
 

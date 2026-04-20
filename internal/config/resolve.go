@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -111,10 +112,17 @@ func expandPluginTokens(p *Plugin) error {
 	}
 
 	// Safe to substitute — all tokens are known.
-	p.Path = replaceTokens(p.Path)
+	//
+	// Normalize path-shaped fields with filepath.Clean after substitution
+	// so `{checkout}/../other` and similar token combinations collapse to
+	// their canonical form before any downstream code uses them as a
+	// filesystem target. Sync is deliberately NOT cleaned: it is a shell
+	// command string, not a filesystem path, and filepath.Clean would
+	// corrupt legitimate shell syntax.
+	p.Path = filepath.Clean(replaceTokens(p.Path))
 	p.Sync = replaceTokens(p.Sync)
 	for i, instr := range p.Instructions {
-		p.Instructions[i] = replaceTokens(instr)
+		p.Instructions[i] = filepath.Clean(replaceTokens(instr))
 	}
 
 	return nil

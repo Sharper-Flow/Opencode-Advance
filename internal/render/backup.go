@@ -1,6 +1,7 @@
 package render
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -17,31 +18,35 @@ func backupGlob(path string) string { return path + ".bak.*" }
 // These are cleaned up at the start of each apply run.
 func orphanBackupTempGlob(path string) string { return path + ".bak.*.tmp" }
 
+// removeAll unlinks every path in paths. If multiple removals fail, the
+// first filesystem error is returned with the offending path; subsequent
+// removals are still attempted so a single stubborn file does not leave
+// the rest behind. Missing files are ignored (idempotent).
+func removeAll(paths []string) error {
+	var firstErr error
+	for _, p := range paths {
+		if err := os.Remove(p); err != nil && !os.IsNotExist(err) && firstErr == nil {
+			firstErr = fmt.Errorf("remove %s: %w", p, err)
+		}
+	}
+	return firstErr
+}
+
 func cleanupOrphanBackupTemps(path string) error {
 	matches, err := filepath.Glob(orphanBackupTempGlob(path))
 	if err != nil {
 		return err
 	}
-	for _, m := range matches {
-		_ = os.Remove(m)
-	}
-	return nil
+	return removeAll(matches)
 }
 
 func pruneBackups(path string, keep int) error {
-	if keep <= 0 {
-		matches, err := filepath.Glob(backupGlob(path))
-		if err != nil {
-			return err
-		}
-		for _, m := range matches {
-			_ = os.Remove(m)
-		}
-		return nil
-	}
 	matches, err := filepath.Glob(backupGlob(path))
 	if err != nil {
 		return err
+	}
+	if keep <= 0 {
+		return removeAll(matches)
 	}
 	type item struct {
 		path  string
@@ -63,8 +68,9 @@ func pruneBackups(path string, keep int) error {
 	if len(items) <= keep {
 		return nil
 	}
+	victims := make([]string, 0, len(items)-keep)
 	for _, it := range items[keep:] {
-		_ = os.Remove(it.path)
+		victims = append(victims, it.path)
 	}
-	return nil
+	return removeAll(victims)
 }

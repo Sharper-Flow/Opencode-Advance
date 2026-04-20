@@ -150,14 +150,26 @@ func MergeArray(root []byte, arrayPath string, declared []string, opts MergeArra
 }
 
 // canonicalPath normalizes a path for dedup: filepath.Clean + ~ → home expansion.
+//
+// Paths whose cleaned form still contains a `..` segment (for example
+// "../foo" or "a/../../b") are returned unchanged. filepath.Clean cannot
+// resolve traversal past the starting point, and normalizing such a path
+// could collide two textually distinct suspicious paths into the same
+// dedup bucket. Returning the raw input keeps the bucket distinct and
+// surfaces the original value for any consumer that inspects it.
 func canonicalPath(p string) string {
+	in := p
 	if strings.HasPrefix(p, "~/") {
 		home, err := os.UserHomeDir()
 		if err == nil && home != "" {
 			p = home + p[1:]
 		}
 	}
-	return filepath.Clean(p)
+	cleaned := filepath.Clean(p)
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || strings.Contains(cleaned, "/../") {
+		return in
+	}
+	return cleaned
 }
 
 // isStaleWorktree checks if a path matches the worktree pattern AND

@@ -292,6 +292,15 @@ func inferTransport(s Server) string {
 //   - git source: checkout is required
 //   - git source: path is required after {checkout}/{subdir} expansion
 //   - provides entries must be valid ProvidesCategory values
+//
+// Trust boundary: no host or registry allowlist is enforced here. stack.toml
+// is a user-authored file; if the user declares a plugin source, oca trusts
+// them to vet it. Hardening against hostile remotes is layered elsewhere
+// (see internal/plugin/git.go gitHardeningArgs + validateGitRef, and
+// internal/plugin/prepare.go's Lstat/remote-URL-drift checks). Adding a
+// host allowlist here would block legitimate private forks and mirrors
+// without meaningfully raising the security bar. See
+// docs/design/stack-toml-schema.md for the rationale.
 func validatePlugins(s *Stack) ValidationErrors {
 	var errs ValidationErrors
 	if s.Plugins == nil {

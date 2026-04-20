@@ -87,6 +87,10 @@ func PlanPlugins(stack *cfg.Stack, paths cfg.Paths, source string) (*Plan, error
 	if bytes.Equal(opBefore, merged.Bytes) {
 		opOp = "noop"
 	}
+	reason := "merge declared plugin entries into .plugin preserving user-added entries and pruning stale worktree paths"
+	if merged.PrunedCount > 0 {
+		reason = fmt.Sprintf("pruned %d stale worktree plugin entrie(s) while merging declared plugin entries", merged.PrunedCount)
+	}
 
 	return &Plan{
 		Source:   source,
@@ -99,7 +103,7 @@ func PlanPlugins(stack *cfg.Stack, paths cfg.Paths, source string) (*Plan, error
 			After:          merged.Bytes,
 			Mode:           0o644,
 			SuppressBackup: hasSync,
-			Reason:         "merge declared plugin entries into .plugin preserving user-added entries and pruning stale worktree paths",
+			Reason:         reason,
 		}},
 	}, nil
 }
