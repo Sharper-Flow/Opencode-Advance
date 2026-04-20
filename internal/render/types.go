@@ -14,6 +14,7 @@ type TargetOp struct {
 	After      []byte
 	Mode       os.FileMode
 	BackupPath string
+	SuppressBackup bool
 	Reason     string
 }
 

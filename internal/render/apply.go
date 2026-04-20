@@ -36,7 +36,11 @@ func Apply(plan *Plan, opts ApplyOptions) (*ApplyResult, error) {
 	for i, t := range plan.Targets {
 		r := TargetResult{Path: t.Path, Op: t.Op}
 		if t.Op != "noop" {
-			backup, err := WriteAtomic(t.Path, t.After, t.Mode, opts.MaxBackups)
+			maxBackups := opts.MaxBackups
+			if t.SuppressBackup {
+				maxBackups = 0
+			}
+			backup, err := WriteAtomic(t.Path, t.After, t.Mode, maxBackups)
 			if err != nil {
 				r.BackupPath = backup
 				res.Targets = append(res.Targets, r)

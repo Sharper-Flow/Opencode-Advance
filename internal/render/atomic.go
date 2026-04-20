@@ -31,15 +31,17 @@ func WriteAtomic(path string, data []byte, mode os.FileMode, maxBackups int) (st
 		if bytes.Equal(existing, data) {
 			return "", nil
 		}
-		if err := pruneBackups(path, maxBackups-1); err != nil {
-			return "", err
-		}
-		backupPath = fmt.Sprintf("%s.bak.%d", path, time.Now().UnixNano())
-		if err := os.WriteFile(backupPath+".tmp", existing, mode); err != nil {
-			return "", err
-		}
-		if err := os.Rename(backupPath+".tmp", backupPath); err != nil {
-			return "", err
+		if maxBackups > 0 {
+			if err := pruneBackups(path, maxBackups-1); err != nil {
+				return "", err
+			}
+			backupPath = fmt.Sprintf("%s.bak.%d", path, time.Now().UnixNano())
+			if err := os.WriteFile(backupPath+".tmp", existing, mode); err != nil {
+				return "", err
+			}
+			if err := os.Rename(backupPath+".tmp", backupPath); err != nil {
+				return "", err
+			}
 		}
 	} else if !os.IsNotExist(err) {
 		return "", err

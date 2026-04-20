@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"sort"
 
 	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
 )
@@ -49,6 +50,90 @@ func PlanMCP(stack *cfg.Stack, paths cfg.Paths, source string) (*Plan, error) {
 			{Name: "opencode.json", Path: opPath, Op: opOp, Before: opBefore, After: opAfter, Mode: 0o644, Reason: "merge declared MCP entries into .mcp preserving user-added keys"},
 			{Name: "vision/servers.yaml", Path: visionPath, Op: visionOp, Before: visionBefore, After: visionAfter, Mode: 0o600, Reason: "write authoritative Vision server registry"},
 		},
+	}, nil
+}
+
+// PlanPlugins builds deterministic render plan for opencode.json .plugin.
+func PlanPlugins(stack *cfg.Stack, paths cfg.Paths, source string) (*Plan, error) {
+	opPath := paths.OpencodeJSON()
+	opBefore, err := readIfExists(opPath)
+	if err != nil {
+		return nil, err
+	}
+
+	declared := make([]string, 0, len(stack.Plugins))
+	hasSync := false
+	names := make([]string, 0, len(stack.Plugins))
+	for name := range stack.Plugins {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		plugin := stack.Plugins[name]
+		if !plugin.IsEnabled() {
+			continue
+		}
+		declared = append(declared, RenderPluginFragment(plugin))
+		if plugin.Sync != "" {
+			hasSync = true
+		}
+	}
+
+	merged, err := MergeArray(opBefore, "plugin", declared, MergeArrayOptions{StripStaleWorktree: true})
+	if err != nil {
+		return nil, err
+	}
+	opOp := "merge"
+	if bytes.Equal(opBefore, merged.Bytes) {
+		opOp = "noop"
+	}
+
+	return &Plan{
+		Source:   source,
+		LockPath: paths.ApplyLockPath(),
+		Targets: []TargetOp{{
+			Name:           "opencode.json",
+			Path:           opPath,
+			Op:             opOp,
+			Before:         opBefore,
+			After:          merged.Bytes,
+			Mode:           0o644,
+			SuppressBackup: hasSync,
+			Reason:         "merge declared plugin entries into .plugin preserving user-added entries and pruning stale worktree paths",
+		}},
+	}, nil
+}
+
+// PlanInstructions builds deterministic render plan for opencode.json .instructions.
+func PlanInstructions(stack *cfg.Stack, paths cfg.Paths, source string) (*Plan, error) {
+	opPath := paths.OpencodeJSON()
+	opBefore, err := readIfExists(opPath)
+	if err != nil {
+		return nil, err
+	}
+
+	declared := RenderInstructionsList(stack)
+	merged, err := MergeArray(opBefore, "instructions", declared, MergeArrayOptions{})
+	if err != nil {
+		return nil, err
+	}
+	opOp := "merge"
+	if bytes.Equal(opBefore, merged.Bytes) {
+		opOp = "noop"
+	}
+
+	return &Plan{
+		Source:   source,
+		LockPath: paths.ApplyLockPath(),
+		Targets: []TargetOp{{
+			Name:   "opencode.json",
+			Path:   opPath,
+			Op:     opOp,
+			Before: opBefore,
+			After:  merged.Bytes,
+			Mode:   0o644,
+			Reason: "merge declared instruction entries into .instructions preserving user-added entries",
+		}},
 	}, nil
 }
 
