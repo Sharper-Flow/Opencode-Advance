@@ -14,6 +14,10 @@ import (
 	"github.com/Sharper-Flow/Opencode-Advance/internal/render"
 )
 
+func init() {
+	registerBuiltin("mcp", CheckMCP)
+}
+
 type Options struct {
 	VisionAdminURL string
 	Timeout        time.Duration
