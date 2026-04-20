@@ -151,7 +151,7 @@ Recommended flow:
 
 1. run `/adv-status` first and finish any already-active implementation change
 2. use `phase0FoundationBrand` as the archived reference baseline for future work
-3. start the next phase change from `docs/proposals/phases.md` (currently Phase 2 plugin + instruction management)
+3. start the next phase change from `docs/proposals/phases.md` (currently Phase 3 core opencode.json coverage)
 4. archive each phase before starting the next one
 
 In other words:

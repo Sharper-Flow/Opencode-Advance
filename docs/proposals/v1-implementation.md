@@ -8,7 +8,9 @@ This document is the source material for the first ADV change in this repository
 ## Progress snapshot
 
 - Phase 0 (`phase0FoundationBrand`) is complete, archived, and merged to `trunk`
-- Current recommended next phase: **Phase 1: stack.toml + MCP apply**
+- Phase 1 (`phase1StackTomlParserMcpApply`) is complete, archived, and merged to `trunk`
+- Phase 2 (`phase2PluginInstruction`) is complete, archived, and merged to `trunk`
+- Current recommended next phase: **Phase 3: core opencode.json coverage**
 - This document remains the umbrella roadmap for the full v1.0 effort
 
 ---

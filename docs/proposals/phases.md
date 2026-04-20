@@ -36,11 +36,15 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 - Merge commit on `trunk`: `dc85b39 feat(phase0): establish branded CLI baseline`
 - Use this shipped baseline as the reference point for all later phases
 
+### Retrospective
+
+Phase 0 established the branded CLI baseline and learned three durable lessons. Worktree operations must use absolute file paths to avoid targeting the original checkout instead of the worktree (ws-1ApJ_H). Shell color tests must explicitly clear inherited `COLORTERM` when asserting 256-color fallback, or truecolor-capable environments invalidate assertions (ws-8cww-_). CLI surface is testable through a small `commandOptions` struct injecting stdout/stderr and version metadata, avoiding a heavy application container (pw-rmPnXzHs).
+
 ---
 
 ## Phase 1: stack.toml + MCP apply
 
-**Status:** Implemented on change `phase1StackTomlParserMcpApply`; currently in release-stage hardening/archive flow.
+**Status:** Complete — delivered in archived change `phase1StackTomlParserMcpApply` and merged to `trunk`.
 
 **Goal:** Parse `stack.toml`, validate it, and render the `[mcp.servers.*]` section into both `opencode.json` and `vision/servers.yaml`.
 
@@ -81,49 +85,40 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 - tk-phase1-13: Write golden tests for stack.example.toml rendering
 - tk-phase1-14: Write integration test for full mcp apply cycle
 
+### Retrospective
+
+Phase 1 delivered TOML parsing, MCP rendering, and the first `oca apply` target. Vision's stdio MCP servers defer process spawn to session-manager, not daemon startup — so "required server failed to start" is architecturally undetectable until the first session connects. Doctor is the right enforcement layer, not startup checks (ws-8zADsv). E2E lifecycle on changes with 30+ tasks is not single-session work; discovery + design + planning alone can consume 40–60% of output budget (ws-4fuYiD). The gap-audit pattern — running an explicit completeness scan after planning closes and before execution starts — found 16 real gaps including a critical render-rule ambiguity and missing concurrency protection (pw-_cO0efB0). `env_file` handling follows systemd `EnvironmentFile=` semantics adapted to declarative-config scope: record path at parse, soft-warn if missing, never read contents, keeping OCA secret-blind (pw-ol4U1yE7).
+
 ---
 
 ## Phase 2: Plugin + Instruction Management
+
+**Status:** Complete — delivered in archived change `phase2PluginInstruction` and merged to `trunk`.
 
 **Goal:** Manage plugin lifecycle (clone, build, pin, wire into opencode.json) and render the instructions list. Critically, delegate ADV asset sync to Advance's own sync-global.sh.
 
 **Estimate:** 1 week
 
-**Deliverables:**
+**Shipped deliverables:**
 
-- `internal/plugin/` — git clone/pull, subprocess for build commands, SHA pinning
-- `internal/render/plugin.go` — plugin array rendering for opencode.json
-- `internal/render/instructions.go` — instructions list rendering
-- `internal/health/plugin.go` — plugin health checks (checkout exists, built, git ref)
-- `cmd/oca/apply.go` extended for plugins + instructions targets
-- `cmd/oca/pin.go` — `oca pin` command
-- `cmd/oca/update.go` — `oca update` command
-- Advance delegation: subprocess invocation of `sync-global.sh --fix` with captured output
+- `internal/subprocess/` — generic subprocess runner with timeout, signal handling, exit classification
+- `internal/plugin/` — git clone/pull, npm source handling, SHA capture/pin, build command execution
+- `internal/sync/advance.go` — subprocess invocation of `sync-global.sh --fix` with captured output
+- `internal/render/` — `MergeArray` for plugin array merge, `WriteAtomic` (temp+rename), `AcquireApplyLock` (flock)
+- `cmd/oca/pin.go` — `oca pin` writes current SHAs to stack.toml
+- `cmd/oca/update.go` — `oca update` pulls latest (respecting pins)
+- `cmd/oca/doctor.go` — expanded with `--scope plugins`, `--network` flag
+- 28 tasks, 8 conventional commits (`6d32bdd..bb4ff36`), ~2,400 LOC net-new
 
-**Exit criteria:**
+**Historical implementation reference:**
 
-- `oca apply --target plugins` clones/updates all declared plugins, runs build commands, wires paths into `opencode.json`
-- `oca apply --target plugins` invokes `advance/scripts/sync-global.sh --fix` when Advance is declared with `sync` field
-- `oca apply` skips asset categories that Advance `provides`
-- `oca pin` writes current SHAs into stack.toml
-- `oca update` pulls latest (respecting pins) and re-applies
-- Instructions are rendered in declared order with plugin-provided instructions appended
-- `oca doctor --scope plugins` verifies each plugin is built and ready
+- Archived ADV change: `phase2PluginInstruction` (archive dir: `.adv/archive/2026-04-20-phase2PluginInstruction/`)
+- Commit range on `trunk`: `6d32bdd..bb4ff36`
+- Next recommended phase: **Phase 3** (core opencode.json coverage)
 
-**Tasks (high-level):**
+### Retrospective
 
-- tk-phase2-01: Implement git clone/pull in `internal/plugin/git.go`
-- tk-phase2-02: Implement subprocess runner for build commands with captured output
-- tk-phase2-03: Implement SHA capture/pin logic
-- tk-phase2-04: Implement npm plugin handling (`npm:` source prefix)
-- tk-phase2-05: Implement plugin array rendering into opencode.json
-- tk-phase2-06: Implement instructions list rendering with order preservation
-- tk-phase2-07: Implement Advance delegation (subprocess + provides exclusion)
-- tk-phase2-08: Implement `oca pin` command
-- tk-phase2-09: Implement `oca update` command
-- tk-phase2-10: Implement plugin health checks (checkout/built/ref)
-- tk-phase2-11: Integration test: full plugin lifecycle (clone, build, pin, update)
-- tk-phase2-12: Integration test: Advance delegation does not duplicate files
+Phase 2 shipped the plugin lifecycle, subprocess runner, and apply-lock primitives. The subprocess runner pattern is now canonical for all Phase 2+ callers: `exec.CommandContext` with timeout, `cmd.Cancel` for SIGTERM, `cmd.WaitDelay` for SIGKILL grace period, combined stdout+stderr, and a classified exit taxonomy (ws-m5thsp, promoted to pw-xQMO10LC). Four judgment-call resolutions established project conventions: `--frozen-lockfile` strict for pnpm, runtime XDG resolution for path-dependent policies, always-git-fetch on update, and local-only doctor by default with `--network` for upstream checks (ws-haIw5P, promoted to pw-arzbCyP5). Per-target backup suppression requires `WriteAtomic` itself to treat `maxBackups<=0` as "no backup at all" — not just the caller (ws-GcnRm8). Stale worktree stripping must resolve `$XDG_DATA_HOME` inside hot-path helpers, not at package init, or cached regex drift fails pruning (ws-5yhCxi). The `adv_change_update` tool does not expose `judgment_calls` as a typed parameter, so `/adv-prep` Phase J persists them in proposal.md text and `/adv-apply` Phase 1.5 reads them from there — functional but not schema-typed (ws-z_2J12).
 
 ---
 
@@ -317,6 +312,60 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 
 ---
 
+## Phase 6.5: Temporal Enablement (opt-in)
+
+**Status:** Reserved. Lights up the Temporal inheritance hooks pre-allocated in Phase 2. Optional — a user who does not enable `[temporal].enabled = true` in `stack.toml` experiences no behavior change.
+
+**Goal:** Turn the Temporal-backed storage layer that Advance ships (optional, opt-in) into a first-class OCA-managed feature: install / detect the Temporal CLI, supervise a local dev server when requested, propagate `ADV_TEMPORAL_*` env vars, wire `temporalBundle` into the Advance plugin load, and verify the whole chain via `oca doctor --scope temporal`.
+
+**Estimate:** 3-5 days
+
+**Deliverables:**
+
+- `internal/temporal/` — CLI detection, optional install flow, dev-server supervision, client-bundle resolution
+- `internal/render/temporal.go` — renders `[temporal]` config into a form the Advance plugin can consume (e.g., env file, plugin-boot config fragment)
+- `internal/health/temporal.go` — reachability, namespace existence, worker heartbeat (registered via the Phase 2 health-check registry)
+- `cmd/oca/temporal.go` — `oca temporal {status,start,stop,restart,logs}` for the optional supervised dev server
+- `cmd/oca/apply.go` — wire the reserved `--target temporal` surface (Phase 2 reserved; this phase implements)
+- `cmd/oca/doctor.go` — wire the reserved `--scope temporal` surface (Phase 2 reserved; this phase implements)
+- Env-file rendering: OCA writes `$OCA_CACHE_DIR/temporal.env` with `ADV_TEMPORAL_*` values; Advance plugin subprocess inherits them via the Phase 2 subprocess runner's explicit `env` parameter
+- `stack.example.toml` updated: the `[temporal]` placeholder block from Phase 2 becomes a fully documented live example
+
+**Exit criteria:**
+
+- `oca apply --target temporal` with `[temporal].enabled = false` (default) is a no-op that reports "temporal disabled"
+- `oca apply --target temporal` with `[temporal].enabled = true` and `[temporal].dev_server = false` validates reachability of the declared `address` and stops there
+- `oca apply --target temporal` with `[temporal].dev_server = true` detects or installs the Temporal CLI, supervises `temporal server start-dev` as a background process (PID file in `$OCA_CACHE_DIR`), and ensures the declared namespace exists
+- `oca temporal status` reports: CLI path, dev-server PID (if any), reachability, namespace state, worker heartbeat
+- `oca doctor --scope temporal` returns pass when all of the above are healthy; fails with actionable remediation otherwise
+- When a plugin declares `temporal_bundle = "..."`, OCA passes it through the plugin-boot subprocess env so the Advance plugin's `createStore({ temporalBundle })` activates the overlay
+- Non-loopback `address` without `allow_remote = true` fails fast with a clear error (mirrors Advance's own fail-fast policy)
+- No agent-visible tool surface changes to Advance — this phase only wires the environment around the already-merged Advance code
+
+**Tasks (high-level):**
+
+- tk-phase6.5-01: Implement Temporal CLI detection (`temporal --version`); optional install via documented flow (brew / curl script), gated behind explicit `--install` flag — never silent
+- tk-phase6.5-02: Implement dev-server supervisor (start, stop, restart, PID file, log capture to `$OCA_CACHE_DIR`)
+- tk-phase6.5-03: Implement env-file rendering (`$OCA_CACHE_DIR/temporal.env`) with all `ADV_TEMPORAL_*` values; atomic write reusing Phase 1 render primitives
+- tk-phase6.5-04: Implement reachability / namespace / worker-heartbeat checks via the Phase 2 health-check registry
+- tk-phase6.5-05: Implement `oca temporal status/start/stop/restart/logs`
+- tk-phase6.5-06: Implement `oca apply --target temporal`
+- tk-phase6.5-07: Implement `oca doctor --scope temporal`
+- tk-phase6.5-08: Wire `temporal_bundle` into the Advance plugin's boot env via the Phase 2 subprocess runner's `env` parameter
+- tk-phase6.5-09: Integration test: `enabled = false` → no-op across all touchpoints
+- tk-phase6.5-10: Integration test: `enabled = true` + `dev_server = true` → end-to-end local dev-server lifecycle (start, reach, create namespace, stop)
+- tk-phase6.5-11: Integration test: non-loopback address without `allow_remote` → fail fast
+- tk-phase6.5-12: Update `stack.example.toml` with a full `[temporal]` example (uncommented + documented)
+- tk-phase6.5-13: `SETUP.md` / `README.md` — Temporal section explaining when to enable it and what OCA manages vs. what the user runs themselves
+
+**Explicitly out of scope (defer or decline):**
+
+- Managing a production Temporal cluster (this phase is local-dev / single-user)
+- Worker-process supervision beyond reading its heartbeat (the worker runs inside the Advance plugin; OCA does not spawn it)
+- Temporal Cloud integration (only generic `address` + `allow_remote` are supported)
+
+---
+
 ## Phase 7: Extras + Polish
 
 **Goal:** Discord integration (with new taglines), release pipeline, final README, polish pass.
@@ -394,7 +443,8 @@ Every phase is developed as one or more ADV changes following the 7-gate workflo
 - Phase 4 blocks on Phase 3.5 (session/theme work requires full config coverage to be testable end-to-end)
 - Phase 5 blocks on Phase 4 (install uses the session lifecycle + theme)
 - Phase 6 blocks on Phase 5 (migration produces a stack.toml, which needs full coverage to be useful)
-- Phase 7 blocks on Phase 6 (release is the last step)
+- **Phase 6.5 blocks on Phase 2** (needs the Temporal inheritance hooks, generic subprocess runner, and health-check registry). Does NOT block Phase 3–7. Can be slotted in any time after Phase 2 lands, in any order relative to Phases 3–7, based on when the user wants Temporal live. Recommended placement: after Phase 6 (the user is on the new stack) and before Phase 7 (release) so v1.0 ships with Temporal-ready tooling even when the feature itself stays opt-in.
+- Phase 7 blocks on Phase 6 (release is the last step). If Phase 6.5 is deferred past v1.0, Phase 7 releases without Temporal management; Phase 6.5 ships as v1.1.
 
 ### Out-of-phase work
 
@@ -404,19 +454,20 @@ Minor fixes, typos, doc updates, and CI tweaks can be committed outside of ADV c
 
 ## Estimated timeline
 
-| Phase                               | Estimate    | Cumulative    |
-| ----------------------------------- | ----------- | ------------- |
-| 0: Foundation + brand               | 3-5 days    | 0.5-1 week    |
-| 1: stack.toml + MCP apply           | 1-2 weeks   | 1.5-3 weeks   |
-| 2: Plugin + instruction mgmt        | 1 week      | 2.5-4 weeks   |
-| 3: Core opencode.json coverage      | 1 week      | 3.5-5 weeks   |
-| 3.5: Skills + commands + formatters | 3-4 days    | 4-5.5 weeks   |
-| 4: Primary client UX + theme        | 1-1.5 weeks | 5-7 weeks     |
-| 5: Installer + shell                | 4-5 days    | 5.5-7.5 weeks |
-| 6: Migration + doctor               | 4-5 days    | 6-8 weeks     |
-| 7: Extras + polish                  | 3-5 days    | 6.5-8.5 weeks |
+| Phase                                        | Estimate    | Cumulative    |
+| -------------------------------------------- | ----------- | ------------- |
+| 0: Foundation + brand                        | 3-5 days    | 0.5-1 week    |
+| 1: stack.toml + MCP apply                    | 1-2 weeks   | 1.5-3 weeks   |
+| 2: Plugin + instruction mgmt                 | 1 week      | 2.5-4 weeks   |
+| 3: Core opencode.json coverage               | 1 week      | 3.5-5 weeks   |
+| 3.5: Skills + commands + formatters          | 3-4 days    | 4-5.5 weeks   |
+| 4: Primary client UX + theme                 | 1-1.5 weeks | 5-7 weeks     |
+| 5: Installer + shell                         | 4-5 days    | 5.5-7.5 weeks |
+| 6: Migration + doctor                        | 4-5 days    | 6-8 weeks     |
+| 6.5: Temporal enablement (opt-in, optional)  | 3-5 days    | 6.5-8.5 weeks |
+| 7: Extras + polish                           | 3-5 days    | 7-9 weeks     |
 
-**Total: 6-8 weeks of focused work.** Longer if interleaved with other work.
+**Total: 7-9 weeks of focused work if Phase 6.5 is included in v1.0; 6-8 weeks if deferred to v1.1.** Longer if interleaved with other work.
 
 The estimate intentionally allows for:
 

@@ -2,13 +2,14 @@
 
 This document is the canonical high-level architecture reference for the code that is **actually implemented today**.
 
-Current shipped scope is **Phase 1** only:
+Current shipped scope is **Phase 1 and Phase 2**:
 
-- `stack.toml` parsing for `[meta]` and `[mcp]`
-- deferred acceptance of future top-level sections
-- `oca apply --target mcp`
-- `oca doctor --scope mcp`
+- `stack.toml` parsing for `[meta]`, `[mcp]`, `[plugins]`, and deferred future sections
+- `oca apply --target mcp` and `oca apply --target plugins`
+- `oca doctor --scope mcp` and `oca doctor --scope plugins`
 - `oca debug plan` and `oca debug validate`
+- `oca pin` and `oca update`
+- plugin lifecycle: git clone/pull, build, pin, sync-global.sh delegation
 
 Future phases are tracked in [`../proposals/phases.md`](../proposals/phases.md).
 
