@@ -1,3 +1,10 @@
+// Package sync handles post-apply plugin sync invocation.
+//
+// Today that means running the plugin's configured `sync` shell command
+// (typically the Advance plugin's scripts/sync-global.sh mirror) from
+// the plugin's checkout directory and returning combined output with
+// best-effort secret redaction applied. Additional sync providers can
+// slot in here without changing the plugin lifecycle contract.
 package sync
 
 import (

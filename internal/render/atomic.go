@@ -64,8 +64,12 @@ func WriteAtomic(path string, data []byte, mode os.FileMode, maxBackups int) (st
 	tmpPath := tmp.Name()
 	defer os.Remove(tmpPath)
 	if _, err := tmp.Write(data); err != nil {
+		// Close is called so the fd is released, but its error is
+		// intentionally dropped in favor of the Write error which is
+		// the root cause and more actionable. The temp file itself is
+		// removed by the deferred os.Remove above.
 		_ = tmp.Close()
-		return backupPath, err
+		return backupPath, fmt.Errorf("write temp %s: %w", tmpPath, err)
 	}
 	if err := tmp.Close(); err != nil {
 		return backupPath, err

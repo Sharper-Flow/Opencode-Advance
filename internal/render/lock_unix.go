@@ -38,10 +38,21 @@ func AcquireApplyLock(cacheDir string, timeout time.Duration) (*os.File, error) 
 	}
 }
 
+// ReleaseApplyLock unlocks and closes the lock file. Both the Flock
+// LOCK_UN syscall and Close can fail; a silent failure in unlock would
+// be catastrophic because the next oca apply on the same cache dir
+// would block waiting for a lock that no one holds. We surface the
+// first error (unlock preferred, close as fallback) so callers can log
+// it — but we still always call Close so the file descriptor is
+// released even when unlock fails.
 func ReleaseApplyLock(f *os.File) error {
 	if f == nil {
 		return nil
 	}
-	_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
-	return f.Close()
+	unlockErr := syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	closeErr := f.Close()
+	if unlockErr != nil {
+		return fmt.Errorf("release apply lock: flock LOCK_UN: %w", unlockErr)
+	}
+	return closeErr
 }

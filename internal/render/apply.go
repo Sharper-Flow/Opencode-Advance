@@ -1,6 +1,8 @@
 package render
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -44,7 +46,16 @@ func Apply(plan *Plan, opts ApplyOptions) (*ApplyResult, error) {
 			if err != nil {
 				r.BackupPath = backup
 				res.Targets = append(res.Targets, r)
-				rollback(plan.Targets[:i], res.Targets[:i])
+				if rbErrs := rollback(plan.Targets[:i], res.Targets[:i]); len(rbErrs) > 0 {
+					// Rollback failures are attached to the returned
+					// error via errors.Join so callers can inspect them
+					// with errors.As / errors.Is. The original write
+					// failure comes first and remains the primary cause
+					// shown to the user.
+					joined := append([]error{err}, rbErrs...)
+					return res, fmt.Errorf("apply failed with rollback errors: %w",
+						errors.Join(joined...))
+				}
 				return res, err
 			}
 			r.Wrote = true
@@ -57,8 +68,17 @@ func Apply(plan *Plan, opts ApplyOptions) (*ApplyResult, error) {
 
 // rollback restores previously written targets after a mid-plan failure.
 // Walks in reverse: restores from backup if present, otherwise removes
-// newly created files. Errors are swallowed — rollback is best-effort.
-func rollback(targets []TargetOp, results []TargetResult) {
+// newly created files.
+//
+// Rollback is best-effort on the successful-path sense (one failed
+// restore must not stop us from trying to restore the rest), but
+// individual failures are NOT silent: they are returned as an error
+// slice so the caller can log them. A silent rollback failure would
+// leave the user's config in a corrupt state with no signal, so we
+// surface every error even though we cannot act on any of them from
+// inside this function.
+func rollback(targets []TargetOp, results []TargetResult) []error {
+	var errs []error
 	for i := len(results) - 1; i >= 0; i-- {
 		r := results[i]
 		if !r.Wrote {
@@ -66,11 +86,19 @@ func rollback(targets []TargetOp, results []TargetResult) {
 		}
 		t := targets[i]
 		if r.BackupPath != "" {
-			if data, err := os.ReadFile(r.BackupPath); err == nil {
-				_ = os.WriteFile(r.Path, data, t.Mode)
+			data, err := os.ReadFile(r.BackupPath)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("rollback read backup %s: %w", r.BackupPath, err))
+				continue
+			}
+			if err := os.WriteFile(r.Path, data, t.Mode); err != nil {
+				errs = append(errs, fmt.Errorf("rollback restore %s: %w", r.Path, err))
 			}
 			continue
 		}
-		_ = os.Remove(r.Path)
+		if err := os.Remove(r.Path); err != nil && !os.IsNotExist(err) {
+			errs = append(errs, fmt.Errorf("rollback remove %s: %w", r.Path, err))
+		}
 	}
+	return errs
 }
