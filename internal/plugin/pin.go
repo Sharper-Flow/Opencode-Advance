@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/Sharper-Flow/Opencode-Advance/internal/config"
 	"github.com/BurntSushi/toml"
@@ -73,8 +74,29 @@ func WritePin(tomlFile, pluginName string, p config.Plugin, sha string) (bool, e
 		return false, fmt.Errorf("write pin: encode: %w", err)
 	}
 
-	if err := os.WriteFile(tomlFile, out, 0644); err != nil {
-		return false, fmt.Errorf("write pin: write %s: %w", tomlFile, err)
+	// Atomic write: temp-file in same directory + rename. Mirrors
+	// render.WriteAtomic semantics so a crash mid-write cannot leave a
+	// truncated stack.toml. Caller (cmd/oca/pin.go) holds the apply lock
+	// to serialize against concurrent `oca apply` / `oca pin`.
+	dir := filepath.Dir(tomlFile)
+	tmp, err := os.CreateTemp(dir, ".oca-pin-*.tmp")
+	if err != nil {
+		return false, fmt.Errorf("write pin: create temp: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if _, err := tmp.Write(out); err != nil {
+		_ = tmp.Close()
+		return false, fmt.Errorf("write pin: write temp %s: %w", tmpPath, err)
+	}
+	if err := tmp.Close(); err != nil {
+		return false, fmt.Errorf("write pin: close temp %s: %w", tmpPath, err)
+	}
+	if err := os.Chmod(tmpPath, 0o644); err != nil {
+		return false, fmt.Errorf("write pin: chmod temp %s: %w", tmpPath, err)
+	}
+	if err := os.Rename(tmpPath, tomlFile); err != nil {
+		return false, fmt.Errorf("write pin: rename %s -> %s: %w", tmpPath, tomlFile, err)
 	}
 
 	return true, nil

@@ -37,13 +37,41 @@ func Prepare(ctx context.Context, p config.Plugin) error {
 	checkout := p.Checkout
 
 	// Step 3: clone if checkout doesn't exist.
-	if _, err := os.Stat(checkout); os.IsNotExist(err) {
+	//
+	// Use Lstat (not Stat) so a symlink at `checkout` is detected
+	// without following it. A symlink pointing into a privileged
+	// location could coerce subsequent git commands into writing
+	// outside the intended plugin directory, so we reject this
+	// configuration outright rather than guess intent.
+	info, err := os.Lstat(checkout)
+	if os.IsNotExist(err) {
 		if err := Clone(ctx, p.Source, checkout, ref); err != nil {
 			return fmt.Errorf("prepare plugin: clone failed: %w", err)
 		}
 	} else if err != nil {
 		return fmt.Errorf("prepare plugin: stat checkout %s: %w", checkout, err)
 	} else {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("prepare plugin: checkout path %s is a symlink; "+
+				"refusing to operate on symlinked checkouts. Remediation: remove "+
+				"the symlink and let oca clone the plugin into a real directory", checkout)
+		}
+
+		// Detect drift between the remote URL recorded in the checkout
+		// and the `source` in stack.toml. Without this check, users who
+		// change `source` in stack.toml see no effect because the old
+		// remote remains and git fetch pulls from the stale URL.
+		origin, err := RemoteOriginURL(ctx, checkout)
+		if err != nil {
+			return fmt.Errorf("prepare plugin: read remote.origin.url: %w", err)
+		}
+		if origin != p.Source {
+			return fmt.Errorf("prepare plugin: checkout %s has remote.origin.url=%q "+
+				"but stack.toml source=%q. Remediation: remove %s and re-run "+
+				"oca apply to clone from the new source",
+				checkout, origin, p.Source, checkout)
+		}
+
 		// Step 4: abort if dirty.
 		clean, err := StatusClean(ctx, checkout)
 		if err != nil {
