@@ -15,13 +15,19 @@ func TestStackExample_ParsesWithDeferredSections(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load(stack.example.toml) failed: %v", err)
 	}
-	for _, want := range []string{"plugins", "providers", "agents", "permissions", "watcher", "lsp", "session", "discord", "skills", "formatters", "commands", "opencode", "instructions"} {
+	for _, want := range []string{"providers", "agents", "permissions", "watcher", "lsp", "session", "discord", "skills", "formatters", "commands", "opencode"} {
 		if _, ok := stack.DeferredSections[want]; !ok {
 			t.Fatalf("DeferredSections missing %q", want)
 		}
 	}
 	if _, ok := stack.MCP.Servers["vision"]; !ok {
 		t.Fatal("vision server missing")
+	}
+	if _, ok := stack.Plugins["advance"]; !ok {
+		t.Fatal("advance plugin missing from typed Plugins section")
+	}
+	if len(stack.Instructions.Order) == 0 {
+		t.Fatal("instructions order missing from typed Instructions section")
 	}
 }
 
