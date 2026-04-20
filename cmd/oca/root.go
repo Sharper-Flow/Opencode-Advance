@@ -82,6 +82,8 @@ func newRootCmd(opts commandOptions) *cobra.Command {
 	cmd.AddCommand(newVersionCmd(opts))
 	cmd.AddCommand(newApplyCmd(state))
 	cmd.AddCommand(newDoctorCmd(state))
+	cmd.AddCommand(newPinCmd(state))
+	cmd.AddCommand(newUpdateCmd(state))
 	cmd.AddCommand(newDebugCmd(state))
 
 	return cmd

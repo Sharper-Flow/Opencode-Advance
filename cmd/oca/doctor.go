@@ -20,8 +20,8 @@ func newDoctorCmd(state *commandState) *cobra.Command {
 			if scope == "" {
 				scope = "mcp"
 			}
-			if scope != "mcp" {
-				return newCLIError(2, "unknown scope %q; supported: mcp", scope)
+			if scope == "temporal" {
+				return newCLIError(2, "scope %q reserved for Phase 6.5; see docs/proposals/phases.md § Phase 6.5", scope)
 			}
 			stack, err := loadStack(state)
 			if err != nil {
@@ -29,9 +29,12 @@ func newDoctorCmd(state *commandState) *cobra.Command {
 			}
 			ctx, cancel := withContext()
 			defer cancel()
-			checks, err := health.CheckMCP(ctx, stack, health.Options{Timeout: timeout})
+			checks, err := health.Run(scope, ctx, stack, health.Options{Timeout: timeout})
 			if err != nil {
-				return newCLIError(3, "doctor mcp: %w", err)
+				if err == health.ErrUnknownScope {
+					return newCLIError(2, "unknown scope %q; supported: mcp, plugins, temporal", scope)
+				}
+				return newCLIError(3, "doctor %s: %w", scope, err)
 			}
 			if state.output == "json" {
 				if err := printJSON(state.opts.Stdout, checks); err != nil {
@@ -51,7 +54,10 @@ func newDoctorCmd(state *commandState) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&scope, "scope", "mcp", "Scope to check (Phase 1 supports: mcp)")
+	cmd.Flags().StringVar(&scope, "scope", "mcp", "Scope to check (supported: mcp, plugins, temporal)")
 	cmd.Flags().DurationVar(&timeout, "timeout", 5*time.Second, "HTTP timeout for doctor checks")
+	_ = cmd.RegisterFlagCompletionFunc("scope", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"mcp", "plugins", "temporal"}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
 }
