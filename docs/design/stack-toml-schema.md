@@ -138,7 +138,7 @@ subdir       = "plugin"
 build        = ["pnpm install", "pnpm build"]
 path         = "{checkout}/{subdir}"
 sync         = "{checkout}/scripts/sync-global.sh --fix"
-provides     = ["adv-commands", "adv-agents", "adv-skills", "adv-overlays"]
+provides     = ["adv-commands", "adv-agents", "adv-skills", "adv-overlays", "adv-instructions"]
 instructions = ["{checkout}/ADV_INSTRUCTIONS.md"]
 ```
 
@@ -153,6 +153,7 @@ instructions = ["{checkout}/ADV_INSTRUCTIONS.md"]
 | `sync`          | string     | no       | —                | Optional sync script to run after build                       |
 | `provides`      | string[]   | no       | `[]`               | Asset categories this plugin owns (OCA skips them)            |
 | `instructions`  | string[]   | no       | `[]`               | Instruction files to append to the instructions list         |
+| `temporal_bundle` | string   | no       | —                  | Reserved for Phase 6.5 Temporal inheritance bundle metadata   |
 | `enabled`       | boolean    | no       | `true`             |                                                               |
 
 ### Provides categories
@@ -166,6 +167,7 @@ When `provides` includes a category, `oca apply` will NOT render or copy assets 
 | `adv-skills`         | `assets/skills/adv-*/`                               |
 | `adv-overlays`       | Overlay blocks in shared agent files                |
 | `adv-instructions`   | `ADV_INSTRUCTIONS.md` in the instructions list       |
+| `adv-temporal`       | Reserved Temporal-owned inheritance surfaces         |
 
 ### npm-distributed plugins
 
@@ -200,6 +202,37 @@ Paths may be:
 - `{checkout}`-templated paths for plugin-provided instructions
 
 Plugin-provided instructions (declared via `[plugins.*].instructions`) are appended to the user-declared order automatically. They always sort after user-owned instructions.
+
+When a plugin declares `provides = ["adv-instructions", ...]`, OCA still preserves the declared ownership boundary but omits those instruction entries from its own rendered `.instructions` array. The plugin's sync step is responsible for patching them afterward.
+
+### Ordering contract
+
+For plugin-managed assets, the apply order is strict:
+
+1. render `opencode.json` / related OCA-owned files
+2. commit atomic writes successfully
+3. invoke plugin sync command (`[plugins.*].sync`) afterward
+
+If rendering fails, sync MUST NOT run. If sync fails, rendered files remain on disk (no rollback of already-committed writes).
+
+---
+
+## `[temporal]`
+
+Reserved for Phase 6.5 Temporal inheritance.
+
+```toml
+[temporal]
+# reserved — implemented in a later phase (see docs/proposals/phases.md § Phase 6.5)
+# enabled = true
+```
+
+Current behavior:
+
+- parser accepts the section shape
+- validation emits advisory messaging only
+- `oca apply --target temporal` and `oca doctor --scope temporal` return a reserved-for-later error
+- `adv-temporal` provides category is pre-allocated so ownership boundaries stay stable when Phase 6.5 lands
 
 ---
 
@@ -528,3 +561,46 @@ error: stack.toml validation failed
 ```
 
 Field paths follow TOML-like notation with `.` separators and `[]` for map keys.
+
+---
+
+## Security & trust boundaries
+
+OCA's validation layer does **not** enforce a host or registry allowlist for
+plugin sources. `stack.toml` is a user-authored file; if you declare a
+plugin source, OCA trusts that you have vetted it.
+
+This is intentional:
+
+- Private forks and mirrors must be supported (`git.internal.example.com`,
+  self-hosted Gitea, corporate GitLab, etc.).
+- A hard-coded allowlist would block the long tail of legitimate plugin
+  hosting without meaningfully deterring a hostile `stack.toml`, since an
+  attacker who can modify `stack.toml` already owns the trust boundary.
+
+Defense-in-depth against hostile *remotes* (as opposed to hostile config)
+is layered elsewhere:
+
+- `internal/plugin/git.go` prepends `-c protocol.file.allow=user -c
+  protocol.ext.allow=false` to every git invocation to disable
+  transport-confusion attack surface (CVE-2022-39253 class).
+- `validateGitRef` rejects refs that start with `-`, contain `..`, or use
+  characters outside `[A-Za-z0-9._/-]`, preventing option-injection
+  through crafted branch names.
+- `internal/plugin/prepare.go` uses `os.Lstat` to reject symlinked
+  checkout paths and compares `remote.origin.url` to `source` on every
+  apply to detect drift between stack.toml and on-disk state.
+
+Treat the local `stack.toml` as the trust root. Treat everything else —
+the remote, the network, the ref name — as untrusted.
+
+### Secret redaction in sync output
+
+When OCA invokes the Advance `scripts/sync-global.sh` (see
+`internal/sync/advance.go`), stdout/stderr are passed through
+`render.Redact` before display. This is a best-effort pattern match
+against well-known token shapes (GitHub PATs, OpenAI keys, generic
+`secret=...` formats). It is **not** a security boundary: scripts that
+print secrets in exotic formats may leak them to the terminal. Treat the
+redaction as a convenience, not a guarantee, and avoid logging
+user-provided secrets in sync scripts.

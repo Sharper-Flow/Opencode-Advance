@@ -116,7 +116,7 @@ subdir       = "plugin"
 build        = ["pnpm install", "pnpm build"]
 path         = "{checkout}/{subdir}"
 sync         = "{checkout}/scripts/sync-global.sh --fix"
-provides     = ["adv-commands", "adv-agents", "adv-skills", "adv-overlays"]
+provides     = ["adv-commands", "adv-agents", "adv-skills", "adv-overlays", "adv-instructions"]
 instructions = ["{checkout}/ADV_INSTRUCTIONS.md"]
 
 [plugins.morph-fast-apply]
@@ -134,7 +134,7 @@ subdir   = "opencode-plugin"
 build    = ["pnpm install", "pnpm build"]
 path     = "{checkout}/{subdir}"
 
-[plugins.openai-codex-auth]
+[plugins.codex-auth]
 source = "npm:opencode-openai-codex-auth@latest"
 
 [plugins.md-table-formatter]
@@ -142,6 +142,10 @@ source = "npm:@franlol/opencode-md-table-formatter@latest"
 
 [plugins.anthropic-auth]
 source = "npm:@ex-machina/opencode-anthropic-auth@latest"
+
+# [temporal]
+# reserved — implemented in a later phase (see docs/proposals/phases.md § Phase 6.5)
+# enabled = true
 
 # ─── Instructions ────────────────────────────────────────────────────────────
 # Loaded in declared order. Plugin-provided instructions append automatically.
