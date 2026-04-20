@@ -73,7 +73,7 @@ build = "anthropic/claude-opus-4-6"
 	if err != nil {
 		t.Fatalf("Parse failed on stack with deferred sections: %v", err)
 	}
-	for _, expected := range []string{"plugins", "providers", "agents"} {
+	for _, expected := range []string{"providers", "agents"} {
 		if _, ok := stack.DeferredSections[expected]; !ok {
 			t.Errorf("DeferredSections missing %q; got keys: %v", expected, deferredKeys(stack))
 		}
@@ -84,6 +84,13 @@ build = "anthropic/claude-opus-4-6"
 	}
 	if _, ok := stack.MCP.Servers["a"]; !ok {
 		t.Errorf("mcp.servers.a lost")
+	}
+	// plugins is now a typed section.
+	if _, ok := stack.Plugins["advance"]; !ok {
+		t.Errorf("plugins.advance not typed")
+	}
+	if stack.Plugins["advance"].Source != "https://github.com/Sharper-Flow/Advance.git" {
+		t.Errorf("plugins.advance source not decoded")
 	}
 }
 

@@ -17,6 +17,11 @@ type Stack struct {
 	Meta Meta       `toml:"meta"`
 	MCP  MCPSection `toml:"mcp"`
 
+	// Phase 2 typed sections
+	Plugins      PluginsSection      `toml:"plugins"`
+	Instructions InstructionsSection `toml:"instructions"`
+	Temporal     *TemporalSection    `toml:"temporal"`
+
 	// DeferredSections holds known-but-unimplemented top-level sections
 	// verbatim so that a complete stack.toml (including future-phase
 	// sections) round-trips through Phase 1 without errors. Entries are
@@ -112,6 +117,78 @@ type RetryConfig struct {
 type CircuitBreaker struct {
 	FailureThreshold int    `toml:"failure_threshold,omitempty" yaml:"failure_threshold,omitempty"`
 	RecoveryTimeout  string `toml:"recovery_timeout,omitempty" yaml:"recovery_timeout,omitempty"`
+}
+
+// ProvidesCategory enumerates asset categories a plugin can declare it
+// owns. When a plugin lists a category in provides, oca apply skips
+// rendering or copying assets in that category from its own assets/ dir.
+type ProvidesCategory string
+
+const (
+	ProvidesCommands    ProvidesCategory = "adv-commands"
+	ProvidesAgents      ProvidesCategory = "adv-agents"
+	ProvidesSkills      ProvidesCategory = "adv-skills"
+	ProvidesOverlays    ProvidesCategory = "adv-overlays"
+	ProvidesInstructions ProvidesCategory = "adv-instructions"
+	ProvidesTemporal    ProvidesCategory = "adv-temporal" // reserved Phase 6.5
+)
+
+// IsValid returns true if the category is a known provides value.
+func (p ProvidesCategory) IsValid() bool {
+	switch p {
+	case ProvidesCommands, ProvidesAgents, ProvidesSkills,
+		ProvidesOverlays, ProvidesInstructions, ProvidesTemporal:
+		return true
+	}
+	return false
+}
+
+// Plugin describes a plugin declared in [plugins.<name>]. Plugins are
+// either git-sourced (with checkout + optional subdir + build + sync)
+// or npm-sourced (with a "npm:pkg@version" source string).
+type Plugin struct {
+	Source       string   `toml:"source"`                 // git URL or "npm:pkg@version"
+	Ref          string   `toml:"ref,omitempty"`          // branch/tag/SHA; default "trunk"
+	Checkout     string   `toml:"checkout,omitempty"`    // local clone path
+	Subdir       string   `toml:"subdir,omitempty"`       // subdir within checkout
+	Build        []string `toml:"build,omitempty"`        // build commands
+	Path         string   `toml:"path,omitempty"`         // load path, supports {checkout}/{subdir}
+	Sync         string   `toml:"sync,omitempty"`         // post-build sync script
+	Provides     []ProvidesCategory `toml:"provides,omitempty"`
+	Instructions []string `toml:"instructions,omitempty"` // instruction files
+	Enabled      *bool    `toml:"enabled,omitempty"`     // default true
+}
+
+// IsGitSource returns true for git URL sources (not npm: prefixed).
+func (p Plugin) IsGitSource() bool {
+	return len(p.Source) >= 4 && p.Source[:4] != "npm:"
+}
+
+// IsNPMSource returns true for npm:-prefixed sources.
+func (p Plugin) IsNPMSource() bool {
+	return len(p.Source) >= 4 && p.Source[:4] == "npm:"
+}
+
+// IsEnabled returns the effective enabled state. Nil means true.
+func (p Plugin) IsEnabled() bool {
+	if p.Enabled == nil {
+		return true
+	}
+	return *p.Enabled
+}
+
+// PluginsSection is the [plugins] table — a map of plugin name to Plugin.
+type PluginsSection map[string]Plugin
+
+// InstructionsSection is the [instructions] table.
+type InstructionsSection struct {
+	Order []string `toml:"order,omitempty"`
+}
+
+// TemporalSection is the [temporal] table. Reserved for Phase 6.5;
+// parsed with advisory tolerance (no error on unknown fields).
+type TemporalSection struct {
+	Enabled *bool `toml:"enabled,omitempty"` // default true if absent
 }
 
 // Warning carries a non-fatal diagnostic from Load. Surfaced by apply

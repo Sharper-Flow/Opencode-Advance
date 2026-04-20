@@ -91,6 +91,12 @@ func (s *Stack) Validate() error {
 	// [mcp.servers.*]
 	errs = append(errs, s.validateMCPServers()...)
 
+	// [plugins.*]
+	errs = append(errs, validatePlugins(s)...)
+
+	// [instructions]
+	errs = append(errs, validateInstructions(s)...)
+
 	// Deferred sections — classify as known-but-deferred (ok) or
 	// truly unknown (error).
 	for name := range s.DeferredSections {
@@ -108,6 +114,8 @@ func (s *Stack) Validate() error {
 	return nil
 }
 
+// validateMCPServers is the MCP server portion of Validate, kept as a
+// method so it can call inferTransport without exporting it.
 func (s *Stack) validateMCPServers() ValidationErrors {
 	var errs ValidationErrors
 
@@ -277,6 +285,99 @@ func inferTransport(s Server) string {
 		return "sse"
 	}
 	return "stdio"
+}
+
+// validatePlugins checks per-plugin rules:
+//   - source must be a git URL (https://...git or git@...:...) or npm:pkg@ver
+//   - git source: checkout is required
+//   - git source: path is required after {checkout}/{subdir} expansion
+//   - provides entries must be valid ProvidesCategory values
+func validatePlugins(s *Stack) ValidationErrors {
+	var errs ValidationErrors
+	if s.Plugins == nil {
+		return errs
+	}
+	for name, plugin := range s.Plugins {
+		pathPrefix := fmt.Sprintf("plugins.%s", name)
+
+		// source required
+		if plugin.Source == "" {
+			errs = append(errs, ValidationError{
+				Path:    pathPrefix + ".source",
+				Message: "required field missing",
+			})
+			continue // can't validate further without source
+		}
+
+		if plugin.IsNPMSource() {
+			// npm sources only need source; checkout/path/build are not applicable.
+			// Still validate provides enum below.
+		} else {
+			// Git source requires checkout and path.
+			if plugin.Checkout == "" {
+				errs = append(errs, ValidationError{
+					Path:    pathPrefix + ".checkout",
+					Message: "required for git source",
+				})
+			}
+			if plugin.Path == "" {
+				errs = append(errs, ValidationError{
+					Path:    pathPrefix + ".path",
+					Message: "required for git source",
+				})
+			}
+		}
+
+		// provides enum validation
+		for i, p := range plugin.Provides {
+			if !p.IsValid() {
+				errs = append(errs, ValidationError{
+					Path:    fmt.Sprintf("%s.provides[%d]", pathPrefix, i),
+					Message: fmt.Sprintf("unknown category %q (allowed: adv-commands, adv-agents, adv-skills, adv-overlays, adv-instructions, adv-temporal)", p),
+				})
+			}
+		}
+	}
+	return errs
+}
+
+// validateInstructions checks that the instructions section is well-formed.
+func validateInstructions(s *Stack) ValidationErrors {
+	var errs ValidationErrors
+	if s.Instructions.Order == nil {
+		// Empty order is allowed (means no extra instructions beyond plugin defaults).
+		return errs
+	}
+	if len(s.Instructions.Order) == 0 {
+		errs = append(errs, ValidationError{
+			Path:    "instructions.order",
+			Message: "must be non-empty when declared",
+		})
+	}
+	// Each order entry must be a non-empty string.
+	for i, entry := range s.Instructions.Order {
+		if entry == "" {
+			errs = append(errs, ValidationError{
+				Path:    fmt.Sprintf("instructions.order[%d]", i),
+				Message: "entry must not be empty",
+			})
+		}
+	}
+	return errs
+}
+
+// validateTemporalReserved returns an advisory warning that [temporal] is
+// reserved for Phase 6.5. It produces []Warning, not ValidationErrors,
+// since this is a forward-compatibility signal, not a hard error.
+func validateTemporalReserved(s *Stack) []Warning {
+	if s.Temporal == nil {
+		return nil
+	}
+	return []Warning{{
+		Path:    "temporal",
+		Message: "[temporal] section is reserved for a future phase (Phase 6.5 — Temporal Enablement)",
+		Hint:    "See docs/proposals/phases.md § Phase 6.5. This section will be implemented later.",
+	}}
 }
 
 func knownSectionNames() []string {

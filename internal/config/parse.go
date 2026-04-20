@@ -8,11 +8,11 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// knownSections lists top-level stack.toml sections Phase 1 recognizes.
-// "meta" and "mcp" are parsed into typed fields on Stack. The remaining
-// entries are known-but-unimplemented (deferred to later phases):
-// parsed into Stack.DeferredSections as raw maps so round-trip works,
-// but not rendered by any Phase 1 target.
+// knownSections lists top-level stack.toml sections Phase 1+ recognizes.
+// "meta" and "mcp" are parsed into typed fields on Stack. "plugins",
+// "instructions", and "temporal" are Phase 2 typed. Remaining entries are
+// known-but-unimplemented (deferred): parsed into Stack.DeferredSections
+// as raw maps so round-trip works, but not rendered by Phase 1 targets.
 //
 // Truly unknown top-level keys (typos, not in this set) produce a
 // validation error in Validate().
@@ -20,9 +20,11 @@ var knownSections = map[string]bool{
 	// Phase 1 typed sections
 	"meta": true,
 	"mcp":  true,
-	// Phase 2+ — parsed as deferred raw maps
+	// Phase 2 typed sections
 	"plugins":      true,
 	"instructions": true,
+	"temporal":     true, // reserved Phase 6.5 — advisory tolerance
+	// Phase 2+ — parsed as deferred raw maps
 	"providers":    true,
 	"agents":       true,
 	"permissions":  true,
@@ -89,7 +91,8 @@ func Parse(data []byte) (*Stack, error) {
 		DeferredSections: map[string]any{},
 	}
 
-	// Meta and MCP use typed decode; everything else is cached raw.
+	// Typed sections: Meta, MCP, Plugins, Instructions, Temporal.
+	// Everything else deferred for later-phase handling.
 	for k, v := range raw {
 		switch k {
 		case "meta":
@@ -100,6 +103,20 @@ func Parse(data []byte) (*Stack, error) {
 			if err := decodeInto(v, &stack.MCP); err != nil {
 				return nil, &ParseError{Err: fmt.Errorf("[mcp]: %w", err)}
 			}
+		case "plugins":
+			if err := decodeInto(v, &stack.Plugins); err != nil {
+				return nil, &ParseError{Err: fmt.Errorf("[plugins]: %w", err)}
+			}
+		case "instructions":
+			if err := decodeInto(v, &stack.Instructions); err != nil {
+				return nil, &ParseError{Err: fmt.Errorf("[instructions]: %w", err)}
+			}
+		case "temporal":
+			ts := &TemporalSection{}
+			if err := decodeInto(v, ts); err != nil {
+				return nil, &ParseError{Err: fmt.Errorf("[temporal]: %w", err)}
+			}
+			stack.Temporal = ts
 		default:
 			// Known-but-unimplemented OR truly unknown — defer the
 			// classification to Validate so all errors can be aggregated
@@ -110,6 +127,9 @@ func Parse(data []byte) (*Stack, error) {
 
 	if stack.MCP.Servers == nil {
 		stack.MCP.Servers = map[string]Server{}
+	}
+	if stack.Plugins == nil {
+		stack.Plugins = PluginsSection{}
 	}
 	return stack, nil
 }

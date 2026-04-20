@@ -11,9 +11,10 @@ import (
 //
 // The cache directory is where the apply-lock (flock) lives.
 type Paths struct {
-	OpencodeConfigDir string // $OCA_OPENCODE_CONFIG_DIR or ~/.config/opencode
-	VisionConfigDir   string // $OCA_VISION_CONFIG_DIR or ~/.config/vision
-	CacheDir          string // $OCA_CACHE_DIR or $XDG_RUNTIME_DIR/opencode-advance or /tmp/opencode-advance-$UID
+	OpencodeConfigDir   string // $OCA_OPENCODE_CONFIG_DIR or ~/.config/opencode
+	VisionConfigDir     string // $OCA_VISION_CONFIG_DIR or ~/.config/vision
+	CacheDir            string // $OCA_CACHE_DIR or $XDG_RUNTIME_DIR/opencode-advance or /tmp/opencode-advance-$UID
+	PluginCheckoutRoot_ string // $OCA_PLUGIN_CHECKOUT_ROOT or ~/dev/oc-plugins
 }
 
 // ResolvePaths returns the effective target paths for this process.
@@ -21,9 +22,10 @@ type Paths struct {
 // redirect writes to t.TempDir().
 func ResolvePaths() Paths {
 	return Paths{
-		OpencodeConfigDir: resolvePath("OCA_OPENCODE_CONFIG_DIR", filepath.Join(home(), ".config", "opencode")),
-		VisionConfigDir:   resolvePath("OCA_VISION_CONFIG_DIR", filepath.Join(home(), ".config", "vision")),
-		CacheDir:          resolveCacheDir(),
+		OpencodeConfigDir:   resolvePath("OCA_OPENCODE_CONFIG_DIR", filepath.Join(home(), ".config", "opencode")),
+		VisionConfigDir:     resolvePath("OCA_VISION_CONFIG_DIR", filepath.Join(home(), ".config", "vision")),
+		CacheDir:            resolveCacheDir(),
+		PluginCheckoutRoot_: resolvePath("OCA_PLUGIN_CHECKOUT_ROOT", filepath.Join(home(), "dev", "oc-plugins")),
 	}
 }
 
@@ -41,6 +43,12 @@ func (p Paths) VisionServersYAML() string {
 // concurrent oca apply runs.
 func (p Paths) ApplyLockPath() string {
 	return filepath.Join(p.CacheDir, "apply.lock")
+}
+
+// PluginCheckoutRoot is the default parent directory for plugin checkouts.
+// Honors $OCA_PLUGIN_CHECKOUT_ROOT when set, otherwise ~/dev/oc-plugins.
+func (p Paths) PluginCheckoutRoot() string {
+	return p.PluginCheckoutRoot_
 }
 
 // resolvePath returns the env-var value if set, else the fallback.

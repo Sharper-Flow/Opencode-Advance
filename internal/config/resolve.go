@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -9,6 +10,9 @@ import (
 // envVarPattern matches ${VAR} and ${VAR:-default}. Mirrors Vision's
 // ExpandEnvVars pattern so behavior is consistent across the two tools.
 var envVarPattern = regexp.MustCompile(`\$\{([^}:]+)(?::-([^}]*))?\}`)
+
+// pluginTokenPattern matches {token} placeholders in plugin fields.
+var pluginTokenPattern = regexp.MustCompile(`\{([^}]+)\}`)
 
 // Resolve expands OCA-owned tokens in-place on the Stack:
 //   - $HOME and ~/... → user home directory
@@ -32,6 +36,88 @@ func (s *Stack) Resolve() {
 		}
 		s.MCP.Servers[name] = srv
 	}
+
+	// Expand plugin block-local tokens ({checkout}, {subdir}) in path/sync fields.
+	for name, plugin := range s.Plugins {
+		if err := expandPluginTokens(&plugin); err != nil {
+			// Log and continue — validation will surface the error.
+			continue
+		}
+		s.Plugins[name] = plugin
+	}
+}
+
+// expandPluginTokens substitutes {checkout} and {subdir} in a plugin's
+// Path, Sync, and Instructions fields. Unknown {token} values produce
+// an error. Empty checkout is tolerated (tokens pass through unchanged
+// so validation can report the missing field).
+func expandPluginTokens(p *Plugin) error {
+	if p == nil {
+		return nil
+	}
+
+	// Resolve general OCA tokens first so {checkout} operates on an
+	// already-expanded path (e.g. ~/... → /home/user/...).
+	checkout := expandAll(p.Checkout)
+
+	allowed := map[string]string{
+		"checkout": checkout,
+		"subdir":   p.Subdir,
+	}
+
+	// unknownTokenIn returns the unknown token name if field contains one.
+	unknownTokenIn := func(field string) string {
+		matches := pluginTokenPattern.FindAllStringSubmatch(field, -1)
+		for _, m := range matches {
+			if len(m) < 2 {
+				continue
+			}
+			name := m[1]
+			if _, ok := allowed[name]; !ok {
+				return "{" + name + "}"
+			}
+		}
+		return ""
+	}
+
+	replaceTokens := func(field string) string {
+		if field == "" {
+			return field
+		}
+		return pluginTokenPattern.ReplaceAllStringFunc(field, func(token string) string {
+			m := pluginTokenPattern.FindStringSubmatch(token)
+			if len(m) < 2 {
+				return token
+			}
+			name := m[1]
+			if val, ok := allowed[name]; ok && val != "" {
+				return val // only substitute when replacement is non-empty
+			}
+			return token // unknown or empty value — leave unchanged
+		})
+	}
+
+	// Check for unknown tokens before substitution.
+	if unknown := unknownTokenIn(p.Path); unknown != "" {
+		return fmt.Errorf("[plugins.*].path: unrecognized token %s (allowed: {checkout}, {subdir})", unknown)
+	}
+	if unknown := unknownTokenIn(p.Sync); unknown != "" {
+		return fmt.Errorf("[plugins.*].sync: unrecognized token %s (allowed: {checkout}, {subdir})", unknown)
+	}
+	for i, instr := range p.Instructions {
+		if unknown := unknownTokenIn(instr); unknown != "" {
+			return fmt.Errorf("[plugins.*].instructions[%d]: unrecognized token %s", i, unknown)
+		}
+	}
+
+	// Safe to substitute — all tokens are known.
+	p.Path = replaceTokens(p.Path)
+	p.Sync = replaceTokens(p.Sync)
+	for i, instr := range p.Instructions {
+		p.Instructions[i] = replaceTokens(instr)
+	}
+
+	return nil
 }
 
 // expandAll applies $HOME/~/XDG/${VAR} expansion.
