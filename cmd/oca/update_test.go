@@ -32,7 +32,9 @@ func TestUpdateCommand_TrackingRefFetchesLatestAndReapplies(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
 	cmd.SetArgs([]string{"update", "--config", stackPath})
-	if err := cmd.Execute(); err != nil { t.Fatalf("update: %v stderr=%s", err, stderr.String()) }
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("update: %v stderr=%s", err, stderr.String())
+	}
 	if gitRevParseHead(t, checkout) != latest {
 		t.Fatalf("checkout not updated to latest remote head")
 	}
@@ -56,9 +58,13 @@ func TestUpdateCommand_PinnedSHA_SkipsWithExit1(t *testing.T) {
 	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
 	cmd.SetArgs([]string{"update", "--config", stackPath})
 	err := cmd.Execute()
-	if err == nil { t.Fatal("expected skip exit") }
+	if err == nil {
+		t.Fatal("expected skip exit")
+	}
 	ec, ok := err.(interface{ ExitCode() int })
-	if !ok || ec.ExitCode() != 1 { t.Fatalf("wrong exit code: %v", err) }
+	if !ok || ec.ExitCode() != 1 {
+		t.Fatalf("wrong exit code: %v", err)
+	}
 	if !strings.Contains(stderr.String()+stdout.String(), "skip") && !strings.Contains(err.Error(), "skip") {
 		t.Fatalf("expected skip messaging, stdout=%q stderr=%q err=%v", stdout.String(), stderr.String(), err)
 	}
@@ -78,9 +84,11 @@ func TestUpdateCommand_ForceOnPinnedSHADoesNotMutateRef(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
 	cmd.SetArgs([]string{"update", "--force", "--config", stackPath})
-	if err := cmd.Execute(); err != nil { t.Fatalf("force update: %v stderr=%s", err, stderr.String()) }
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("force update: %v stderr=%s", err, stderr.String())
+	}
 	data, _ := os.ReadFile(stackPath)
-	if !regexp.MustCompile(`ref = "`+sha+`"`).Match(data) {
+	if !regexp.MustCompile(`ref = "` + sha + `"`).Match(data) {
 		t.Fatalf("force update should not mutate ref:\n%s", string(data))
 	}
 }
@@ -91,7 +99,9 @@ func initRemoteWorkCheckout(t *testing.T, tmp string) (remote, work, checkout st
 	work = filepath.Join(tmp, "work")
 	checkout = filepath.Join(tmp, "checkout")
 	runCmd(t, tmp, "git", "init", "--bare", "--initial-branch=master", remote)
-	if err := os.MkdirAll(work, 0o755); err != nil { t.Fatal(err) }
+	if err := os.MkdirAll(work, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	writeFile(t, filepath.Join(work, "index.js"), "v1\n")
 	runCmd(t, work, "git", "init", "--initial-branch=master")
 	runCmd(t, work, "git", "config", "user.email", "test@test.com")
@@ -117,6 +127,8 @@ func gitRevParseHead(t *testing.T, dir string) string {
 	cmd := exec.Command("git", "rev-parse", "HEAD")
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
-	if err != nil { t.Fatalf("git rev-parse HEAD failed: %v\n%s", err, string(out)) }
+	if err != nil {
+		t.Fatalf("git rev-parse HEAD failed: %v\n%s", err, string(out))
+	}
 	return strings.TrimSpace(string(out))
 }

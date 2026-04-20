@@ -162,7 +162,9 @@ func initPluginRemote(t *testing.T) string {
 	root := t.TempDir()
 	repo := filepath.Join(root, "repo")
 	remote := filepath.Join(root, "remote.git")
-	if err := os.MkdirAll(repo, 0o755); err != nil { t.Fatal(err) }
+	if err := os.MkdirAll(repo, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	writeFile(t, filepath.Join(repo, "sync.sh"), "#!/bin/sh\npwd > sync-ran.txt\n")
 	runCmd(t, repo, "chmod", "+x", "sync.sh")
 	runCmd(t, repo, "git", "init", "--initial-branch=master")
@@ -188,27 +190,39 @@ func runCmd(t *testing.T, dir string, name string, args ...string) {
 
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { t.Fatal(err) }
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil { t.Fatal(err) }
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func readJSONFile(t *testing.T, path string) map[string]any {
 	t.Helper()
 	b, err := os.ReadFile(path)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	var root map[string]any
-	if err := json.Unmarshal(b, &root); err != nil { t.Fatal(err) }
+	if err := json.Unmarshal(b, &root); err != nil {
+		t.Fatal(err)
+	}
 	return root
 }
 
 func jsonStringArray(t *testing.T, root map[string]any, key string) []string {
 	t.Helper()
 	raw, ok := root[key].([]any)
-	if !ok { t.Fatalf("%s missing or not array: %#v", key, root[key]) }
+	if !ok {
+		t.Fatalf("%s missing or not array: %#v", key, root[key])
+	}
 	out := make([]string, 0, len(raw))
 	for _, item := range raw {
 		s, ok := item.(string)
-		if !ok { t.Fatalf("non-string item in %s: %#v", key, item) }
+		if !ok {
+			t.Fatalf("non-string item in %s: %#v", key, item)
+		}
 		out = append(out, s)
 	}
 	return out

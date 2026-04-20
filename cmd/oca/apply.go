@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/Sharper-Flow/Opencode-Advance/internal/config"
 	pluginpkg "github.com/Sharper-Flow/Opencode-Advance/internal/plugin"
@@ -11,6 +12,8 @@ import (
 	syncpkg "github.com/Sharper-Flow/Opencode-Advance/internal/sync"
 	"github.com/spf13/cobra"
 )
+
+var invokeAdvance = syncpkg.InvokeAdvance
 
 func newApplyCmd(state *commandState) *cobra.Command {
 	var targets []string
@@ -109,7 +112,7 @@ func applyPlugins(ctx context.Context, state *commandState, stack *config.Stack,
 		if !plugin.IsEnabled() || plugin.Sync == "" {
 			continue
 		}
-		if _, err := syncpkg.InvokeAdvance(ctx, plugin); err != nil {
+		if _, err := invokeAdvance(ctx, plugin); err != nil {
 			return newCLIError(3, "sync plugin %s: %w", name, err)
 		}
 	}
@@ -141,6 +144,13 @@ func emitPlanOrApply(state *commandState, plan *render.Plan, dryRun bool, action
 	for _, t := range result.Targets {
 		if _, err := fmt.Fprintf(state.opts.Stdout, "%s\t%s\n", t.Op, t.Path); err != nil {
 			return err
+		}
+	}
+	for _, t := range plan.Targets {
+		if t.Reason != "" && strings.Contains(t.Reason, "pruned ") {
+			if _, err := fmt.Fprintln(state.opts.Stdout, t.Reason); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

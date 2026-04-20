@@ -19,10 +19,14 @@ func TestPinCommand_PinsAllGitPluginsAndSkipsNPM(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
 	cmd.SetArgs([]string{"pin", "--config", stackPath})
-	if err := cmd.Execute(); err != nil { t.Fatalf("pin: %v stderr=%s", err, stderr.String()) }
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("pin: %v stderr=%s", err, stderr.String())
+	}
 
 	data, err := os.ReadFile(stackPath)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !regexp.MustCompile(`ref = "[0-9a-f]{40}"`).Match(data) {
 		t.Fatalf("expected pinned SHA in stack.toml:\n%s", string(data))
 	}
@@ -41,7 +45,9 @@ func TestPinCommand_TargetedPluginOnly(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
 	cmd.SetArgs([]string{"pin", "advance", "--config", stackPath})
-	if err := cmd.Execute(); err != nil { t.Fatalf("pin targeted: %v stderr=%s", err, stderr.String()) }
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("pin targeted: %v stderr=%s", err, stderr.String())
+	}
 
 	data, _ := os.ReadFile(stackPath)
 	matches := regexp.MustCompile(`ref = "[0-9a-f]{40}"`).FindAll(data, -1)
@@ -67,14 +73,20 @@ path = "/missing/repo"
 	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
 	cmd.SetArgs([]string{"pin", "--config", stackPath})
 	err := cmd.Execute()
-	if err == nil { t.Fatal("expected error") }
+	if err == nil {
+		t.Fatal("expected error")
+	}
 	ec, ok := err.(interface{ ExitCode() int })
-	if !ok || ec.ExitCode() != 2 { t.Fatalf("wrong exit code: %v", err) }
+	if !ok || ec.ExitCode() != 2 {
+		t.Fatalf("wrong exit code: %v", err)
+	}
 }
 
 func initLocalPinnedRepo(t *testing.T, path string) string {
 	t.Helper()
-	if err := os.MkdirAll(path, 0o755); err != nil { t.Fatal(err) }
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	writeFile(t, filepath.Join(path, "index.js"), "x\n")
 	runCmd(t, path, "git", "init", "--initial-branch=master")
 	runCmd(t, path, "git", "config", "user.email", "test@test.com")
