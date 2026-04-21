@@ -68,6 +68,16 @@ func (es ValidationErrors) Error() string {
 // HasErrors returns true when the slice is non-empty.
 func (es ValidationErrors) HasErrors() bool { return len(es) > 0 }
 
+// ValidationErrorContains returns true if any ValidationError's message
+// contains the given substring. Used by tests to assert a specific error
+// was raised without matching the exact path+message format.
+func ValidationErrorContains(err error, substr string) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), substr)
+}
+
 // Validate runs all schema checks against a parsed Stack. Errors are
 // aggregated — the returned ValidationErrors contains every problem
 // found so the user can fix them in one pass. nil is returned when the
@@ -96,6 +106,18 @@ func (s *Stack) Validate() error {
 
 	// [instructions]
 	errs = append(errs, validateInstructions(s)...)
+
+	// [providers.*]
+	errs = append(errs, validateProviders(s)...)
+
+	// [permissions.*]
+	errs = append(errs, validatePermissions(s)...)
+
+	// [watcher]
+	errs = append(errs, validateWatcher(s)...)
+
+	// [lsp.*]
+	errs = append(errs, validateLSP(s)...)
 
 	// Deferred sections — classify as known-but-deferred (ok) or
 	// truly unknown (error).
@@ -387,6 +409,160 @@ func validateTemporalReserved(s *Stack) []Warning {
 		Message: "[temporal] section is reserved for a future phase (Phase 6.5 — Temporal Enablement)",
 		Hint:    "See docs/proposals/phases.md § Phase 6.5. This section will be implemented later.",
 	}}
+}
+
+// validateProviders checks per-provider and per-model rules.
+// Design K8: each [providers.<name>] must be a non-empty table;
+// each models.<id> must have either name or some variant;
+// context/output positive if set; inputs/outputs non-empty strings if set.
+func validateProviders(s *Stack) ValidationErrors {
+	var errs ValidationErrors
+	if s.Providers == nil || len(s.Providers) == 0 {
+		return errs
+	}
+	for pname, prov := range s.Providers {
+		path := fmt.Sprintf("providers.%s", pname)
+		if len(prov.Models) == 0 && len(prov.Extra) == 0 {
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: "provider must have at least one models entry or known fields",
+			})
+			continue
+		}
+		for mname, model := range prov.Models {
+			mPath := fmt.Sprintf("%s.models.%s", path, mname)
+			hasName := model.Name != ""
+			hasVariants := model.Variants != nil && len(model.Variants) > 0
+			if !hasName && !hasVariants {
+				errs = append(errs, ValidationError{
+					Path:    mPath,
+					Message: "model must have at least one of: name, variants",
+				})
+			}
+			if model.Context < 0 {
+				errs = append(errs, ValidationError{
+					Path:    mPath + ".context",
+					Message: fmt.Sprintf("context must be non-negative, got %d", model.Context),
+				})
+			}
+			if model.Output < 0 {
+				errs = append(errs, ValidationError{
+					Path:    mPath + ".output",
+					Message: fmt.Sprintf("output must be non-negative, got %d", model.Output),
+				})
+			}
+			for i, input := range model.Inputs {
+				if input == "" {
+					errs = append(errs, ValidationError{
+						Path:    fmt.Sprintf("%s.inputs[%d]", mPath, i),
+						Message: "inputs entries must not be empty strings",
+					})
+				}
+			}
+			for i, output := range model.Outputs {
+				if output == "" {
+					errs = append(errs, ValidationError{
+						Path:    fmt.Sprintf("%s.outputs[%d]", mPath, i),
+						Message: "outputs entries must not be empty strings",
+					})
+				}
+			}
+		}
+	}
+	return errs
+}
+
+// validPermissionActions is the set of allowed permission action values.
+var validPermissionActions = map[string]bool{
+	"allow": true,
+	"ask":   true,
+	"deny":  true,
+}
+
+// validatePermissions checks that permission action values are valid.
+// Design K8: default, doom_loop in {"allow","ask","deny"} if set;
+// external_directory and bash entries are string→action in same set.
+func validatePermissions(s *Stack) ValidationErrors {
+	var errs ValidationErrors
+	if s.Permissions.Default != "" && !validPermissionActions[s.Permissions.Default] {
+		errs = append(errs, ValidationError{
+			Path:    "permissions.default",
+			Message: fmt.Sprintf("unknown action %q (allowed: allow, ask, deny)", s.Permissions.Default),
+		})
+	}
+	if s.Permissions.DoomLoop != "" && !validPermissionActions[s.Permissions.DoomLoop] {
+		errs = append(errs, ValidationError{
+			Path:    "permissions.doom_loop",
+			Message: fmt.Sprintf("unknown action %q (allowed: allow, ask, deny)", s.Permissions.DoomLoop),
+		})
+	}
+	for path, action := range s.Permissions.ExternalDirectory {
+		if !validPermissionActions[action] {
+			errs = append(errs, ValidationError{
+				Path:    fmt.Sprintf("permissions.external_directory.%s", path),
+				Message: fmt.Sprintf("unknown action %q (allowed: allow, ask, deny)", action),
+			})
+		}
+	}
+	for path, action := range s.Permissions.Bash {
+		if !validPermissionActions[action] {
+			errs = append(errs, ValidationError{
+				Path:    fmt.Sprintf("permissions.bash.%s", path),
+				Message: fmt.Sprintf("unknown action %q (allowed: allow, ask, deny)", action),
+			})
+		}
+	}
+	return errs
+}
+
+// validateWatcher checks that watcher.ignore is []string and entries are non-empty.
+// Design K8.
+func validateWatcher(s *Stack) ValidationErrors {
+	var errs ValidationErrors
+	if s.Watcher.Ignore == nil {
+		return errs
+	}
+	for i, entry := range s.Watcher.Ignore {
+		if entry == "" {
+			errs = append(errs, ValidationError{
+				Path:    fmt.Sprintf("watcher.ignore[%d]", i),
+				Message: "ignore entries must not be empty strings",
+			})
+		}
+	}
+	return errs
+}
+
+// validateLSP checks per-LSP rules.
+// Design K8: each [lsp.<name>] is a non-empty table; if not disabled, command is non-empty.
+func validateLSP(s *Stack) ValidationErrors {
+	var errs ValidationErrors
+	if s.LSP == nil || len(s.LSP) == 0 {
+		return errs
+	}
+	for lname, lsp := range s.LSP {
+		path := fmt.Sprintf("lsp.%s", lname)
+		// Must be non-empty (has at least one field or Extra entry).
+		hasContent := (lsp.Command != nil && len(lsp.Command) > 0) ||
+			(lsp.Extensions != nil && len(lsp.Extensions) > 0) ||
+			lsp.Disabled ||
+			(lsp.Extra != nil && len(lsp.Extra) > 0)
+		if !hasContent {
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: "LSP server must have at least one of: command, extensions, disabled, or additional fields",
+			})
+			continue
+		}
+		// If not disabled, command must be non-empty.
+		if !lsp.Disabled && (lsp.Command == nil || len(lsp.Command) == 0) {
+			errs = append(errs, ValidationError{
+				Path:    path + ".command",
+				Message: "command is required when LSP server is not disabled",
+			})
+		}
+	}
+	return errs
 }
 
 func knownSectionNames() []string {

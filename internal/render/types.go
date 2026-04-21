@@ -30,6 +30,11 @@ type ApplyOptions struct {
 	DryRun     bool
 	MaxBackups int
 	LockPath   string
+	// NoRollback, when true, skips rollback on mid-plan failure.
+	// Use this when the caller composes multiple targets in a single plan
+	// and wants earlier successful writes to remain on disk (AC4).
+	// Default false preserves single-target rollback behavior.
+	NoRollback bool
 }
 
 // TargetResult summarizes one applied target.

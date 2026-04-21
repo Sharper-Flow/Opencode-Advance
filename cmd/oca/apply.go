@@ -25,9 +25,53 @@ func newApplyCmd(state *commandState) *cobra.Command {
 			if err := validateOutputMode(state.output); err != nil {
 				return err
 			}
+			paths := config.ResolvePaths()
+			ctx, cancel := withContext()
+			defer cancel()
+
+			// No-target: compose all in-scope targets (providers/permissions/watcher/lsp
+			// plus the Phase 1+ targets) in dependency order with NoRollback.
+			// Chains Before/After bytes through a running in-memory doc so later
+			// targets don't clobber earlier ones.
 			if len(targets) == 0 {
-				return newCLIError(2, "--target is required (supported: mcp, plugins, instructions, temporal)")
+				stack, err := loadStack(state)
+				if err != nil {
+					return err
+				}
+				if len(stack.Warnings) > 0 {
+					if state.output == "json" {
+						if err := printJSON(state.opts.Stdout, map[string]any{"warnings": stack.Warnings}); err != nil {
+							return err
+						}
+					} else if err := printWarningsText(state.opts.Stdout, stack.Warnings); err != nil {
+						return err
+					}
+				}
+				plan, err := render.ComposeApplyPlan(stack, paths, state.configPath, render.AllTargets)
+				if err != nil {
+					return newCLIError(3, "compose plan: %w", err)
+				}
+				applyOpts := render.ApplyOptions{
+					DryRun:     false,
+					MaxBackups: 3,
+					LockPath:   plan.LockPath,
+					NoRollback: true, // leave earlier targets on disk if later ones fail
+				}
+				return emitPlanOrApplyWithOpts(state, plan, dryRun, "apply all targets", applyOpts)
 			}
+
+			// Validate all targets before applying any.
+			for _, t := range targets {
+				switch t {
+				case "mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp":
+					// known
+				case "temporal":
+					return newCLIError(2, "target %q reserved for Phase 6.5; see docs/proposals/phases.md § Phase 6.5", t)
+				default:
+					return newCLIError(2, "unknown target %q; supported: mcp, plugins, instructions, providers, permissions, watcher, lsp", t)
+				}
+			}
+
 			stack, err := loadStack(state)
 			if err != nil {
 				return err
@@ -41,9 +85,6 @@ func newApplyCmd(state *commandState) *cobra.Command {
 					return err
 				}
 			}
-			paths := config.ResolvePaths()
-			ctx, cancel := withContext()
-			defer cancel()
 
 			for _, target := range targets {
 				switch target {
@@ -59,19 +100,31 @@ func newApplyCmd(state *commandState) *cobra.Command {
 					if err := applyInstructions(ctx, state, stack, paths, dryRun); err != nil {
 						return err
 					}
-				case "temporal":
-					return newCLIError(2, "target %q reserved for Phase 6.5; see docs/proposals/phases.md § Phase 6.5", target)
-				default:
-					return newCLIError(2, "unknown target %q; supported: mcp, plugins, instructions, temporal", target)
+				case "providers":
+					if err := applyProviders(ctx, state, stack, paths, dryRun); err != nil {
+						return err
+					}
+				case "permissions":
+					if err := applyPermissions(ctx, state, stack, paths, dryRun); err != nil {
+						return err
+					}
+				case "watcher":
+					if err := applyWatcher(ctx, state, stack, paths, dryRun); err != nil {
+						return err
+					}
+				case "lsp":
+					if err := applyLSP(ctx, state, stack, paths, dryRun); err != nil {
+						return err
+					}
 				}
 			}
 			return nil
 		},
 	}
-	cmd.Flags().StringArrayVar(&targets, "target", nil, "Target(s) to apply (supported: mcp, plugins, instructions, temporal)")
+	cmd.Flags().StringArrayVar(&targets, "target", nil, "Target(s) to apply (supported: mcp, plugins, instructions, providers, permissions, watcher, lsp)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print the render plan without writing files")
 	_ = cmd.RegisterFlagCompletionFunc("target", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"mcp", "plugins", "instructions", "temporal"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp", "temporal"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
@@ -119,6 +172,38 @@ func applyPlugins(ctx context.Context, state *commandState, stack *config.Stack,
 	return nil
 }
 
+func applyProviders(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool) error {
+	plan, err := render.PlanProviders(stack, paths, state.configPath)
+	if err != nil {
+		return newCLIError(3, "plan providers: %w", err)
+	}
+	return emitPlanOrApply(state, plan, dryRun, "apply providers")
+}
+
+func applyPermissions(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool) error {
+	plan, err := render.PlanPermissions(stack, paths, state.configPath)
+	if err != nil {
+		return newCLIError(3, "plan permissions: %w", err)
+	}
+	return emitPlanOrApply(state, plan, dryRun, "apply permissions")
+}
+
+func applyWatcher(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool) error {
+	plan, err := render.PlanWatcher(stack, paths, state.configPath)
+	if err != nil {
+		return newCLIError(3, "plan watcher: %w", err)
+	}
+	return emitPlanOrApply(state, plan, dryRun, "apply watcher")
+}
+
+func applyLSP(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool) error {
+	plan, err := render.PlanLSP(stack, paths, state.configPath)
+	if err != nil {
+		return newCLIError(3, "plan lsp: %w", err)
+	}
+	return emitPlanOrApply(state, plan, dryRun, "apply lsp")
+}
+
 func applyInstructions(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool) error {
 	plan, err := render.PlanInstructions(stack, paths, state.configPath)
 	if err != nil {
@@ -128,13 +213,17 @@ func applyInstructions(ctx context.Context, state *commandState, stack *config.S
 }
 
 func emitPlanOrApply(state *commandState, plan *render.Plan, dryRun bool, action string) error {
+	return emitPlanOrApplyWithOpts(state, plan, dryRun, action, render.ApplyOptions{DryRun: false, MaxBackups: 3, LockPath: plan.LockPath})
+}
+
+func emitPlanOrApplyWithOpts(state *commandState, plan *render.Plan, dryRun bool, action string, opts render.ApplyOptions) error {
 	if dryRun {
 		if state.output == "json" {
 			return printJSON(state.opts.Stdout, render.RedactPlan(plan))
 		}
 		return printPlanText(state.opts.Stdout, plan)
 	}
-	result, err := render.Apply(plan, render.ApplyOptions{DryRun: false, MaxBackups: 3, LockPath: plan.LockPath})
+	result, err := render.Apply(plan, opts)
 	if err != nil {
 		return newCLIError(3, "%s: %w", action, err)
 	}

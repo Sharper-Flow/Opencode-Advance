@@ -2,7 +2,7 @@
 
 This document is the canonical reference for the `stack.toml` schema. A complete working example lives at [`stack.example.toml`](../../stack.example.toml).
 
-> Status note: `[meta]`, `[mcp]`, `[plugins.*]`, and `[instructions]` are typed and actively rendered as of Phase 2. `[temporal]` is typed but reserved for Phase 6.5 (accepted without rendering). The remaining top-level sections below are part of the long-term schema and are accepted as deferred input for later phases unless otherwise noted.
+> Status note: `[meta]`, `[mcp]`, `[plugins.*]`, and `[instructions]` are typed and actively rendered as of Phase 2. `[providers.*]`, `[permissions]`, `[watcher]`, and `[lsp.*]` are typed and actively rendered in Phase 3. `[temporal]` is typed but reserved for Phase 6.5 (accepted without rendering). `[agents]`, `[session]`, `[discord]`, `[skills]`, `[formatters.*]`, `[commands.*]`, and `[opencode]` remain deferred unless otherwise noted.
 
 ## Top-level tables
 
@@ -12,11 +12,11 @@ This document is the canonical reference for the `stack.toml` schema. A complete
 | `[mcp]`            | yes      | MCP server declarations                             |
 | `[plugins.*]`      | active   | Plugin declarations with source, build, wiring (Phase 2) |
 | `[instructions]`   | active   | Ordered list of instruction files to load (Phase 2) |
-| `[providers.*]`    | no       | Provider/model configurations                      |
-| `[agents]`         | no       | Agent → model assignments                           |
-| `[permissions]`    | no       | Permission rules (bash, external_directory)         |
-| `[watcher]`        | no       | File watcher ignore globs                           |
-| `[lsp.*]`          | no       | LSP server configurations                          |
+| `[providers.*]`    | active   | Provider/model configurations                       |
+| `[agents]`         | deferred | Agent model mapping is intentionally not rendered in Phase 3; see OMP docs for preference routing |
+| `[permissions]`    | active   | Permission rules (bash, external_directory)         |
+| `[watcher]`        | active   | File watcher ignore globs                           |
+| `[lsp.*]`          | active   | LSP server configurations                           |
 | `[session]`        | no       | tmux session / UX settings                          |
 | `[discord]`        | no       | Discord Rich Presence config                       |
 | `[skills]`         | no       | OCA-owned skills to copy to `~/.config/opencode/skills/` |
@@ -264,25 +264,17 @@ reasoningSummary = "detailed"
 textVerbosity    = "medium"
 ```
 
-The structure mirrors what OpenCode expects in `opencode.json` `.provider`. OCA passes through the fields without interpreting model names.
+The structure mirrors what OpenCode expects in `opencode.json` `.provider`. OCA passes through the fields without interpreting model names. Unknown additional keys on providers and models are preserved and passed through to the rendered JSON.
 
 ---
 
 ## `[agents]`
 
-Simple flat table mapping agent names to model IDs.
+`[agents]` remains accepted as deferred input but is **not rendered by OCA in Phase 3**.
 
-```toml
-[agents]
-build     = "anthropic/claude-opus-4-6"
-plan      = "openai/gpt-5.2"
-scout     = "zai-coding-plan/glm-5"
-refine    = "anthropic/claude-opus-4-6"
-librarian = "openrouter/anthropic/claude-haiku-4.5:nitro"
-explore   = "zai-coding-plan/glm-5"
-```
-
-Rendered into `opencode.json` `.agent.<name>.model`.
+- OCA keeps the section in `DeferredSections` for forward compatibility.
+- Existing `.agent.*` config is left untouched by `oca apply`.
+- Model preference routing for spawned agents should follow the `opencode-model-preferences` plugin/docs rather than this Phase 3 renderer.
 
 ---
 
@@ -307,7 +299,7 @@ doom_loop = "ask"
 "mkfs*"          = "deny"
 ```
 
-Rendered into `opencode.json` `.permission`. OCA preserves the existing TOML-friendly structure and translates to OpenCode's expected shape.
+Rendered into `opencode.json` `.permission`. OCA preserves the existing TOML-friendly structure and translates to OpenCode's expected shape. Unknown additional keys are preserved and passed through.
 
 ---
 
@@ -324,7 +316,7 @@ ignore = [
 ]
 ```
 
-Rendered into `opencode.json` `.watcher.ignore`.
+Rendered into `opencode.json` `.watcher.ignore`. Unknown sibling keys under `[watcher]` are preserved and passed through.
 
 ---
 
@@ -340,7 +332,7 @@ command = ["node", "./node_modules/typescript/lib/tsserver.js", "--useInferredPr
 extensions = [".ts", ".tsx", ".svelte"]
 ```
 
-Rendered into `opencode.json` `.lsp`.
+Rendered into `opencode.json` `.lsp`. Unknown additional keys per LSP server are preserved and passed through.
 
 ---
 

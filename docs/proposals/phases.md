@@ -122,21 +122,20 @@ Phase 2 shipped the plugin lifecycle, subprocess runner, and apply-lock primitiv
 
 ---
 
-## Phase 3: Providers + Agents + Permissions + LSP + Watcher
+## Phase 3: Providers + Permissions + LSP + Watcher + Diff
 
-**Goal:** Core `opencode.json` coverage: providers, agents, permissions, watcher ignore globs, and LSP. Every core configuration slice is now declarative. Skills, custom commands, formatters, and OpenCode-level toggles are deferred to Phase 3.5.
+**Goal:** Core `opencode.json` coverage: providers, permissions, watcher ignore globs, LSP, all-target apply, and drift detection. Agent rendering is explicitly out of scope for this phase. Skills, custom commands, formatters, and OpenCode-level toggles are deferred to Phase 3.5.
 
 **Estimate:** 1 week
 
 **Deliverables:**
 
 - `internal/render/providers.go` — providers rendering (handles nested model/variants)
-- `internal/render/agents.go` — agent model mapping
 - `internal/render/permissions.go` — permissions rendering
 - `internal/render/watcher.go` — watcher.ignore rendering
 - `internal/render/lsp.go` — LSP rendering
 - `cmd/oca/diff.go` — `oca diff` drift detection
-- `cmd/oca/apply.go` supports all targets
+- `cmd/oca/apply.go` supports all Phase 3 targets plus no-target composed apply
 - Golden-file tests for every target
 
 **Exit criteria:**
@@ -144,19 +143,18 @@ Phase 2 shipped the plugin lifecycle, subprocess runner, and apply-lock primitiv
 - `oca apply` with no `--target` applies all targets in dependency order
 - `oca diff` shows drift for every configuration slice
 - The complete `stack.example.toml` renders to a valid `opencode.json` that OpenCode can load
-- Manually verified: OpenCode loads the rendered config without errors
+- `[agents]` remains deferred and existing `.agent.*` state is left untouched
 
 **Tasks (high-level):**
 
 - tk-phase3-01: Implement providers rendering (nested structure)
-- tk-phase3-02: Implement agents rendering (flat map)
-- tk-phase3-03: Implement permissions rendering (external_directory, bash, default, doom_loop)
-- tk-phase3-04: Implement watcher.ignore rendering
-- tk-phase3-05: Implement LSP rendering
-- tk-phase3-06: Implement `oca diff` command
-- tk-phase3-07: Implement target-aware apply (run all targets in order)
-- tk-phase3-08: Golden tests for each target
-- tk-phase3-09: End-to-end test: stack.example.toml → opencode.json → OpenCode loads
+- tk-phase3-02: Implement permissions rendering (external_directory, bash, default, doom_loop)
+- tk-phase3-03: Implement watcher.ignore rendering
+- tk-phase3-04: Implement LSP rendering
+- tk-phase3-05: Implement `oca diff` command
+- tk-phase3-06: Implement target-aware composed apply (run all targets in order)
+- tk-phase3-07: Golden/integration tests for each target and apply-all path
+- tk-phase3-08: End-to-end test: stack.example.toml → opencode.json → OpenCode loads
 
 ---
 

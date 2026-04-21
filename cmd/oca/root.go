@@ -81,6 +81,7 @@ func newRootCmd(opts commandOptions) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&state.quiet, "quiet", false, "Only print errors")
 	cmd.AddCommand(newVersionCmd(opts))
 	cmd.AddCommand(newApplyCmd(state))
+	cmd.AddCommand(newDiffCmd(state))
 	cmd.AddCommand(newDoctorCmd(state))
 	cmd.AddCommand(newPinCmd(state))
 	cmd.AddCommand(newUpdateCmd(state))

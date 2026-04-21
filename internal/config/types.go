@@ -2,13 +2,17 @@
 // stack.toml configuration file into typed Go structs.
 //
 // Phase 1 scope covers [meta] and [mcp.servers.*]. Known-but-unimplemented
-// top-level sections (plugins, providers, agents, permissions, watcher,
-// lsp, session, discord, skills, formatters, commands, opencode,
-// instructions) parse into a generic DeferredSections map without error.
+// top-level sections (agents, session, discord, skills, formatters, commands,
+// opencode) parse into a generic DeferredSections map without error.
 // Truly unknown top-level sections produce a validation error.
+//
+// Phase 3 graduates providers, permissions, watcher, and lsp into typed
+// structs with Extra map[string]any passthrough.
 //
 // See docs/design/phase1-mcp-apply.md for the full type design.
 package config
+
+import "fmt"
 
 // Stack is the in-memory representation of a validated stack.toml file.
 // Fields are populated by Parse, with validation run by Validate and
@@ -21,6 +25,12 @@ type Stack struct {
 	Plugins      PluginsSection      `toml:"plugins"`
 	Instructions InstructionsSection `toml:"instructions"`
 	Temporal     *TemporalSection    `toml:"temporal"`
+
+	// Phase 3 typed sections
+	Providers   ProvidersSection   `toml:"providers"`
+	Permissions PermissionsSection `toml:"permissions"`
+	Watcher     WatcherSection    `toml:"watcher"`
+	LSP         LSPSection        `toml:"lsp"`
 
 	// DeferredSections holds known-but-unimplemented top-level sections
 	// verbatim so that a complete stack.toml (including future-phase
@@ -189,6 +199,249 @@ type InstructionsSection struct {
 // parsed with advisory tolerance (no error on unknown fields).
 type TemporalSection struct {
 	Enabled *bool `toml:"enabled,omitempty"` // default true if absent
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3 — graduated typed sections
+// ---------------------------------------------------------------------------
+
+// ProvidersSection is the [providers] table — a map of provider name to Provider.
+type ProvidersSection map[string]Provider
+
+// Provider describes a model provider declared in [providers.<name>].
+type Provider struct {
+	Models   map[string]ProviderModel `toml:"models,omitempty"`
+	Options  map[string]any           `toml:"options,omitempty"`
+	Variants map[string]any           `toml:"variants,omitempty"`
+	Extra    map[string]any           `toml:"-"`
+}
+
+// UnmarshalTOML implements custom decoding to capture extra unknown fields
+// (fields not in the Provider struct) into the Extra map, including at
+// nested levels (per-model Extra via ProviderModel.UnmarshalTOML).
+func (p *Provider) UnmarshalTOML(value any) error {
+	m, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("expected table for provider, got %T", value)
+	}
+
+	// Manually decode known fields; unknown fields accumulate in extra.
+	extra := make(map[string]any)
+	for k, v := range m {
+		switch k {
+		case "models":
+			models, err := decodeProviderModels(v)
+			if err != nil {
+				return fmt.Errorf("models: %w", err)
+			}
+			p.Models = models
+		case "options":
+			opts, err := decodeIntoMap(v)
+			if err != nil {
+				return fmt.Errorf("options: %w", err)
+			}
+			p.Options = opts
+		case "variants":
+			variants, err := decodeIntoMap(v)
+			if err != nil {
+				return fmt.Errorf("variants: %w", err)
+			}
+			p.Variants = variants
+		default:
+			extra[k] = v
+		}
+	}
+	if len(extra) > 0 {
+		p.Extra = extra
+	}
+	return nil
+}
+
+// decodeProviderModels decodes a raw TOML value into a map of ProviderModel.
+// Each model value goes through ProviderModel.UnmarshalTOML to capture its
+// own Extra fields.
+func decodeProviderModels(raw any) (map[string]ProviderModel, error) {
+	m, ok := raw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("expected table, got %T", raw)
+	}
+	result := make(map[string]ProviderModel, len(m))
+	for name, modelRaw := range m {
+		model := ProviderModel{}
+		if err := model.UnmarshalTOML(name, modelRaw); err != nil {
+			return nil, fmt.Errorf("[models.%s]: %w", name, err)
+		}
+		result[name] = model
+	}
+	return result, nil
+}
+
+// ProviderModel describes a single model under a provider.
+// Shape translation to opencode.json happens in the render layer.
+type ProviderModel struct {
+	Name     string            `toml:"name,omitempty"`
+	Context  int               `toml:"context,omitempty"`
+	Output   int               `toml:"output,omitempty"`
+	Inputs   []string          `toml:"inputs,omitempty"`
+	Outputs  []string          `toml:"outputs,omitempty"`
+	Options  map[string]any    `toml:"options,omitempty"`
+	Variants map[string]any    `toml:"variants,omitempty"`
+	Extra    map[string]any    `toml:"-"`
+}
+
+// modelName is passed explicitly because ProviderModel is identified by its
+// map key in ProvidersSection, not by an internal name field for TOML decode.
+func (m *ProviderModel) UnmarshalTOML(modelName string, value any) error {
+	// ProviderModel is identified by its map key; the "name" field inside is
+	// the provider-assigned display name, not the lookup key.
+	_ = modelName // explicit signature; name used in error messages above
+	pm, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("expected table, got %T", value)
+	}
+
+	extra := make(map[string]any)
+	for k, v := range pm {
+		switch k {
+		case "name":
+			if s, ok := v.(string); ok {
+				m.Name = s
+			}
+		case "context":
+			if i, ok := tomlInt(v); ok {
+				m.Context = i
+			}
+		case "output":
+			if i, ok := tomlInt(v); ok {
+				m.Output = i
+			}
+		case "inputs":
+			if ss, ok := v.([]any); ok {
+				m.Inputs = toStringSlice(ss)
+			}
+		case "outputs":
+			if ss, ok := v.([]any); ok {
+				m.Outputs = toStringSlice(ss)
+			}
+		case "options":
+			opts, err := decodeIntoMap(v)
+			if err != nil {
+				return fmt.Errorf("options: %w", err)
+			}
+			m.Options = opts
+		case "variants":
+			variants, err := decodeIntoMap(v)
+			if err != nil {
+				return fmt.Errorf("variants: %w", err)
+			}
+			m.Variants = variants
+		default:
+			extra[k] = v
+		}
+	}
+	if len(extra) > 0 {
+		m.Extra = extra
+	}
+	return nil
+}
+
+// PermissionsSection is the [permissions] table.
+// Shape translation (default → .permission["*"]) happens in the render layer.
+type PermissionsSection struct {
+	Default          string            `toml:"default,omitempty"`
+	DoomLoop         string            `toml:"doom_loop,omitempty"`
+	ExternalDirectory map[string]string `toml:"external_directory,omitempty"`
+	Bash             map[string]string `toml:"bash,omitempty"`
+	Extra            map[string]any    `toml:"-"`
+}
+
+// WatcherSection is the [watcher] table.
+type WatcherSection struct {
+	Ignore []string         `toml:"ignore,omitempty"`
+	Extra  map[string]any   `toml:"-"`
+}
+
+// LSPSection is the [lsp] table — a map of LSP server name to LSP.
+type LSPSection map[string]LSP
+
+// LSP describes an LSP server declared in [lsp.<name>].
+type LSP struct {
+	Command    []string       `toml:"command,omitempty"`
+	Extensions []string       `toml:"extensions,omitempty"`
+	Disabled   bool           `toml:"disabled,omitempty"`
+	Extra      map[string]any `toml:"-"`
+}
+
+// UnmarshalTOML implements custom decoding to capture extra unknown fields
+// into the Extra map.
+func (l *LSP) UnmarshalTOML(value any) error {
+	m, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("expected table for LSP, got %T", value)
+	}
+
+	extra := make(map[string]any)
+	for k, v := range m {
+		switch k {
+		case "command":
+			if ss, ok := v.([]any); ok {
+				l.Command = toStringSlice(ss)
+			}
+		case "extensions":
+			if ss, ok := v.([]any); ok {
+				l.Extensions = toStringSlice(ss)
+			}
+		case "disabled":
+			if b, ok := v.(bool); ok {
+				l.Disabled = b
+			}
+		default:
+			extra[k] = v
+		}
+	}
+	if len(extra) > 0 {
+		l.Extra = extra
+	}
+	return nil
+}
+
+// decodeIntoMap converts a raw TOML value to map[string]any for storage
+// in typed Extra/passthrough fields.
+func decodeIntoMap(raw any) (map[string]any, error) {
+	m, ok := raw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("expected table, got %T", raw)
+	}
+	return m, nil
+}
+
+// toStringSlice converts a []any (from TOML decode) to []string,
+// handling the common case of []any{string, ...}.
+func toStringSlice(a []any) []string {
+	if a == nil {
+		return nil
+	}
+	out := make([]string, 0, len(a))
+	for _, v := range a {
+		if s, ok := v.(string); ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// tomlInt extracts an int64 from a TOML value (which decodes to int64
+// for integer types, float64 for floats, etc.).
+func tomlInt(v any) (int, bool) {
+	switch n := v.(type) {
+	case int64:
+		return int(n), true
+	case int:
+		return n, true
+	case float64:
+		return int(n), true
+	}
+	return 0, false
 }
 
 // Warning carries a non-fatal diagnostic from Load. Surfaced by apply

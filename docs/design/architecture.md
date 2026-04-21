@@ -2,10 +2,12 @@
 
 This document is the canonical high-level architecture reference for the code that is **actually implemented today**.
 
-Current shipped scope is **Phase 1 and Phase 2**:
+Current implemented scope on this branch is **Phase 1, Phase 2, and Phase 3 core rendering**:
 
-- `stack.toml` parsing for `[meta]`, `[mcp]`, `[plugins]`, and deferred future sections
-- `oca apply --target mcp` and `oca apply --target plugins`
+- `stack.toml` parsing for `[meta]`, `[mcp]`, `[plugins]`, `[instructions]`, `[providers]`, `[permissions]`, `[watcher]`, `[lsp]`, plus deferred future sections
+- `oca apply --target mcp|plugins|instructions|providers|permissions|watcher|lsp`
+- `oca apply` with no `--target` for composed all-target apply
+- `oca diff`
 - `oca doctor --scope mcp` and `oca doctor --scope plugins`
 - `oca debug plan` and `oca debug validate`
 - `oca pin` and `oca update`
@@ -15,26 +17,26 @@ Future phases are tracked in [`../proposals/phases.md`](../proposals/phases.md).
 
 ## Core principle: single source of truth
 
-The user owns one file: `stack.toml`. In Phase 1, OCA renders only the MCP slice from that file.
+The user owns one file: `stack.toml`. OCA renders declarative slices from that file into `opencode.json` and companion config files.
 
 ```text
 stack.toml
-  └─► oca apply --target mcp
-        ├─► opencode.json (.mcp merge only)
+  └─► oca apply [--target ...]
+        ├─► opencode.json (.mcp/.plugin/.instructions/.provider/.permission/.watcher/.lsp merges)
         └─► vision/servers.yaml (authoritative full write)
 ```
 
-OCA does **not** yet render plugins, instructions, providers, agents, permissions, watcher, LSP, session, or theme configuration. Those sections are accepted as deferred input for later phases.
+OCA still does **not** render agents, session, discord, skills, formatters, commands, opencode toggles, or theme/session configuration. Those sections remain deferred for later phases. Phase 3 explicitly leaves `.agent.*` state untouched.
 
 ## Subsystems
 
 ### 1. Configuration (`internal/config/`)
 
-Phase 1 config is intentionally small and strict.
+Config is typed where implementation exists and deferred where ownership is intentionally postponed.
 
 - Parses TOML with `github.com/BurntSushi/toml`
-- Decodes typed Phase 1 sections: `Meta`, `MCP`
-- Preserves known future sections in `Stack.DeferredSections`
+- Decodes typed sections: `Meta`, `MCP`, `Plugins`, `Instructions`, `Temporal`, `Providers`, `Permissions`, `Watcher`, `LSP`
+- Preserves deferred future sections in `Stack.DeferredSections` (`agents`, `session`, `discord`, `skills`, `formatters`, `commands`, `opencode`)
 - Resolves shell-style paths and env variables in-place
 - Emits aggregated field-path validation errors
 - Collects non-fatal `env_file` warnings
@@ -45,7 +47,14 @@ Current core types:
 type Stack struct {
     Meta             Meta
     MCP              MCPSection
-    DeferredSections map[string]map[string]any
+    Plugins          PluginsSection
+    Instructions     InstructionsSection
+    Temporal         *TemporalSection
+    Providers        ProvidersSection
+    Permissions      PermissionsSection
+    Watcher          WatcherSection
+    LSP              LSPSection
+    DeferredSections map[string]any
     Warnings         []Warning
 }
 ```
@@ -56,20 +65,24 @@ Current pipeline:
 ParseFile -> Resolve -> Validate -> collect env_file warnings
 ```
 
-Not implemented in Phase 1:
+Still deferred:
 
 - project-local override merge
-- typed plugin/provider/agent/session structures
+- agent/session/theme/toggle structures
 - migration import logic
 
 ### 2. Rendering (`internal/render/`)
 
-Phase 1 rendering is **programmatic**, not template-based.
+Rendering is **programmatic**, not template-based.
 
 - `RenderMCPFragment` builds one OpenCode `.mcp` entry
 - `MergeMCP` overwrites declared MCP keys and preserves user-added keys
+- `MergeArray` merges flat arrays like `.plugin` and `.instructions`
+- `MergeObject` merges nested object slices like `.provider`, `.permission`, and `.lsp`
+- `MergeWatcherIgnore` merges `.watcher.ignore` while preserving user-added entries and sibling watcher keys
 - `RenderVisionServers` writes authoritative `servers.yaml`
-- `PlanMCP` computes deterministic target operations
+- `PlanMCP`, `PlanPlugins`, `PlanInstructions`, `PlanProviders`, `PlanPermissions`, `PlanWatcher`, `PlanLSP` compute deterministic target operations
+- `ComposeApplyPlan` chains composed apply/diff through a running in-memory `opencode.json`
 - `Apply` executes the plan with dry-run support, lock acquisition, atomic writes, and backup rotation
 
 Current write guarantees:
@@ -109,7 +122,8 @@ Current defaults:
 Current shipped commands:
 
 - `oca version`
-- `oca apply --target mcp`
+- `oca apply [--target ...]`
+- `oca diff`
 - `oca doctor --scope mcp`
 - `oca debug plan`
 - `oca debug validate`
@@ -123,7 +137,7 @@ Shared shipped flags:
 
 Not implemented yet:
 
-- `install`, `diff`, `pin`, `update`, `uninstall`
+- `install`, `uninstall`
 - migration commands beyond scaffolding
 - session / theme command groups
 
@@ -206,7 +220,7 @@ Pluggable health checks with a `ResetForTesting()` contract so within-package te
 
 The following remain planned, not shipped:
 
-- provider/agent/permission/watcher/LSP rendering
+- agent/session/theme/toggle/formatter/command/skill rendering
 - session/theme UX
 - migration from open-chad
 - broader `oca doctor` scopes (temporal reserved for Phase 6.5)

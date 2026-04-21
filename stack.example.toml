@@ -242,17 +242,6 @@ outputs = ["text"]
 [providers.openrouter.models."anthropic/claude-haiku-4.5:nitro".options.reasoning]
 effort = "none"
 
-# ─── Agents ──────────────────────────────────────────────────────────────────
-# Agent → model mapping. OCA writes these to opencode.json .agent.<name>.model
-
-[agents]
-build     = "anthropic/claude-opus-4-6"
-plan      = "openai/gpt-5.2"
-scout     = "zai-coding-plan/glm-5"
-refine    = "anthropic/claude-opus-4-6"
-librarian = "openrouter/anthropic/claude-haiku-4.5:nitro"
-explore   = "zai-coding-plan/glm-5"
-
 # ─── Permissions ─────────────────────────────────────────────────────────────
 
 [permissions]

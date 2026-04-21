@@ -3,7 +3,9 @@ package config
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -117,6 +119,63 @@ func Parse(data []byte) (*Stack, error) {
 				return nil, &ParseError{Err: fmt.Errorf("[temporal]: %w", err)}
 			}
 			stack.Temporal = ts
+
+		// Phase 3 typed sections: lift from deferred, capturing Extra unknown fields.
+		case "providers":
+			// ProvidersSection is map[string]Provider — toml.Decode handles maps.
+			// We still run decodeIntoWithExtra to capture per-Provider Extra fields.
+			var rawMap map[string]any
+			if rawm, ok := v.(map[string]any); ok {
+				rawMap = rawm
+			}
+			ps := make(ProvidersSection)
+			for name, provRaw := range rawMap {
+				provMap, ok := provRaw.(map[string]any)
+				if !ok {
+					continue
+				}
+				prov := Provider{}
+				if err := decodeIntoWithExtra(provMap, &prov); err != nil {
+					return nil, &ParseError{Err: fmt.Errorf("[providers.%s]: %w", name, err)}
+				}
+				ps[name] = prov
+			}
+			stack.Providers = ps
+
+		case "permissions":
+			perm := PermissionsSection{}
+			if err := decodeIntoWithExtra(v, &perm); err != nil {
+				return nil, &ParseError{Err: fmt.Errorf("[permissions]: %w", err)}
+			}
+			stack.Permissions = perm
+
+		case "watcher":
+			ws := WatcherSection{}
+			if err := decodeIntoWithExtra(v, &ws); err != nil {
+				return nil, &ParseError{Err: fmt.Errorf("[watcher]: %w", err)}
+			}
+			stack.Watcher = ws
+
+		case "lsp":
+			// LSPSection is map[string]LSP — handle each server individually.
+			var rawMap map[string]any
+			if rawm, ok := v.(map[string]any); ok {
+				rawMap = rawm
+			}
+			ls := make(LSPSection)
+			for name, lspRaw := range rawMap {
+				lspMap, ok := lspRaw.(map[string]any)
+				if !ok {
+					continue
+				}
+				lsp := LSP{}
+				if err := decodeIntoWithExtra(lspMap, &lsp); err != nil {
+					return nil, &ParseError{Err: fmt.Errorf("[lsp.%s]: %w", name, err)}
+				}
+				ls[name] = lsp
+			}
+			stack.LSP = ls
+
 		default:
 			// Known-but-unimplemented OR truly unknown — defer the
 			// classification to Validate so all errors can be aggregated
@@ -169,4 +228,109 @@ func encodeTOML(v any) (string, error) {
 		return "", err
 	}
 	return string(b), nil
+}
+
+// reflectFieldByName finds a field with the given TOML tag name using
+// reflection. Returns the reflect.Value pointer to the field so callers
+// can Set it.
+func reflectFieldByName(v any, tomlKey string) any {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Ptr {
+		return nil
+	}
+	rv = rv.Elem()
+	if rv.Kind() != reflect.Struct {
+		return nil
+	}
+	rt := rv.Type()
+	for i := 0; i < rt.NumField(); i++ {
+		field := rt.Field(i)
+		tag := field.Tag.Get("toml")
+		if tag == "" {
+			continue
+		}
+		// Handle "name,omitempty" tags.
+		name := strings.Split(tag, ",")[0]
+		if name == tomlKey {
+			return rv.Field(i).Addr().Interface()
+		}
+	}
+	return nil
+}
+
+// decodeIntoWithExtra decodes a raw TOML value into a typed struct,
+// populating any field named "Extra" (tagged `toml:"-"`) with keys from
+// the raw map that did not decode into any named struct field.
+//
+// If dst implements encoding.Unmarshaler (e.g., Provider, LSP), the
+// custom UnmarshalTOML is called directly to handle Extra population
+// without a round-trip through toml.Encode (which drops "toml:\"-\""
+// fields). Otherwise, the standard decodeInto round-trip is used and
+// Extra is computed from unconsumed keys via reflection.
+func decodeIntoWithExtra(raw any, dst any) error {
+	m, ok := raw.(map[string]any)
+	if !ok {
+		return fmt.Errorf("expected table, got %T", raw)
+	}
+
+	// If dst has a custom UnmarshalTOML, call it directly.
+	// This avoids the toml.Encode round-trip which drops "toml:\"-\"" fields
+	// (like Extra) and avoids double-decoding for types that already handled
+	// nested map Extra fields (Provider.Models, etc.).
+	if u, ok := dst.(interface{ UnmarshalTOML(any) error }); ok {
+		return u.UnmarshalTOML(raw)
+	}
+
+	// Standard round-trip decode for non-custom types.
+	if err := decodeInto(raw, dst); err != nil {
+		return err
+	}
+
+	// Populate Extra from keys not consumed by the round-trip.
+	consumed := collectDecodedKeys(dst)
+	remaining := make(map[string]any)
+	for k, v := range m {
+		if !consumed[k] {
+			remaining[k] = v
+		}
+	}
+	if len(remaining) == 0 {
+		return nil
+	}
+	extraIface := reflectFieldByName(dst, "-")
+	if extraIface == nil {
+		return nil
+	}
+	extraMap := reflect.ValueOf(extraIface).Elem()
+	extraMap.Set(reflect.ValueOf(remaining))
+	return nil
+}
+
+// collectDecodedKeys returns a set of top-level toml keys that would be
+// consumed when decoding into dst using decodeInto (which round-trips via
+// toml encoding). We determine this by round-tripping a synthetic document
+// through toml encoding and checking what keys appear.
+func collectDecodedKeys(dst any) map[string]bool {
+	// Use the known struct field TOML tag names as the consumed set.
+	rv := reflect.ValueOf(dst)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	if rv.Kind() != reflect.Struct {
+		return nil
+	}
+	consumed := make(map[string]bool)
+	rt := rv.Type()
+	for i := 0; i < rt.NumField(); i++ {
+		field := rt.Field(i)
+		tag := field.Tag.Get("toml")
+		if tag == "" || tag == "-" {
+			continue
+		}
+		name := strings.Split(tag, ",")[0]
+		if name != "" {
+			consumed[name] = true
+		}
+	}
+	return consumed
 }

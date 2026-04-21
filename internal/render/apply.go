@@ -46,15 +46,14 @@ func Apply(plan *Plan, opts ApplyOptions) (*ApplyResult, error) {
 			if err != nil {
 				r.BackupPath = backup
 				res.Targets = append(res.Targets, r)
-				if rbErrs := rollback(plan.Targets[:i], res.Targets[:i]); len(rbErrs) > 0 {
-					// Rollback failures are attached to the returned
-					// error via errors.Join so callers can inspect them
-					// with errors.As / errors.Is. The original write
-					// failure comes first and remains the primary cause
-					// shown to the user.
-					joined := append([]error{err}, rbErrs...)
-					return res, fmt.Errorf("apply failed with rollback errors: %w",
-						errors.Join(joined...))
+				// Skip rollback when NoRollback is true (composed all-apply path).
+				// Prior successful WriteAtomic results remain on disk per AC4.
+				if !opts.NoRollback {
+					if rbErrs := rollback(plan.Targets[:i], res.Targets[:i]); len(rbErrs) > 0 {
+						joined := append([]error{err}, rbErrs...)
+						return res, fmt.Errorf("apply failed with rollback errors: %w",
+							errors.Join(joined...))
+					}
 				}
 				return res, err
 			}

@@ -1,6 +1,6 @@
 # `oca` CLI Surface
 
-This document separates the **shipped Phase 1 + Phase 2 CLI** from the broader **planned v1.0 command surface**.
+This document separates the **implemented Phase 1 + Phase 2 + Phase 3 CLI** from the broader **planned v1.0 command surface**.
 
 Phase 1 shipped `oca version`, `oca apply --target mcp`, `oca doctor --scope mcp`, and `oca debug`. Phase 2 extended the surface with plugin/instructions targets on `apply`, added new `oca pin` and `oca update` commands, and extended `oca doctor` with a `plugins` scope and a `--network` flag.
 
@@ -148,12 +148,46 @@ Behavior:
 | --- | --- | --- |
 | `OCA_PLUGIN_CHECKOUT_ROOT` | `~/dev/oc-plugins/` | base dir for `{checkout}` token expansion |
 
+## Shipped in Phase 3
+
+Phase 3 adds core `opencode.json` render targets and drift detection.
+
+### `oca apply` core targets + all-target mode
+
+`oca apply` now supports:
+
+| Target | Behavior |
+| --- | --- |
+| `providers` | Renders `[providers.*]` into `opencode.json` `.provider` with `limit.*` / `modalities.*` shape translation. |
+| `permissions` | Renders `[permissions]` into `opencode.json` `.permission`, translating `default` to `"*"`. |
+| `watcher` | Renders `[watcher].ignore` into `opencode.json` `.watcher.ignore`, preserving user-added ignore entries. |
+| `lsp` | Renders `[lsp.*]` into `opencode.json` `.lsp`. |
+
+When `--target` is omitted, `oca apply` composes all supported targets in dependency order and applies them under one lock using the existing apply engine.
+
+### `oca diff`
+
+Read-only drift detection against the rendered target set.
+
+Flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--target <name>` | optional single-target filter (`mcp`, `plugins`, `instructions`, `providers`, `permissions`, `watcher`, `lsp`) |
+| `--output <text\|json>` | report format |
+
+Behavior:
+
+- exit `0` when all selected targets are in sync
+- exit `1` when drift is present
+- exit `2` for invalid config or invalid target
+- exit `3` for runtime planning failures
+
 ## Planned later-phase commands
 
 The following are still design targets, not shipped:
 
 - `oca install`
-- `oca diff`
 - `oca uninstall`
 - `oca migrate ...`
 - `oca add ...`

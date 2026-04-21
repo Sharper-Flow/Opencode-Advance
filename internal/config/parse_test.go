@@ -73,10 +73,13 @@ build = "anthropic/claude-opus-4-6"
 	if err != nil {
 		t.Fatalf("Parse failed on stack with deferred sections: %v", err)
 	}
-	for _, expected := range []string{"providers", "agents"} {
-		if _, ok := stack.DeferredSections[expected]; !ok {
-			t.Errorf("DeferredSections missing %q; got keys: %v", expected, deferredKeys(stack))
-		}
+	// providers is now a typed section (Phase 3 graduated).
+	if _, ok := stack.DeferredSections["providers"]; ok {
+		t.Errorf("providers should be typed, not deferred")
+	}
+	// agents remains deferred (out of Phase 3 scope).
+	if _, ok := stack.DeferredSections["agents"]; !ok {
+		t.Errorf("DeferredSections missing agents; got keys: %v", deferredKeys(stack))
 	}
 	// Typed sections still populated.
 	if stack.Meta.Version != "1.0.0" {
