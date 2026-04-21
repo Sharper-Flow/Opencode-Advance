@@ -114,7 +114,7 @@ Phase 1 delivered TOML parsing, MCP rendering, and the first `oca apply` target.
 
 - Archived ADV change: `phase2PluginInstruction` (archive dir: `.adv/archive/2026-04-20-phase2PluginInstruction/`)
 - Commit range on `trunk`: `6d32bdd..bb4ff36`
-- Next recommended phase: **Phase 3** (core opencode.json coverage)
+- Next recommended phase: **Phase 3.5** (skills + commands + formatters + toggles)
 
 ### Retrospective
 
@@ -123,6 +123,8 @@ Phase 2 shipped the plugin lifecycle, subprocess runner, and apply-lock primitiv
 ---
 
 ## Phase 3: Providers + Permissions + LSP + Watcher + Diff
+
+**Status:** Complete — delivered in archived change `phase3CoreOpencodeJsonCoverage` and merged to `trunk`.
 
 **Goal:** Core `opencode.json` coverage: providers, permissions, watcher ignore globs, LSP, all-target apply, and drift detection. Agent rendering is explicitly out of scope for this phase. Skills, custom commands, formatters, and OpenCode-level toggles are deferred to Phase 3.5.
 
@@ -155,6 +157,16 @@ Phase 2 shipped the plugin lifecycle, subprocess runner, and apply-lock primitiv
 - tk-phase3-06: Implement target-aware composed apply (run all targets in order)
 - tk-phase3-07: Golden/integration tests for each target and apply-all path
 - tk-phase3-08: End-to-end test: stack.example.toml → opencode.json → OpenCode loads
+
+**Historical implementation reference:**
+
+- Archived ADV change: `phase3CoreOpencodeJsonCoverage`
+- Merge commit on `trunk`: `91a1d0f feat(render): complete phase 3 core config coverage`
+- Next recommended phase: **Phase 3.5**
+
+### Retrospective
+
+Phase 3 completed core `opencode.json` coverage for providers, permissions, watcher, LSP, composed no-target apply, and `oca diff`. The most important scope correction was explicit: agents were removed from shipped Phase 3 and remain deferred. Composed apply now relies on a running in-memory document chain plus `NoRollback` behavior so earlier successful writes are preserved on mid-plan failure. Supporting docs and the example stack must treat Phase 3 as complete and point future work at Phase 3.5, not back at the archived core-render change.
 
 ---
 

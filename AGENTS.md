@@ -22,7 +22,7 @@ OpenCode Advance depends on Advance; Advance does not depend on OpenCode Advance
 
 - OpenCode Advance clones, builds, and wires the Advance plugin as part of `oca install` / `oca apply`
 - OpenCode Advance delegates all Advance-owned asset sync to `advance/scripts/sync-global.sh --fix`
-- OpenCode Advance does **not** duplicate any files that Advance owns: `adv-*.md` commands, ADV agents (`adv`, `plan`, `scout`, `refine`, `adv-researcher`, `tron`), ADV skills (`adv-*`), ADV overlays, or ADV instructions
+- OpenCode Advance does **not** duplicate any files that Advance owns: `adv-*.md` commands, ADV agents (`adv`, `plan`, `adv-researcher`, `tron`), ADV skills (`adv-*`), ADV overlays, or ADV instructions
 - OpenCode Advance owns the non-ADV slice of the environment: environment-level agents (`build`, `explore`, `librarian`, `general`, `mechanic`), instructions (rules.yaml, identity, shell_strategy, etc.), MCP server lifecycle, plugin management, providers, session/tmux UX
 
 This clean boundary is the central reason OpenCode Advance exists as a separate project. Each file in `~/.config/opencode/` has exactly one owner.
@@ -157,9 +157,7 @@ At v1.0 release time, the user runs `oca migrate from-open-chad` which performs 
 | `~/.config/opencode/agents/general.md`        | **oca + overlay** | Base: oca. Advance injects ADV overlay block       |
 | `~/.config/opencode/agents/mechanic.md`       | **oca**           | Environment-level agent                            |
 | `~/.config/opencode/agents/adv.md`            | **Advance**       | ADV orchestrator agent (via sync-global.sh)        |
-| `~/.config/opencode/agents/plan.md`           | **Advance + overlay** | ADV agent with overlay block                   |
-| `~/.config/opencode/agents/scout.md`          | **Advance + overlay** | ADV agent with overlay block                   |
-| `~/.config/opencode/agents/refine.md`         | **Advance + overlay** | ADV agent with overlay block                   |
+| `~/.config/opencode/agents/plan.md`           | **Advance + overlay** | ADV agent with overlay block; absorbed former `scout` role |
 | `~/.config/opencode/agents/adv-researcher.md` | **Advance**       | ADV agent (repo-scoped)                            |
 | `~/.config/opencode/agents/tron.md`           | **Advance**       | ADV agent (repo-scoped)                            |
 | `~/.config/opencode/command/adv-*.md`         | **Advance**       | ADV slash commands                                 |
@@ -190,6 +188,8 @@ At v1.0 release time, the user runs `oca migrate from-open-chad` which performs 
 | `~/.zshrc` / `~/.bashrc` (OCA block only)     | **oca**           | Managed block, rest is user-owned                  |
 
 Any file not in the "oca" or "Advance" column is user-owned and MUST NOT be touched by `oca apply`.
+
+Recent Advance changes consolidated shared agents: `scout -> plan` and `refine -> build`. OCA docs should not describe `scout.md` or `refine.md` as current shipped Advance assets.
 
 ---
 

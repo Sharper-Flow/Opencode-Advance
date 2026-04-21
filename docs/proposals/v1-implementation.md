@@ -10,7 +10,8 @@ This document is the source material for the first ADV change in this repository
 - Phase 0 (`phase0FoundationBrand`) is complete, archived, and merged to `trunk`
 - Phase 1 (`phase1StackTomlParserMcpApply`) is complete, archived, and merged to `trunk`
 - Phase 2 (`phase2PluginInstruction`) is complete, archived, and merged to `trunk`
-- Current recommended next phase: **Phase 3: core opencode.json coverage**
+- Phase 3 (`phase3CoreOpencodeJsonCoverage`) is complete, archived, and merged to `trunk`
+- Current recommended next phase: **Phase 3.5: skills + commands + formatters + toggles**
 - This document remains the umbrella roadmap for the full v1.0 effort
 
 ---
@@ -23,7 +24,7 @@ The user currently runs two entangled projects that together provide their OpenC
 
 1. **`open-chad`** (`JRedeker/open-chad`) — a bash-based meta-installer built in early 2025. It provisions a tmux-driven environment (sessions, status bar, boot animation, LLM quota gauges), installs a small set of plugins, and copies canned files into `~/.config/opencode/`. Visual identity is playful — synthwave colors, per-session randomized borders, NvChad-inspired agent palette, "chad"-era branding throughout.
 
-2. **`Advance`** (`Sharper-Flow/Advance`) — a TypeScript OpenCode plugin for spec-driven development. It provides slash commands (`/adv-*`), a dedicated ADV orchestrator agent, sub-agents (plan/scout/refine/adv-researcher/tron), skills, and workflow state management. Runs standalone. Has its own sync script (`scripts/sync-global.sh`) that copies its assets and injects overlay blocks into shared agents in `~/.config/opencode/`.
+2. **`Advance`** (`Sharper-Flow/Advance`) — a TypeScript OpenCode plugin for spec-driven development. It provides slash commands (`/adv-*`), a dedicated ADV orchestrator agent, consolidated specialist agents (including plan/build, `adv-researcher`, and `tron`), skills, and workflow state management. Runs standalone. Has its own sync script (`scripts/sync-global.sh`) that copies its assets and injects overlay blocks into shared agents in `~/.config/opencode/`.
 
 Both projects write to `~/.config/opencode/`. The overlap is 19 files (4 agents, 15 commands, plus skills). The agent files are divergent supersets — Advance versions add ADV tool grants and overlay markers that the open-chad versions lack. Whichever project's sync script runs last wins.
 
@@ -56,7 +57,7 @@ Both projects write to `~/.config/opencode/`. The overlap is 19 files (4 agents,
 
 - **A professional brand.** New name ("OpenCode Advance"), new wordmark (GBA-stylized "Advance" with frosted indigo accent), new palette (obsidian/slate/graphite), new theme, new boot animation, new Discord taglines. No "chad" heritage.
 
-- **A declarative stack.** One `stack.toml` file that owns every slice of the OpenCode configuration the user cares about. `oca apply` renders it. `oca doctor` verifies it. `oca diff` shows drift. `oca pin` captures reproducibility. Full coverage: MCP servers, plugins, instructions, providers, agents, permissions, watcher, LSP, primary client/session UX, theme.
+- **A declarative stack.** One `stack.toml` file that owns every slice of the OpenCode configuration the user cares about. `oca apply` renders it. `oca doctor` verifies it. `oca diff` shows drift. `oca pin` captures reproducibility. Full coverage: MCP servers, plugins, instructions, providers, permissions, watcher, LSP, primary client/session UX, theme, plus the remaining OCA-owned config surfaces in later phases.
 
 - **Tight MCP integration.** All 9 MCP servers managed through one tool. No more hand-editing `opencode.json`. No more drift between `vision/servers.yaml` and what OpenCode actually knows about.
 
@@ -110,7 +111,7 @@ The v1.0 release is ready when all of the following are true:
 - [ ] Skills: 8 OCA-owned skills (lgrep, mcp-selection, morph, prioritizer, worktree, caveman, caveman-commit, caveman-review) copied from `assets/skills/` to `~/.config/opencode/skills/`; ADV methodology skills remain plugin-owned
 - [ ] Instructions: identity, rules, shell_strategy, test_resource_guardrails, lbp, temp_directory, mcp-tools, lgrep-tools, morph-tools, worktree-guide, caveman, ADV_INSTRUCTIONS (auto-wired via plugin)
 - [ ] Providers: google (Gemini 2.5-flash, 2.5-pro, 3-flash-preview, 3-pro-preview), openai (GPT-5.2 with reasoning variants), openrouter (Claude Haiku 4.5 Nitro) — curated baseline, not all live models
-- [ ] Agents: adv, build, plan, scout, refine, librarian, explore, general, mechanic, tron, adv-researcher → model mapping
+- [ ] Agent model assignment rendering is explicitly deferred past v1.0; OCA docs remain aligned with current OpenCode + Advance ownership boundaries and do not reintroduce obsolete `scout` / `refine` assumptions
 - [ ] Permissions: default, doom_loop, external_directory, bash
 - [ ] Watcher: ignore globs
 - [ ] LSP: pyrefly, pyright, typescript, typescript-language-server
@@ -227,7 +228,7 @@ See [`phases.md`](phases.md) for the full phase sequencing. Rough shape:
 1. **Phase 0: Foundation + brand** — completed baseline: branded CLI, shared brand runtime, shell helpers, verification wiring
 2. **Phase 1: stack.toml + MCP apply** — next: parser, schema, MCP rendering, Vision integration
 3. **Phase 2: Plugin + instruction management** — plugin lifecycle, ADV delegation, instructions rendering
-4. **Phase 3: Core opencode.json coverage** — providers, agents, permissions, LSP, watcher, diff command
+4. **Phase 3: Core opencode.json coverage** — providers, permissions, LSP, watcher, diff command
 5. **Phase 3.5: Skills + commands + formatters + toggles** — OCA-owned skills, custom commands, formatter config, OpenCode-level toggles
 6. **Phase 4: Primary client UX + theme** — current tmux-first lifecycle, obsidian theme, new status bar, boot splash
 7. **Phase 5: Installer + shell** — `oca install`, shell profile wiring, completions

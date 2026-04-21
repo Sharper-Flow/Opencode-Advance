@@ -2,11 +2,11 @@
 
 ## Summary
 
-OpenCode Advance currently has a **completed Phase 1 MCP implementation** and is ready for **Phase 2: plugin + instruction management**.
+OpenCode Advance currently has **completed Phases 0, 1, 2, and 3** on `trunk`.
 
-- Implementation status: **Phase 1 accepted, in release gate hardening/archive flow**
-- Repository status: **parser + MCP apply/doctor/debug shipped on the change branch**
-- Recommended next action after archive: start the Phase 2 change from `docs/proposals/phases.md`
+- Implementation status: **Phase 3 archived, merged, and pushed**
+- Repository status: **core config rendering now ships for MCP, plugins, instructions, providers, permissions, watcher, and LSP, plus `oca diff` and composed apply**
+- Recommended next action: start **Phase 3.5** from `docs/proposals/phases.md`
 
 ## What is done
 
@@ -37,11 +37,15 @@ OpenCode Advance currently has a **completed Phase 1 MCP implementation** and is
 - Shell brand helpers added (`lib/palette.sh`, `lib/wordmark.sh`, `lib/boot_splash.sh`)
 - Broader Phase 0 verification added (Go + shell + CI wiring)
 - `phase0FoundationBrand` archived and merged to `trunk`
+- Phase 2 plugin lifecycle, instruction rendering, sync delegation, pin/update, and plugin doctor shipped
+- Phase 3 providers/permissions/watcher/LSP rendering shipped
+- `oca diff` shipped
+- composed no-target `oca apply` shipped
+- agents explicitly kept out of shipped Phase 3 scope
 
 ## What is not done
 
-- No plugin lifecycle / Advance sync delegation implementation yet
-- No full non-MCP config rendering yet
+- Remaining config coverage for skills / commands / formatters / toggles not yet shipped
 - No installer / migration / session lifecycle implementation yet
 - No release packaging workflow yet
 
@@ -59,4 +63,4 @@ OpenCode Advance currently has a **completed Phase 1 MCP implementation** and is
 
 ## Resume guidance
 
-If you are returning to this repo later, start with `NEXT_STEPS.md`, verify Phase 1 archived cleanly, and begin the Phase 2 change.
+If you are returning to this repo later, start with `NEXT_STEPS.md`, verify there is no newer active change, and begin the Phase 3.5 change.

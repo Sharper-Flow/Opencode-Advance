@@ -1,18 +1,18 @@
 # Environment-level Agents
 
-This directory holds the canonical agent definitions that OpenCode Advance owns — the non-ADV subset of the agent fleet.
+This directory documents the canonical agent definitions that OpenCode Advance owns — the non-ADV subset of the agent fleet.
 
-When `oca apply` runs, these files are copied to `~/.config/opencode/agents/`.
+When `oca apply` eventually manages agent assets, any agent markdown in this directory will be copied to `~/.config/opencode/agents/`. The directory is currently empty; the inventory below documents the intended OCA-owned subset.
 
 ## Inventory
 
-| File         | Purpose                                                        | Owned by     |
-| ------------ | -------------------------------------------------------------- | ------------ |
-| `build.md`     | Build/CI agent — tests, linters, type checkers                | OCA          |
-| `explore.md`   | Codebase navigation agent — find usages, file structure       | OCA          |
-| `librarian.md` | Documentation agent — Context7, grep.app, Kagi lookups        | OCA          |
-| `general.md`   | General-purpose multi-step implementation agent               | OCA          |
-| `mechanic.md`  | System/infrastructure agent — MCP, env, toolchain issues      | OCA          |
+| File         | Purpose                                                        | Owned by            |
+| ------------ | -------------------------------------------------------------- | ------------------- |
+| `build.md`     | Build/CI agent — tests, linters, type checkers                | OCA + ADV overlay   |
+| `explore.md`   | Codebase navigation agent — find usages, file structure       | OCA                 |
+| `librarian.md` | Documentation agent — Context7, grep.app, Kagi lookups        | OCA                 |
+| `general.md`   | General-purpose multi-step implementation agent               | OCA + ADV overlay   |
+| `mechanic.md`  | System/infrastructure agent — MCP, env, toolchain issues      | OCA                 |
 
 ## Not in this directory
 
@@ -22,13 +22,13 @@ The following agents are owned by the Advance plugin and synced via `advance/scr
 | ------------------ | -------- |
 | `adv.md`             | Advance  |
 | `plan.md`            | Advance  |
-| `scout.md`           | Advance  |
-| `refine.md`          | Advance  |
 | `adv-researcher.md`  | Advance  |
 | `tron.md`            | Advance  |
 
 If a file appears in both this directory and Advance's `.opencode/agents/`, the build pipeline will fail the duplicate-owner check in Phase 2.
 
+Recent Advance releases consolidated `scout -> plan` and `refine -> build`. `build.md` remains OCA-owned here, but Advance now patches its overlay block during sync.
+
 ## Status
 
-Empty — populated in Phase 0 or Phase 5 (whichever brings the files over from the current open-chad bundled agents, with appropriate tool allowlists for the OCA environment).
+Currently empty. Agent asset population is still deferred to a later implementation phase; this README documents the intended ownership boundary and duplicate-owner rules in the meantime.

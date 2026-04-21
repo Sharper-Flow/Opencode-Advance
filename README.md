@@ -10,7 +10,7 @@
 
 **A declarative, reproducible OpenCode environment and workflow platform.**
 
-_Status: Phase 1 (`stack.toml` parser + MCP apply/doctor/debug) and Phase 2 (plugin + instruction management, including `oca pin` and `oca update`) are both implemented on the release branch. Next milestone: Phase 3. First stable release remains v1.0._
+_Status: Phases 1, 2, and 3 are implemented on `trunk`. Current next milestone: Phase 3.5. First stable release remains v1.0._
 
 </div>
 
@@ -26,7 +26,7 @@ The goal is simple:
 - one command to apply it: `oca apply`
 - one command to verify it: `oca doctor`
 
-The MCP servers, plugins, instructions, providers, agent model assignments, permissions, LSP config, watcher config, theme, and primary client behavior that make up an opinionated OpenCode environment are declared in a single file, rendered to the places OpenCode expects, and tracked for reproducibility.
+The MCP servers, plugins, instructions, providers, permissions, LSP config, watcher config, theme, and primary client behavior that make up an opinionated OpenCode environment are declared in a single file, rendered to the places OpenCode expects, and tracked for reproducibility.
 
 ## Why it exists
 
@@ -61,7 +61,7 @@ You cannot run OpenCode Advance without Advance — Advance is a required depend
 
 ## Current status
 
-This repository has **Phase 1 + Phase 2 implementations** in place.
+This repository has **Phase 1 + Phase 2 + Phase 3 implementations** in place.
 
 ### Done
 
@@ -102,12 +102,23 @@ This repository has **Phase 1 + Phase 2 implementations** in place.
 - `OCA_PLUGIN_CHECKOUT_ROOT` env override documented in `AGENTS.md`
 - trust-boundary + secret-redaction docs in `docs/design/stack-toml-schema.md`
 
+#### Phase 3 — core `opencode.json` coverage
+
+- typed `[providers.*]`, `[permissions]`, `[watcher]`, and `[lsp.*]` sections in `stack.toml`
+- validation for providers, permissions, watcher, and LSP config
+- render modules for `.provider`, `.permission`, `.watcher.ignore`, and `.lsp`
+- composed `oca apply` with no `--target`
+- `oca diff` with target filtering and text/json output
+- NoRollback protection for composed apply
+- integration tests for apply-all, diff, and render merge behavior
+- docs/spec/example refresh removing agents from shipped Phase 3 scope
+
 ### Not done yet
 
-- full `opencode.json` coverage for providers, agents, permissions, watcher, LSP, skills, commands, and formatters (Phase 3+)
+- remaining `opencode.json` coverage for skills, commands, formatters, and OpenCode toggles (Phase 3.5)
 - installer / migration / client-session lifecycle logic
 - release packaging / distribution workflow
-- `oca install`, `oca diff`, `oca migrate` commands
+- `oca install`, `oca migrate`, and interactive `oca add` / `oca remove` flows
 
 ### Resume here
 
@@ -122,7 +133,7 @@ At v1.0, OpenCode Advance is intended to provide:
 - declarative `stack.toml` parsing and validation **(shipped Phase 1)**
 - MCP server rendering into both OpenCode and Vision config **(shipped Phase 1)**
 - plugin clone / build / pin / update workflows **(shipped Phase 2)**
-- instruction, provider, agent, permission, watcher, and LSP rendering (instructions shipped Phase 2; rest in Phase 3+)
+- instruction, provider, permission, watcher, and LSP rendering (instructions shipped Phase 2; providers/permissions/watcher/LSP shipped Phase 3; agents intentionally deferred)
 - clean ownership boundaries between OCA-owned and Advance-owned assets
 - migration from existing `open-chad` state into `stack.toml`
 - primary client/session lifecycle, theme, boot splash, and shell integration
@@ -130,7 +141,7 @@ At v1.0, OpenCode Advance is intended to provide:
 
 ## Planned command surface
 
-These commands describe the intended v1.0 UX. They are **design targets**, not current implementation status.
+These commands describe the intended v1.0 UX. Some are already shipped; others remain design targets.
 
 | Command                      | Purpose                                                        |
 | ---------------------------- | -------------------------------------------------------------- |
@@ -151,7 +162,7 @@ Recommended flow:
 
 1. run `/adv-status` first and finish any already-active implementation change
 2. use `phase0FoundationBrand` as the archived reference baseline for future work
-3. start the next phase change from `docs/proposals/phases.md` (currently Phase 3 core opencode.json coverage)
+3. start the next phase change from `docs/proposals/phases.md` (currently Phase 3.5: skills + commands + formatters + toggles)
 4. archive each phase before starting the next one
 
 In other words:
@@ -244,7 +255,7 @@ Then:
 
 1. `/adv-status` — check for any active changes to complete first
 2. Use `phase0FoundationBrand` as the shipped Phase 0 reference point
-3. Start the next phase change from `docs/proposals/phases.md`
+3. Start the next phase change from `docs/proposals/phases.md` (currently Phase 3.5)
 4. Use `NEXT_STEPS.md` for the exact resume sequence and current state
 
 ## Contributing
