@@ -65,7 +65,7 @@ func newDoctorCmd(state *commandState) *cobra.Command {
 	cmd.Flags().StringVar(&scope, "scope", "mcp", "Scope to check (supported: mcp, plugins, skills)")
 	cmd.Flags().DurationVar(&timeout, "timeout", 5*time.Second, "HTTP timeout for doctor checks")
 	_ = cmd.RegisterFlagCompletionFunc("scope", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"mcp", "plugins", "skills", "temporal"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"mcp", "plugins", "skills"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }

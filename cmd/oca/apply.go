@@ -140,7 +140,7 @@ func newApplyCmd(state *commandState) *cobra.Command {
 	cmd.Flags().StringArrayVar(&targets, "target", nil, "Target(s) to apply (supported: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print the render plan without writing files")
 	_ = cmd.RegisterFlagCompletionFunc("target", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp", "skills", "commands", "formatters", "toggles", "temporal"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp", "skills", "commands", "formatters", "toggles"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
