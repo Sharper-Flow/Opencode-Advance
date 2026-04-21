@@ -176,6 +176,61 @@ func Parse(data []byte) (*Stack, error) {
 			}
 			stack.LSP = ls
 
+		// Phase 3.5 typed sections: skills, formatters, commands, opencode.
+		case "skills":
+			ss := SkillsSection{}
+			if err := decodeInto(v, &ss); err != nil {
+				return nil, &ParseError{Err: fmt.Errorf("[skills]: %w", err)}
+			}
+			stack.Skills = ss
+
+		case "formatters":
+			// FormattersSection is map[string]Formatter — handle each individually.
+			var rawMap map[string]any
+			if rawm, ok := v.(map[string]any); ok {
+				rawMap = rawm
+			}
+			fs := make(FormattersSection)
+			for name, fmtRaw := range rawMap {
+				fmtMap, ok := fmtRaw.(map[string]any)
+				if !ok {
+					continue
+				}
+				f := Formatter{}
+				if err := decodeIntoWithExtra(fmtMap, &f); err != nil {
+					return nil, &ParseError{Err: fmt.Errorf("[formatters.%s]: %w", name, err)}
+				}
+				fs[name] = f
+			}
+			stack.Formatters = fs
+
+		case "commands":
+			// CommandsSection is map[string]Command — handle each individually.
+			var rawMap map[string]any
+			if rawm, ok := v.(map[string]any); ok {
+				rawMap = rawm
+			}
+			cs := make(CommandsSection)
+			for name, cmdRaw := range rawMap {
+				cmdMap, ok := cmdRaw.(map[string]any)
+				if !ok {
+					continue
+				}
+				cmd := Command{}
+				if err := decodeIntoWithExtra(cmdMap, &cmd); err != nil {
+					return nil, &ParseError{Err: fmt.Errorf("[commands.%s]: %w", name, err)}
+				}
+				cs[name] = cmd
+			}
+			stack.Commands = cs
+
+		case "opencode":
+			oc := OpenCodeSection{}
+			if err := decodeIntoWithExtra(v, &oc); err != nil {
+				return nil, &ParseError{Err: fmt.Errorf("[opencode]: %w", err)}
+			}
+			stack.OpenCode = oc
+
 		default:
 			// Known-but-unimplemented OR truly unknown — defer the
 			// classification to Validate so all errors can be aggregated

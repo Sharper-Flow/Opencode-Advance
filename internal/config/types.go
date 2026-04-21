@@ -32,6 +32,12 @@ type Stack struct {
 	Watcher     WatcherSection    `toml:"watcher"`
 	LSP         LSPSection        `toml:"lsp"`
 
+	// Phase 3.5 typed sections
+	Skills     SkillsSection     `toml:"skills"`
+	Formatters FormattersSection `toml:"formatters"`
+	Commands   CommandsSection   `toml:"commands"`
+	OpenCode   OpenCodeSection   `toml:"opencode"`
+
 	// DeferredSections holds known-but-unimplemented top-level sections
 	// verbatim so that a complete stack.toml (including future-phase
 	// sections) round-trips through Phase 1 without errors. Entries are
@@ -403,6 +409,237 @@ func (l *LSP) UnmarshalTOML(value any) error {
 		l.Extra = extra
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3.5 — skills, formatters, commands, opencode toggles
+// ---------------------------------------------------------------------------
+
+// SkillsSection is the [skills] table.
+type SkillsSection struct {
+	Order []string `toml:"order,omitempty"`
+}
+
+// FormattersSection is the [formatters] table — a map of formatter name to Formatter.
+type FormattersSection map[string]Formatter
+
+// Formatter describes a code formatter declared in [formatters.<name>].
+type Formatter struct {
+	Command     []string          `toml:"command,omitempty"`
+	Extensions  []string          `toml:"extensions,omitempty"`
+	Disabled    bool              `toml:"disabled,omitempty"`
+	Environment map[string]string `toml:"environment,omitempty"`
+	Extra       map[string]any    `toml:"-"`
+}
+
+// UnmarshalTOML implements custom decoding to capture extra unknown fields
+// into the Extra map.
+func (f *Formatter) UnmarshalTOML(value any) error {
+	m, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("expected table for formatter, got %T", value)
+	}
+
+	extra := make(map[string]any)
+	for k, v := range m {
+		switch k {
+		case "command":
+			if ss, ok := v.([]any); ok {
+				f.Command = toStringSlice(ss)
+			}
+		case "extensions":
+			if ss, ok := v.([]any); ok {
+				f.Extensions = toStringSlice(ss)
+			}
+		case "disabled":
+			if b, ok := v.(bool); ok {
+				f.Disabled = b
+			}
+		case "environment":
+			env, err := decodeStringMap(v)
+			if err != nil {
+				return fmt.Errorf("environment: %w", err)
+			}
+			f.Environment = env
+		default:
+			extra[k] = v
+		}
+	}
+	if len(extra) > 0 {
+		f.Extra = extra
+	}
+	return nil
+}
+
+// CommandsSection is the [commands] table — a map of command name to Command.
+type CommandsSection map[string]Command
+
+// Command describes a custom slash command declared in [commands.<name>].
+type Command struct {
+	Description string `toml:"description"`
+	Template    string `toml:"template"`
+	Agent       string `toml:"agent,omitempty"`
+	Model       string `toml:"model,omitempty"`
+	Subtask     *bool  `toml:"subtask,omitempty"`
+	Extra       map[string]any `toml:"-"`
+}
+
+// UnmarshalTOML implements custom decoding to capture extra unknown fields
+// into the Extra map.
+func (c *Command) UnmarshalTOML(value any) error {
+	m, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("expected table for command, got %T", value)
+	}
+
+	extra := make(map[string]any)
+	for k, v := range m {
+		switch k {
+		case "description":
+			if s, ok := v.(string); ok {
+				c.Description = s
+			}
+		case "template":
+			if s, ok := v.(string); ok {
+				c.Template = s
+			}
+		case "agent":
+			if s, ok := v.(string); ok {
+				c.Agent = s
+			}
+		case "model":
+			if s, ok := v.(string); ok {
+				c.Model = s
+			}
+		case "subtask":
+			if b, ok := v.(bool); ok {
+				c.Subtask = &b
+			}
+		default:
+			extra[k] = v
+		}
+	}
+	if len(extra) > 0 {
+		c.Extra = extra
+	}
+	return nil
+}
+
+// OpenCodeSection is the [opencode] table — top-level OpenCode behavior toggles.
+type OpenCodeSection struct {
+	Theme            string               `toml:"theme,omitempty"`
+	DefaultAgent     string               `toml:"default_agent,omitempty"`
+	Share            string               `toml:"share,omitempty"`
+	Snapshot         *bool                `toml:"snapshot,omitempty"`
+	Autoupdate       *AutoupdateValue     `toml:"autoupdate,omitempty"`
+	Compaction       *CompactionSection   `toml:"compaction,omitempty"`
+	DisabledProviders *ProviderListSection `toml:"disabled_providers,omitempty"`
+	EnabledProviders  *ProviderListSection `toml:"enabled_providers,omitempty"`
+	Extra            map[string]any       `toml:"-"`
+}
+
+// UnmarshalTOML implements custom decoding to capture extra unknown fields
+// into the Extra map and handle the autoupdate bool/string union.
+func (o *OpenCodeSection) UnmarshalTOML(value any) error {
+	m, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("expected table for opencode, got %T", value)
+	}
+
+	extra := make(map[string]any)
+	for k, v := range m {
+		switch k {
+		case "theme":
+			if s, ok := v.(string); ok {
+				o.Theme = s
+			}
+		case "default_agent":
+			if s, ok := v.(string); ok {
+				o.DefaultAgent = s
+			}
+		case "share":
+			if s, ok := v.(string); ok {
+				o.Share = s
+			}
+		case "snapshot":
+			if b, ok := v.(bool); ok {
+				o.Snapshot = &b
+			}
+		case "autoupdate":
+			o.Autoupdate = parseAutoupdateValue(v)
+		case "compaction":
+			cs := &CompactionSection{}
+			if err := decodeIntoWithExtra(v, cs); err != nil {
+				return fmt.Errorf("compaction: %w", err)
+			}
+			o.Compaction = cs
+		case "disabled_providers":
+			pl := &ProviderListSection{}
+			if err := decodeInto(v, pl); err != nil {
+				return fmt.Errorf("disabled_providers: %w", err)
+			}
+			o.DisabledProviders = pl
+		case "enabled_providers":
+			pl := &ProviderListSection{}
+			if err := decodeInto(v, pl); err != nil {
+				return fmt.Errorf("enabled_providers: %w", err)
+			}
+			o.EnabledProviders = pl
+		default:
+			extra[k] = v
+		}
+	}
+	if len(extra) > 0 {
+		o.Extra = extra
+	}
+	return nil
+}
+
+// AutoupdateValue represents the autoupdate field which can be a bool
+// (true/false) or a string ("notify"). Exactly one of Bool or Str is set.
+type AutoupdateValue struct {
+	Bool *bool
+	Str  *string
+}
+
+// parseAutoupdateValue decodes the raw TOML value into an AutoupdateValue.
+func parseAutoupdateValue(v any) *AutoupdateValue {
+	switch val := v.(type) {
+	case bool:
+		return &AutoupdateValue{Bool: &val}
+	case string:
+		return &AutoupdateValue{Str: &val}
+	}
+	return nil
+}
+
+// CompactionSection is the [opencode.compaction] passthrough table.
+type CompactionSection struct {
+	Auto     *bool `toml:"auto,omitempty"`
+	Prune    *bool `toml:"prune,omitempty"`
+	Reserved int   `toml:"reserved,omitempty"`
+	Extra    map[string]any `toml:"-"`
+}
+
+// ProviderListSection is used for [opencode.disabled_providers] and
+// [opencode.enabled_providers] — each has a `list` field.
+type ProviderListSection struct {
+	List []string `toml:"list,omitempty"`
+}
+
+// decodeStringMap converts a raw TOML value to map[string]string.
+func decodeStringMap(raw any) (map[string]string, error) {
+	m, ok := raw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("expected table, got %T", raw)
+	}
+	result := make(map[string]string, len(m))
+	for k, v := range m {
+		if s, ok := v.(string); ok {
+			result[k] = s
+		}
+	}
+	return result, nil
 }
 
 // decodeIntoMap converts a raw TOML value to map[string]any for storage
