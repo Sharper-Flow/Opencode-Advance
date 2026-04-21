@@ -2,11 +2,11 @@
 
 ## Summary
 
-OpenCode Advance currently has **completed Phases 0, 1, 2, and 3** on `trunk`.
+OpenCode Advance currently has **completed Phases 0, 1, 2, 3, and 3.5** on `trunk`.
 
-- Implementation status: **Phase 3 archived, merged, and pushed**
-- Repository status: **core config rendering now ships for MCP, plugins, instructions, providers, permissions, watcher, and LSP, plus `oca diff` and composed apply**
-- Recommended next action: start **Phase 3.5** from `docs/proposals/phases.md`
+- Implementation status: **Phase 3.5 archived and merged**
+- Repository status: **config rendering now ships for MCP, plugins, instructions, providers, permissions, watcher, LSP, skills, commands, formatters, and OpenCode toggles, plus `oca diff`, composed apply, and `oca doctor --scope skills`**
+- Recommended next action: start **Phase 4** from `docs/proposals/phases.md`
 
 ## What is done
 
@@ -39,15 +39,16 @@ OpenCode Advance currently has **completed Phases 0, 1, 2, and 3** on `trunk`.
 - `phase0FoundationBrand` archived and merged to `trunk`
 - Phase 2 plugin lifecycle, instruction rendering, sync delegation, pin/update, and plugin doctor shipped
 - Phase 3 providers/permissions/watcher/LSP rendering shipped
+- Phase 3.5 skills/commands/formatters/OpenCode toggles rendering + skills doctor shipped
 - `oca diff` shipped
 - composed no-target `oca apply` shipped
 - agents explicitly kept out of shipped Phase 3 scope
 
 ## What is not done
 
-- Remaining config coverage for skills / commands / formatters / toggles not yet shipped
 - No installer / migration / session lifecycle implementation yet
 - No release packaging workflow yet
+- No Phase 4 primary client/session/theme implementation yet
 
 ## Decision log snapshot
 
@@ -63,4 +64,4 @@ OpenCode Advance currently has **completed Phases 0, 1, 2, and 3** on `trunk`.
 
 ## Resume guidance
 
-If you are returning to this repo later, start with `NEXT_STEPS.md`, verify there is no newer active change, and begin the Phase 3.5 change.
+If you are returning to this repo later, start with `NEXT_STEPS.md`, verify there is no newer active change, and begin the Phase 4 change.

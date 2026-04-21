@@ -2,13 +2,13 @@
 
 This document is the canonical high-level architecture reference for the code that is **actually implemented today**.
 
-Current implemented scope on this branch is **Phase 1, Phase 2, and Phase 3 core rendering**:
+Current implemented scope on this branch is **Phase 1, Phase 2, Phase 3, and Phase 3.5 rendering**:
 
-- `stack.toml` parsing for `[meta]`, `[mcp]`, `[plugins]`, `[instructions]`, `[providers]`, `[permissions]`, `[watcher]`, `[lsp]`, plus deferred future sections
-- `oca apply --target mcp|plugins|instructions|providers|permissions|watcher|lsp`
+- `stack.toml` parsing for `[meta]`, `[mcp]`, `[plugins]`, `[instructions]`, `[providers]`, `[permissions]`, `[watcher]`, `[lsp]`, `[skills]`, `[commands]`, `[formatters]`, `[opencode]`, plus deferred future sections
+- `oca apply --target mcp|plugins|instructions|providers|permissions|watcher|lsp|skills|commands|formatters|toggles`
 - `oca apply` with no `--target` for composed all-target apply
 - `oca diff`
-- `oca doctor --scope mcp` and `oca doctor --scope plugins`
+- `oca doctor --scope mcp`, `oca doctor --scope plugins`, and `oca doctor --scope skills`
 - `oca debug plan` and `oca debug validate`
 - `oca pin` and `oca update`
 - plugin lifecycle: git clone/pull, build, pin, sync-global.sh delegation
@@ -27,7 +27,7 @@ stack.toml
         └─► skills/ (OCA-owned skill directories copied from assets/skills/)
 ```
 
-OCA still does **not** render agents, session, discord, or theme/session configuration. Those sections remain deferred for later phases. Phase 3.5 graduated skills, formatters, commands, and opencode toggles from deferred to typed+rendered.
+OCA now renders skills, commands, formatters, and OpenCode toggles (Phase 3.5). OCA still does **not** render agents, session, discord, or theme/session configuration. Those sections remain deferred for later phases.
 
 ## Subsystems
 

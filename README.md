@@ -10,7 +10,7 @@
 
 **A declarative, reproducible OpenCode environment and workflow platform.**
 
-_Status: Phases 1, 2, and 3 are implemented on `trunk`. Current next milestone: Phase 3.5. First stable release remains v1.0._
+_Status: Phases 1, 2, 3, and 3.5 are implemented on `trunk`. Current next milestone: Phase 4. First stable release remains v1.0._
 
 </div>
 
@@ -61,7 +61,7 @@ You cannot run OpenCode Advance without Advance — Advance is a required depend
 
 ## Current status
 
-This repository has **Phase 1 + Phase 2 + Phase 3 implementations** in place.
+This repository has **Phase 1 + Phase 2 + Phase 3 + Phase 3.5 implementations** in place.
 
 ### Done
 
@@ -113,12 +113,23 @@ This repository has **Phase 1 + Phase 2 + Phase 3 implementations** in place.
 - integration tests for apply-all, diff, and render merge behavior
 - docs/spec/example refresh removing agents from shipped Phase 3 scope
 
+#### Phase 3.5 — remaining config coverage
+
+- typed `[skills]`, `[formatters.*]`, `[commands.*]`, and `[opencode]` sections in `stack.toml`
+- validation for skills order, reserved `adv-*` names, commands, formatters, and OpenCode toggles
+- render modules for `.command`, `.formatter`, top-level OpenCode toggles, and OCA-owned skills asset copy
+- `oca apply --target skills|commands|formatters|toggles`
+- `oca doctor --scope skills`
+- canonical `assets/skills/` inventory populated with OCA-owned skills
+- integration tests for composed apply and per-target parity
+- Phase 3.5 spec + docs refresh shipped
+
 ### Not done yet
 
-- remaining `opencode.json` coverage for skills, commands, formatters, and OpenCode toggles (Phase 3.5)
 - installer / migration / client-session lifecycle logic
 - release packaging / distribution workflow
 - `oca install`, `oca migrate`, and interactive `oca add` / `oca remove` flows
+- Phase 4 tmux/session/theme UX work
 
 ### Resume here
 
@@ -133,7 +144,7 @@ At v1.0, OpenCode Advance is intended to provide:
 - declarative `stack.toml` parsing and validation **(shipped Phase 1)**
 - MCP server rendering into both OpenCode and Vision config **(shipped Phase 1)**
 - plugin clone / build / pin / update workflows **(shipped Phase 2)**
-- instruction, provider, permission, watcher, and LSP rendering (instructions shipped Phase 2; providers/permissions/watcher/LSP shipped Phase 3; agents intentionally deferred)
+- instruction, provider, permission, watcher, LSP, skill, command, formatter, and OpenCode-toggle rendering (instructions shipped Phase 2; providers/permissions/watcher/LSP shipped Phase 3; skills/commands/formatters/toggles shipped Phase 3.5; agents intentionally deferred)
 - clean ownership boundaries between OCA-owned and Advance-owned assets
 - migration from existing `open-chad` state into `stack.toml`
 - primary client/session lifecycle, theme, boot splash, and shell integration
@@ -162,7 +173,7 @@ Recommended flow:
 
 1. run `/adv-status` first and finish any already-active implementation change
 2. use `phase0FoundationBrand` as the archived reference baseline for future work
-3. start the next phase change from `docs/proposals/phases.md` (currently Phase 3.5: skills + commands + formatters + toggles)
+3. start the next phase change from `docs/proposals/phases.md` (currently Phase 4: primary client UX + theme)
 4. archive each phase before starting the next one
 
 In other words:
@@ -255,7 +266,7 @@ Then:
 
 1. `/adv-status` — check for any active changes to complete first
 2. Use `phase0FoundationBrand` as the shipped Phase 0 reference point
-3. Start the next phase change from `docs/proposals/phases.md` (currently Phase 3.5)
+3. Start the next phase change from `docs/proposals/phases.md` (currently Phase 4)
 4. Use `NEXT_STEPS.md` for the exact resume sequence and current state
 
 ## Contributing

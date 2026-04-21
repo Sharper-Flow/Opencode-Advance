@@ -114,7 +114,7 @@ Phase 1 delivered TOML parsing, MCP rendering, and the first `oca apply` target.
 
 - Archived ADV change: `phase2PluginInstruction` (archive dir: `.adv/archive/2026-04-20-phase2PluginInstruction/`)
 - Commit range on `trunk`: `6d32bdd..bb4ff36`
-- Next recommended phase: **Phase 3.5** (skills + commands + formatters + toggles)
+- Subsequent delivered phase: **Phase 3.5** (skills + commands + formatters + toggles)
 
 ### Retrospective
 
@@ -162,15 +162,17 @@ Phase 2 shipped the plugin lifecycle, subprocess runner, and apply-lock primitiv
 
 - Archived ADV change: `phase3CoreOpencodeJsonCoverage`
 - Merge commit on `trunk`: `91a1d0f feat(render): complete phase 3 core config coverage`
-- Next recommended phase: **Phase 3.5**
+- Subsequent delivered phase: **Phase 3.5**
 
 ### Retrospective
 
-Phase 3 completed core `opencode.json` coverage for providers, permissions, watcher, LSP, composed no-target apply, and `oca diff`. The most important scope correction was explicit: agents were removed from shipped Phase 3 and remain deferred. Composed apply now relies on a running in-memory document chain plus `NoRollback` behavior so earlier successful writes are preserved on mid-plan failure. Supporting docs and the example stack must treat Phase 3 as complete and point future work at Phase 3.5, not back at the archived core-render change.
+Phase 3 completed core `opencode.json` coverage for providers, permissions, watcher, LSP, composed no-target apply, and `oca diff`. The most important scope correction was explicit: agents were removed from shipped Phase 3 and remain deferred. Composed apply now relies on a running in-memory document chain plus `NoRollback` behavior so earlier successful writes are preserved on mid-plan failure. Supporting docs and the example stack must treat Phase 3 as complete, treat Phase 3.5 as shipped, and point future work at Phase 4 rather than back at the archived core-render change.
 
 ---
 
 ## Phase 3.5: Skills + Commands + Formatters + OpenCode Toggles
+
+**Status:** Complete — delivered in archived change `addPhase35ConfigCoverageSkills` and merged to `trunk`.
 
 **Goal:** Complete declarative coverage of the remaining `opencode.json` surfaces: OCA-owned skill management, custom slash commands, code formatters, and OpenCode-level behavior toggles. Fills the gap between core config (Phase 3) and primary client/theme work (Phase 4).
 
@@ -207,6 +209,16 @@ Phase 3 completed core `opencode.json` coverage for providers, permissions, watc
 - tk-phase3.5-06: Golden tests for each new target
 - tk-phase3.5-07: Integration test: apply all targets together with full stack.example.toml
 - tk-phase3.5-08: `oca doctor --scope skills` implementation and test
+
+**Historical implementation reference:**
+
+- Archived ADV change: `addPhase35ConfigCoverageSkills`
+- Merge commit on `trunk`: `7d5ce85 chore: archive addPhase35ConfigCoverageSkills`
+- Next recommended phase: **Phase 4**
+
+### Retrospective
+
+Phase 3.5 completed the remaining declarative config surfaces for OCA-owned skills, custom commands, formatters, and OpenCode toggles. Two durable lessons stood out. TDD compliance in ADV requires both red and green evidence entries — green-only evidence is insufficient for strict archive validation, even when tests pass (record red + green explicitly). Integration tests that exercise the compiled CLI must set `OCA_ASSETS_ROOT` to the repo `assets/` directory because the test binary runs from a temporary location and cannot infer asset-relative paths automatically.
 
 ---
 

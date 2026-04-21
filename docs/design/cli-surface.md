@@ -1,6 +1,6 @@
 # `oca` CLI Surface
 
-This document separates the **implemented Phase 1 + Phase 2 + Phase 3 CLI** from the broader **planned v1.0 command surface**.
+This document separates the **implemented Phase 1 + Phase 2 + Phase 3 + Phase 3.5 CLI** from the broader **planned v1.0 command surface**.
 
 Phase 1 shipped `oca version`, `oca apply --target mcp`, `oca doctor --scope mcp`, and `oca debug`. Phase 2 extended the surface with plugin/instructions targets on `apply`, added new `oca pin` and `oca update` commands, and extended `oca doctor` with a `plugins` scope and a `--network` flag.
 
@@ -61,11 +61,6 @@ Behavior:
 - probes Vision `GET /v1/servers`
 - reports pass / warn / fail per declared server
 - still reports local `env_file` and command-path advisories when Vision is down
-
-Not implemented in Phase 1:
-
-- `--parallel`
-- scopes such as `plugins`, `adv`, or `shell`
 
 ## `oca debug`
 
@@ -184,6 +179,22 @@ Behavior:
 - exit `3` for runtime planning failures
 
 ## Phase 3.5 additions
+
+### `oca apply` (no target)
+
+When `--target` is omitted, `oca apply` composes all shipped targets in dependency order under one lock. As of Phase 3.5, that includes:
+
+- `mcp`
+- `plugins`
+- `instructions`
+- `providers`
+- `permissions`
+- `watcher`
+- `lsp`
+- `skills`
+- `commands`
+- `formatters`
+- `toggles`
 
 ### `oca apply --target skills`
 
