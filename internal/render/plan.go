@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 
 	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
@@ -141,6 +142,23 @@ func PlanInstructions(stack *cfg.Stack, paths cfg.Paths, source string) (*Plan, 
 	}, nil
 }
 
+// assetsSkillsRoot returns the path to the OCA-owned skills source directory.
+// In production this is <repo_root>/assets/skills/. The repo root is detected
+// from the binary location (embedded in the oca binary at build time) or
+// overridden by the OCA_ASSETS_ROOT env var for testing.
+func assetsSkillsRoot() string {
+	if env := os.Getenv("OCA_ASSETS_ROOT"); env != "" {
+		return filepath.Join(env, "skills")
+	}
+	// Default: relative to executable. In tests, use OCA_ASSETS_ROOT.
+	exe, err := os.Executable()
+	if err != nil {
+		return "assets/skills"
+	}
+	repoRoot := filepath.Dir(filepath.Dir(exe))
+	return filepath.Join(repoRoot, "assets", "skills")
+}
+
 func readIfExists(path string) ([]byte, error) {
 	b, err := os.ReadFile(path)
 	if err == nil {
@@ -163,10 +181,14 @@ const (
 	TargetPermissions  TargetName = "permissions"
 	TargetWatcher      TargetName = "watcher"
 	TargetLSP          TargetName = "lsp"
+	TargetSkills       TargetName = "skills"
+	TargetCommands     TargetName = "commands"
+	TargetFormatters   TargetName = "formatters"
+	TargetToggles      TargetName = "toggles"
 )
 
 // AllTargets is the ordered list of all apply-able targets in dependency order.
-// Design K9.
+// Design K9. Phase 3.5 adds skills, commands, formatters, toggles after Phase 3.
 var AllTargets = []TargetName{
 	TargetMCP,
 	TargetPlugins,
@@ -175,6 +197,10 @@ var AllTargets = []TargetName{
 	TargetPermissions,
 	TargetWatcher,
 	TargetLSP,
+	TargetSkills,
+	TargetCommands,
+	TargetFormatters,
+	TargetToggles,
 }
 
 // planForTarget calls the appropriate PlanX function for the given target.
@@ -194,6 +220,14 @@ func planForTarget(stack *cfg.Stack, paths cfg.Paths, source string, target Targ
 		return PlanWatcher(stack, paths, source)
 	case TargetLSP:
 		return PlanLSP(stack, paths, source)
+	case TargetSkills:
+		return PlanSkills(stack, paths, source, assetsSkillsRoot())
+	case TargetCommands:
+		return PlanCommands(stack, paths, source)
+	case TargetFormatters:
+		return PlanFormatters(stack, paths, source)
+	case TargetToggles:
+		return PlanToggles(stack, paths, source)
 	default:
 		return nil, fmt.Errorf("unknown target: %s", target)
 	}
@@ -332,6 +366,53 @@ func composeTargetOps(stack *cfg.Stack, paths cfg.Paths, source string, target T
 			opOp = "noop"
 		}
 		return []TargetOp{{Name: "opencode.json", Path: paths.OpencodeJSON(), Op: opOp, Before: currentDoc, After: merged, Mode: 0o644, Reason: "merge declared LSP server entries into .lsp preserving per-server keys"}}, merged, nil
+	case TargetSkills:
+		// Skills are filesystem writes, not JSON merges. Return TargetOps
+		// without mutating currentDoc.
+		skillOps := PlanSkillsOps(stack, paths, assetsSkillsRoot())
+		return skillOps, currentDoc, nil
+	case TargetCommands:
+		declared := translateCommandsToOpencode(stack.Commands)
+		if declared == nil {
+			declared = map[string]any{}
+		}
+		merged, err := MergeObject(currentDoc, declared)
+		if err != nil {
+			return nil, nil, err
+		}
+		opOp := "merge"
+		if bytes.Equal(currentDoc, merged) {
+			opOp = "noop"
+		}
+		return []TargetOp{{Name: "opencode.json", Path: paths.OpencodeJSON(), Op: opOp, Before: currentDoc, After: merged, Mode: 0o644, Reason: "merge declared command entries into .command preserving user-added commands"}}, merged, nil
+	case TargetFormatters:
+		declared := translateFormattersToOpencode(stack.Formatters)
+		if declared == nil {
+			declared = map[string]any{}
+		}
+		merged, err := MergeObject(currentDoc, declared)
+		if err != nil {
+			return nil, nil, err
+		}
+		opOp := "merge"
+		if bytes.Equal(currentDoc, merged) {
+			opOp = "noop"
+		}
+		return []TargetOp{{Name: "opencode.json", Path: paths.OpencodeJSON(), Op: opOp, Before: currentDoc, After: merged, Mode: 0o644, Reason: "merge declared formatter entries into .formatter preserving user-added formatters"}}, merged, nil
+	case TargetToggles:
+		declared := translateOpenCodeToOpencode(stack.OpenCode)
+		if len(declared) == 0 {
+			return nil, currentDoc, nil
+		}
+		merged, err := MergeObject(currentDoc, declared)
+		if err != nil {
+			return nil, nil, err
+		}
+		opOp := "merge"
+		if bytes.Equal(currentDoc, merged) {
+			opOp = "noop"
+		}
+		return []TargetOp{{Name: "opencode.json", Path: paths.OpencodeJSON(), Op: opOp, Before: currentDoc, After: merged, Mode: 0o644, Reason: "merge declared opencode toggles into top-level keys preserving user keys"}}, merged, nil
 	default:
 		return nil, nil, fmt.Errorf("unknown target: %s", target)
 	}
