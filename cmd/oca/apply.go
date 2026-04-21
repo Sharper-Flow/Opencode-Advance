@@ -63,12 +63,12 @@ func newApplyCmd(state *commandState) *cobra.Command {
 			// Validate all targets before applying any.
 			for _, t := range targets {
 				switch t {
-				case "mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp":
+				case "mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp", "skills", "commands", "formatters", "toggles":
 					// known
 				case "temporal":
 					return newCLIError(2, "target %q reserved for Phase 6.5; see docs/proposals/phases.md § Phase 6.5", t)
 				default:
-					return newCLIError(2, "unknown target %q; supported: mcp, plugins, instructions, providers, permissions, watcher, lsp", t)
+					return newCLIError(2, "unknown target %q; supported: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles", t)
 				}
 			}
 
@@ -116,15 +116,31 @@ func newApplyCmd(state *commandState) *cobra.Command {
 					if err := applyLSP(ctx, state, stack, paths, dryRun); err != nil {
 						return err
 					}
+				case "skills":
+					if err := applySkills(ctx, state, stack, paths, dryRun); err != nil {
+						return err
+					}
+				case "commands":
+					if err := applyCommands(ctx, state, stack, paths, dryRun); err != nil {
+						return err
+					}
+				case "formatters":
+					if err := applyFormatters(ctx, state, stack, paths, dryRun); err != nil {
+						return err
+					}
+				case "toggles":
+					if err := applyToggles(ctx, state, stack, paths, dryRun); err != nil {
+						return err
+					}
 				}
 			}
 			return nil
 		},
 	}
-	cmd.Flags().StringArrayVar(&targets, "target", nil, "Target(s) to apply (supported: mcp, plugins, instructions, providers, permissions, watcher, lsp)")
+	cmd.Flags().StringArrayVar(&targets, "target", nil, "Target(s) to apply (supported: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print the render plan without writing files")
 	_ = cmd.RegisterFlagCompletionFunc("target", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp", "temporal"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp", "skills", "commands", "formatters", "toggles", "temporal"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
@@ -202,6 +218,38 @@ func applyLSP(ctx context.Context, state *commandState, stack *config.Stack, pat
 		return newCLIError(3, "plan lsp: %w", err)
 	}
 	return emitPlanOrApply(state, plan, dryRun, "apply lsp")
+}
+
+func applySkills(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool) error {
+	plan, err := render.PlanSkills(stack, paths, state.configPath, render.AssetsSkillsRoot())
+	if err != nil {
+		return newCLIError(3, "plan skills: %w", err)
+	}
+	return emitPlanOrApply(state, plan, dryRun, "apply skills")
+}
+
+func applyCommands(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool) error {
+	plan, err := render.PlanCommands(stack, paths, state.configPath)
+	if err != nil {
+		return newCLIError(3, "plan commands: %w", err)
+	}
+	return emitPlanOrApply(state, plan, dryRun, "apply commands")
+}
+
+func applyFormatters(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool) error {
+	plan, err := render.PlanFormatters(stack, paths, state.configPath)
+	if err != nil {
+		return newCLIError(3, "plan formatters: %w", err)
+	}
+	return emitPlanOrApply(state, plan, dryRun, "apply formatters")
+}
+
+func applyToggles(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool) error {
+	plan, err := render.PlanToggles(stack, paths, state.configPath)
+	if err != nil {
+		return newCLIError(3, "plan toggles: %w", err)
+	}
+	return emitPlanOrApply(state, plan, dryRun, "apply toggles")
 }
 
 func applyInstructions(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool) error {

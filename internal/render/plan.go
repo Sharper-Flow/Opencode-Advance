@@ -142,11 +142,11 @@ func PlanInstructions(stack *cfg.Stack, paths cfg.Paths, source string) (*Plan, 
 	}, nil
 }
 
-// assetsSkillsRoot returns the path to the OCA-owned skills source directory.
+// AssetsSkillsRoot returns the path to the OCA-owned skills source directory.
 // In production this is <repo_root>/assets/skills/. The repo root is detected
 // from the binary location (embedded in the oca binary at build time) or
 // overridden by the OCA_ASSETS_ROOT env var for testing.
-func assetsSkillsRoot() string {
+func AssetsSkillsRoot() string {
 	if env := os.Getenv("OCA_ASSETS_ROOT"); env != "" {
 		return filepath.Join(env, "skills")
 	}
@@ -221,7 +221,7 @@ func planForTarget(stack *cfg.Stack, paths cfg.Paths, source string, target Targ
 	case TargetLSP:
 		return PlanLSP(stack, paths, source)
 	case TargetSkills:
-		return PlanSkills(stack, paths, source, assetsSkillsRoot())
+		return PlanSkills(stack, paths, source, AssetsSkillsRoot())
 	case TargetCommands:
 		return PlanCommands(stack, paths, source)
 	case TargetFormatters:
@@ -369,7 +369,7 @@ func composeTargetOps(stack *cfg.Stack, paths cfg.Paths, source string, target T
 	case TargetSkills:
 		// Skills are filesystem writes, not JSON merges. Return TargetOps
 		// without mutating currentDoc.
-		skillOps := PlanSkillsOps(stack, paths, assetsSkillsRoot())
+		skillOps := PlanSkillsOps(stack, paths, AssetsSkillsRoot())
 		return skillOps, currentDoc, nil
 	case TargetCommands:
 		declared := translateCommandsToOpencode(stack.Commands)
