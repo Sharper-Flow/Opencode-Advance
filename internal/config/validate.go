@@ -119,6 +119,12 @@ func (s *Stack) Validate() error {
 	// [lsp.*]
 	errs = append(errs, validateLSP(s)...)
 
+	// Phase 3.5 typed sections
+	errs = append(errs, validateSkills(s)...)
+	errs = append(errs, validateFormatters(s)...)
+	errs = append(errs, validateCommands(s)...)
+	errs = append(errs, validateOpenCode(s)...)
+
 	// Deferred sections — classify as known-but-deferred (ok) or
 	// truly unknown (error).
 	for name := range s.DeferredSections {
@@ -563,6 +569,142 @@ func validateLSP(s *Stack) ValidationErrors {
 		}
 	}
 	return errs
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3.5 validation
+// ---------------------------------------------------------------------------
+
+// validShareValues are the allowed values for opencode.share.
+var validShareValues = map[string]bool{
+	"":        true,
+	"manual":  true,
+	"auto":    true,
+	"disabled": true,
+}
+
+// validateSkills checks skills.order for uniqueness, non-empty entries,
+// and rejection of reserved adv-* namespace.
+func validateSkills(s *Stack) ValidationErrors {
+	var errs ValidationErrors
+	if s.Skills.Order == nil {
+		return errs
+	}
+	seen := make(map[string]bool, len(s.Skills.Order))
+	for i, name := range s.Skills.Order {
+		path := fmt.Sprintf("skills.order[%d]", i)
+		if name == "" {
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: "entry must not be empty",
+			})
+			continue
+		}
+		if strings.HasPrefix(name, "adv-") {
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: fmt.Sprintf("reserved namespace %q (adv-* skills are managed by the Advance plugin)", name),
+			})
+		}
+		if seen[name] {
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: fmt.Sprintf("duplicate skill %q", name),
+			})
+		}
+		seen[name] = true
+	}
+	return errs
+}
+
+// validateFormatters checks that each formatter (unless disabled) has
+// both command and extensions set.
+func validateFormatters(s *Stack) ValidationErrors {
+	var errs ValidationErrors
+	if s.Formatters == nil {
+		return errs
+	}
+	names := sortedKeys(s.Formatters)
+	for _, name := range names {
+		f := s.Formatters[name]
+		path := fmt.Sprintf("formatters.%s", name)
+		if f.Disabled {
+			continue
+		}
+		if len(f.Command) == 0 {
+			errs = append(errs, ValidationError{
+				Path:    path + ".command",
+				Message: "command is required when formatter is not disabled",
+			})
+		}
+		if len(f.Extensions) == 0 {
+			errs = append(errs, ValidationError{
+				Path:    path + ".extensions",
+				Message: "extensions is required when formatter is not disabled",
+			})
+		}
+	}
+	return errs
+}
+
+// validateCommands checks that each command has description and template.
+func validateCommands(s *Stack) ValidationErrors {
+	var errs ValidationErrors
+	if s.Commands == nil {
+		return errs
+	}
+	names := sortedKeys(s.Commands)
+	for _, name := range names {
+		cmd := s.Commands[name]
+		path := fmt.Sprintf("commands.%s", name)
+		if cmd.Description == "" {
+			errs = append(errs, ValidationError{
+				Path:    path + ".description",
+				Message: "required field missing",
+			})
+		}
+		if cmd.Template == "" {
+			errs = append(errs, ValidationError{
+				Path:    path + ".template",
+				Message: "required field missing",
+			})
+		}
+	}
+	return errs
+}
+
+// validateOpenCode checks opencode.share enum and opencode.autoupdate
+// union (true|false|"notify").
+func validateOpenCode(s *Stack) ValidationErrors {
+	var errs ValidationErrors
+
+	if s.OpenCode.Share != "" && !validShareValues[s.OpenCode.Share] {
+		errs = append(errs, ValidationError{
+			Path:    "opencode.share",
+			Message: fmt.Sprintf("unknown value %q (allowed: manual, auto, disabled)", s.OpenCode.Share),
+		})
+	}
+
+	if au := s.OpenCode.Autoupdate; au != nil {
+		if au.Str != nil && *au.Str != "notify" {
+			errs = append(errs, ValidationError{
+				Path:    "opencode.autoupdate",
+				Message: fmt.Sprintf("unknown value %q (allowed: true, false, \"notify\")", *au.Str),
+			})
+		}
+	}
+
+	return errs
+}
+
+// sortedKeys returns the keys of a map[string]T in sorted order.
+func sortedKeys[T any](m map[string]T) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func knownSectionNames() []string {

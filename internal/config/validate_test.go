@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -249,5 +250,364 @@ type = "daemon"
 				t.Errorf("err = %v, must NOT contain substring %q", err, tc.wantNoSub)
 			}
 		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3.5 validation tests
+// ---------------------------------------------------------------------------
+
+func TestValidate_SkillsOrderUnique(t *testing.T) {
+	src := `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[skills]
+order = ["lgrep", "morph", "lgrep"]
+`
+	stack := mustParse(t, src)
+	err := stack.Validate()
+	if err == nil {
+		t.Fatal("expected error for duplicate skills.order entry")
+	}
+	if !strings.Contains(err.Error(), "duplicate") || !strings.Contains(err.Error(), "skills.order") {
+		t.Errorf("err = %v, want duplicate skills.order", err)
+	}
+}
+
+func TestValidate_SkillsRejectAdvPrefix(t *testing.T) {
+	src := `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[skills]
+order = ["adv-apply-methodology", "lgrep"]
+`
+	stack := mustParse(t, src)
+	err := stack.Validate()
+	if err == nil {
+		t.Fatal("expected error for adv-* reserved skill name")
+	}
+	if !strings.Contains(err.Error(), "reserved") || !strings.Contains(err.Error(), "adv-") {
+		t.Errorf("err = %v, want reserved adv-*", err)
+	}
+}
+
+func TestValidate_SkillsEmptyOrderAllowed(t *testing.T) {
+	src := `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[skills]
+`
+	stack := mustParse(t, src)
+	err := stack.Validate()
+	if err != nil {
+		t.Errorf("empty [skills] should be valid, got %v", err)
+	}
+}
+
+func TestValidate_SkillsEmptyEntryRejected(t *testing.T) {
+	src := `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[skills]
+order = ["lgrep", ""]
+`
+	stack := mustParse(t, src)
+	err := stack.Validate()
+	if err == nil {
+		t.Fatal("expected error for empty skills.order entry")
+	}
+	if !strings.Contains(err.Error(), "must not be empty") {
+		t.Errorf("err = %v, want must not be empty", err)
+	}
+}
+
+func TestValidate_FormattersRequireCommandAndExtensions(t *testing.T) {
+	src := `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[formatters.prettier]
+command = ["npx", "prettier", "--write", "$FILE"]
+`
+	stack := mustParse(t, src)
+	err := stack.Validate()
+	if err == nil {
+		t.Fatal("expected error for formatter without extensions")
+	}
+	if !strings.Contains(err.Error(), "extensions") || !strings.Contains(err.Error(), "formatters.prettier") {
+		t.Errorf("err = %v, want formatters.prettier extensions required", err)
+	}
+}
+
+func TestValidate_FormattersDisabledSkipsRequired(t *testing.T) {
+	src := `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[formatters.pyright]
+disabled = true
+`
+	stack := mustParse(t, src)
+	err := stack.Validate()
+	if err != nil {
+		t.Errorf("disabled formatter should not require command/extensions, got %v", err)
+	}
+}
+
+func TestValidate_FormattersMissingCommand(t *testing.T) {
+	src := `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[formatters.fmt]
+extensions = [".txt"]
+`
+	stack := mustParse(t, src)
+	err := stack.Validate()
+	if err == nil {
+		t.Fatal("expected error for formatter without command")
+	}
+	if !strings.Contains(err.Error(), "command") || !strings.Contains(err.Error(), "formatters.fmt") {
+		t.Errorf("err = %v, want formatters.fmt command required", err)
+	}
+}
+
+func TestValidate_CommandsRequireDescriptionAndTemplate(t *testing.T) {
+	src := `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[commands.broken]
+description = "Has desc but no template"
+`
+	stack := mustParse(t, src)
+	err := stack.Validate()
+	if err == nil {
+		t.Fatal("expected error for command without template")
+	}
+	if !strings.Contains(err.Error(), "template") || !strings.Contains(err.Error(), "commands.broken") {
+		t.Errorf("err = %v, want commands.broken template required", err)
+	}
+}
+
+func TestValidate_CommandsMissingDescription(t *testing.T) {
+	src := `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[commands.broken]
+template = "Has template but no description"
+`
+	stack := mustParse(t, src)
+	err := stack.Validate()
+	if err == nil {
+		t.Fatal("expected error for command without description")
+	}
+	if !strings.Contains(err.Error(), "description") {
+		t.Errorf("err = %v, want description required", err)
+	}
+}
+
+func TestValidate_CommandsValidWithOptionalFields(t *testing.T) {
+	src := `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[commands.hello]
+description = "Hello"
+template = "Say hello"
+agent = "adv"
+model = "google/gemini-3-flash"
+`
+	stack := mustParse(t, src)
+	err := stack.Validate()
+	if err != nil {
+		t.Errorf("valid command with optional fields should pass, got %v", err)
+	}
+}
+
+func TestValidate_OpenCodeShareEnum(t *testing.T) {
+	src := `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[opencode]
+share = "invalid"
+`
+	stack := mustParse(t, src)
+	err := stack.Validate()
+	if err == nil {
+		t.Fatal("expected error for invalid share value")
+	}
+	if !strings.Contains(err.Error(), "share") || !strings.Contains(err.Error(), "invalid") {
+		t.Errorf("err = %v, want share invalid", err)
+	}
+}
+
+func TestValidate_OpenCodeShareValidValues(t *testing.T) {
+	for _, val := range []string{"manual", "auto", "disabled", ""} {
+		t.Run(val, func(t *testing.T) {
+			src := fmt.Sprintf(`
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[opencode]
+share = "%s"
+`, val)
+			stack := mustParse(t, src)
+			err := stack.Validate()
+			if err != nil {
+				t.Errorf("share=%q should be valid, got %v", val, err)
+			}
+		})
+	}
+}
+
+func TestValidate_OpenCodeAutoupdateValidValues(t *testing.T) {
+	// true, false, "notify" should all be valid
+	for name, src := range map[string]string{
+		"bool_true": `
+[meta]
+version = "1.0.0"
+[mcp.servers.a]
+port = 6276
+command = "echo"
+[opencode]
+autoupdate = true
+`,
+		"bool_false": `
+[meta]
+version = "1.0.0"
+[mcp.servers.a]
+port = 6276
+command = "echo"
+[opencode]
+autoupdate = false
+`,
+		"string_notify": `
+[meta]
+version = "1.0.0"
+[mcp.servers.a]
+port = 6276
+command = "echo"
+[opencode]
+autoupdate = "notify"
+`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			stack := mustParse(t, src)
+			err := stack.Validate()
+			if err != nil {
+				t.Errorf("autoupdate %s should be valid, got %v", name, err)
+			}
+		})
+	}
+}
+
+func TestValidate_OpenCodeAutoupdateInvalidString(t *testing.T) {
+	src := `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[opencode]
+autoupdate = "bad_value"
+`
+	stack := mustParse(t, src)
+	err := stack.Validate()
+	if err == nil {
+		t.Fatal("expected error for invalid autoupdate string")
+	}
+	if !strings.Contains(err.Error(), "autoupdate") {
+		t.Errorf("err = %v, want autoupdate error", err)
+	}
+}
+
+func TestValidate_Phase35AllValid(t *testing.T) {
+	src := `
+[meta]
+version = "1.0.0"
+
+[mcp.servers.a]
+port = 6276
+command = "echo"
+
+[skills]
+order = ["lgrep", "morph"]
+
+[formatters.prettier]
+command = ["npx", "prettier", "--write", "$FILE"]
+extensions = [".ts"]
+
+[commands.review]
+description = "Review"
+template = "Review $ARGUMENTS"
+agent = "adv"
+
+[opencode]
+theme = "obsidian"
+default_agent = "adv"
+share = "disabled"
+autoupdate = false
+`
+	stack := mustParse(t, src)
+	err := stack.Validate()
+	if err != nil {
+		t.Errorf("fully valid Phase 3.5 stack should pass, got %v", err)
 	}
 }
