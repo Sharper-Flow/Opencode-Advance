@@ -62,3 +62,30 @@ func TestServer_IsEnabled_NilDefaultsTrue(t *testing.T) {
 		t.Error("Enabled=&true should be enabled")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Phase 3.5: OpencodeSkillsDir
+// ---------------------------------------------------------------------------
+
+func TestPaths_OpencodeSkillsDir_Default(t *testing.T) {
+	t.Setenv("OCA_OPENCODE_CONFIG_DIR", "")
+	p := ResolvePaths()
+	got := p.OpencodeSkillsDir()
+	wantSuffix := filepath.Join(".config", "opencode", "skills")
+	if !filepath.IsAbs(got) {
+		t.Errorf("OpencodeSkillsDir() = %q, want absolute path", got)
+	}
+	if got[len(got)-len(wantSuffix):] != wantSuffix {
+		t.Errorf("OpencodeSkillsDir() = %q, want suffix %q", got, wantSuffix)
+	}
+}
+
+func TestPaths_OpencodeSkillsDir_EnvOverride(t *testing.T) {
+	t.Setenv("OCA_OPENCODE_CONFIG_DIR", "/custom/config")
+	p := ResolvePaths()
+	got := p.OpencodeSkillsDir()
+	want := filepath.Join("/custom/config", "skills")
+	if got != want {
+		t.Errorf("OpencodeSkillsDir() = %q, want %q", got, want)
+	}
+}

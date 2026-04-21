@@ -51,6 +51,12 @@ func (p Paths) PluginCheckoutRoot() string {
 	return p.PluginCheckoutRoot_
 }
 
+// OpencodeSkillsDir is the target directory for OCA-owned skill copies.
+// Defaults to <OpencodeConfigDir>/skills, honoring OCA_OPENCODE_CONFIG_DIR.
+func (p Paths) OpencodeSkillsDir() string {
+	return filepath.Join(p.OpencodeConfigDir, "skills")
+}
+
 // resolvePath returns the env-var value if set, else the fallback.
 func resolvePath(envName, fallback string) string {
 	if v := os.Getenv(envName); v != "" {
