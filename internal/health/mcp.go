@@ -19,9 +19,11 @@ func init() {
 }
 
 type Options struct {
-	VisionAdminURL string
-	Timeout        time.Duration
-	HTTPClient     *http.Client
+	VisionAdminURL  string
+	Timeout         time.Duration
+	HTTPClient      *http.Client
+	SkillsAssetsRoot string // Root of OCA-owned skill source directories
+	SkillsTargetDir  string // Target directory where skills are deployed
 }
 
 type versionResponse struct {
