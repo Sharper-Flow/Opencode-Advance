@@ -3,7 +3,9 @@ package main
 import (
 	"time"
 
+	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
 	"github.com/Sharper-Flow/Opencode-Advance/internal/health"
+	"github.com/Sharper-Flow/Opencode-Advance/internal/render"
 	"github.com/spf13/cobra"
 )
 
@@ -29,10 +31,16 @@ func newDoctorCmd(state *commandState) *cobra.Command {
 			}
 			ctx, cancel := withContext()
 			defer cancel()
-			checks, err := health.Run(scope, ctx, stack, health.Options{Timeout: timeout})
+			paths := cfg.ResolvePaths()
+			opts := health.Options{
+				Timeout:         timeout,
+				SkillsAssetsRoot: render.AssetsSkillsRoot(),
+				SkillsTargetDir:  paths.OpencodeSkillsDir(),
+			}
+			checks, err := health.Run(scope, ctx, stack, opts)
 			if err != nil {
 				if err == health.ErrUnknownScope {
-					return newCLIError(2, "unknown scope %q; supported: mcp, plugins, temporal", scope)
+					return newCLIError(2, "unknown scope %q; supported: mcp, plugins, skills", scope)
 				}
 				return newCLIError(3, "doctor %s: %w", scope, err)
 			}
@@ -54,10 +62,10 @@ func newDoctorCmd(state *commandState) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&scope, "scope", "mcp", "Scope to check (supported: mcp, plugins, temporal)")
+	cmd.Flags().StringVar(&scope, "scope", "mcp", "Scope to check (supported: mcp, plugins, skills)")
 	cmd.Flags().DurationVar(&timeout, "timeout", 5*time.Second, "HTTP timeout for doctor checks")
 	_ = cmd.RegisterFlagCompletionFunc("scope", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"mcp", "plugins", "temporal"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"mcp", "plugins", "skills", "temporal"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
