@@ -173,7 +173,7 @@ Flags:
 
 | Flag | Purpose |
 | --- | --- |
-| `--target <name>` | optional single-target filter (`mcp`, `plugins`, `instructions`, `providers`, `permissions`, `watcher`, `lsp`) |
+| `--target <name>` | optional single-target filter (`mcp`, `plugins`, `instructions`, `providers`, `permissions`, `watcher`, `lsp`, `skills`, `commands`, `formatters`, `toggles`) |
 | `--output <text\|json>` | report format |
 
 Behavior:
@@ -182,6 +182,28 @@ Behavior:
 - exit `1` when drift is present
 - exit `2` for invalid config or invalid target
 - exit `3` for runtime planning failures
+
+## Phase 3.5 additions
+
+### `oca apply --target skills`
+
+Copies OCA-owned skill directories from `assets/skills/` to `~/.config/opencode/skills/`. Respects `[skills].order` and excludes `adv-*` reserved namespace.
+
+### `oca apply --target commands`
+
+Renders `[commands.*]` into `opencode.json` `.command` section.
+
+### `oca apply --target formatters`
+
+Renders `[formatters.*]` into `opencode.json` `.formatter` section.
+
+### `oca apply --target toggles`
+
+Renders `[opencode]` toggles into `opencode.json` (theme, default_agent, share, snapshot, autoupdate, compaction, disabled_providers, enabled_providers).
+
+### `oca doctor --scope skills`
+
+Checks OCA-owned skill deployment health: declared skills present, reserved namespace enforcement, extra skill detection.
 
 ## Planned later-phase commands
 

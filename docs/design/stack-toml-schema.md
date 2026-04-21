@@ -2,7 +2,7 @@
 
 This document is the canonical reference for the `stack.toml` schema. A complete working example lives at [`stack.example.toml`](../../stack.example.toml).
 
-> Status note: `[meta]`, `[mcp]`, `[plugins.*]`, and `[instructions]` are typed and actively rendered as of Phase 2. `[providers.*]`, `[permissions]`, `[watcher]`, and `[lsp.*]` are typed and actively rendered in Phase 3. `[temporal]` is typed but reserved for Phase 6.5 (accepted without rendering). `[agents]`, `[session]`, `[discord]`, `[skills]`, `[formatters.*]`, `[commands.*]`, and `[opencode]` remain deferred unless otherwise noted.
+> Status note: `[meta]`, `[mcp]`, `[plugins.*]`, and `[instructions]` are typed and actively rendered as of Phase 2. `[providers.*]`, `[permissions]`, `[watcher]`, and `[lsp.*]` are typed and actively rendered in Phase 3. `[skills]`, `[formatters.*]`, `[commands.*]`, and `[opencode]` are typed and actively rendered in Phase 3.5. `[temporal]` is typed but reserved for Phase 6.5 (accepted without rendering). `[agents]`, `[session]`, and `[discord]` remain deferred unless otherwise noted.
 
 ## Top-level tables
 

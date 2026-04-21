@@ -22,11 +22,12 @@ The user owns one file: `stack.toml`. OCA renders declarative slices from that f
 ```text
 stack.toml
   └─► oca apply [--target ...]
-        ├─► opencode.json (.mcp/.plugin/.instructions/.provider/.permission/.watcher/.lsp merges)
-        └─► vision/servers.yaml (authoritative full write)
+        ├─► opencode.json (.mcp/.plugin/.instructions/.provider/.permission/.watcher/.lsp/.command/.formatter/.compaction merges)
+        ├─► vision/servers.yaml (authoritative full write)
+        └─► skills/ (OCA-owned skill directories copied from assets/skills/)
 ```
 
-OCA still does **not** render agents, session, discord, skills, formatters, commands, opencode toggles, or theme/session configuration. Those sections remain deferred for later phases. Phase 3 explicitly leaves `.agent.*` state untouched.
+OCA still does **not** render agents, session, discord, or theme/session configuration. Those sections remain deferred for later phases. Phase 3.5 graduated skills, formatters, commands, and opencode toggles from deferred to typed+rendered.
 
 ## Subsystems
 
@@ -35,8 +36,8 @@ OCA still does **not** render agents, session, discord, skills, formatters, comm
 Config is typed where implementation exists and deferred where ownership is intentionally postponed.
 
 - Parses TOML with `github.com/BurntSushi/toml`
-- Decodes typed sections: `Meta`, `MCP`, `Plugins`, `Instructions`, `Temporal`, `Providers`, `Permissions`, `Watcher`, `LSP`
-- Preserves deferred future sections in `Stack.DeferredSections` (`agents`, `session`, `discord`, `skills`, `formatters`, `commands`, `opencode`)
+- Decodes typed sections: `Meta`, `MCP`, `Plugins`, `Instructions`, `Temporal`, `Providers`, `Permissions`, `Watcher`, `LSP`, `Skills`, `Formatters`, `Commands`, `OpenCode`
+- Preserves deferred future sections in `Stack.DeferredSections` (`agents`, `session`, `discord`)
 - Resolves shell-style paths and env variables in-place
 - Emits aggregated field-path validation errors
 - Collects non-fatal `env_file` warnings
@@ -54,6 +55,10 @@ type Stack struct {
     Permissions      PermissionsSection
     Watcher          WatcherSection
     LSP              LSPSection
+    Skills           SkillsSection
+    Formatters       FormattersSection
+    Commands         CommandsSection
+    OpenCode         OpenCodeSection
     DeferredSections map[string]any
     Warnings         []Warning
 }
@@ -82,6 +87,8 @@ Rendering is **programmatic**, not template-based.
 - `MergeWatcherIgnore` merges `.watcher.ignore` while preserving user-added entries and sibling watcher keys
 - `RenderVisionServers` writes authoritative `servers.yaml`
 - `PlanMCP`, `PlanPlugins`, `PlanInstructions`, `PlanProviders`, `PlanPermissions`, `PlanWatcher`, `PlanLSP` compute deterministic target operations
+- `PlanSkills` copies OCA-owned skill directories from `assets/skills/` to target
+- `PlanCommands`, `PlanFormatters`, `PlanToggles` render typed config into `opencode.json` sections
 - `ComposeApplyPlan` chains composed apply/diff through a running in-memory `opencode.json`
 - `Apply` executes the plan with dry-run support, lock acquisition, atomic writes, and backup rotation
 
@@ -102,7 +109,7 @@ Phase 1 special rule:
 
 ### 3. Health (`internal/health/`)
 
-Phase 1 health is MCP-only.
+Phase 1 health started with MCP-only. Phase 3.5 added skills health.
 
 - `CheckMCP` probes Vision `GET /version`
 - requires `api.v1_servers = true`
@@ -110,6 +117,12 @@ Phase 1 health is MCP-only.
 - classifies declared servers as pass / warn / fail
 - treats required-but-not-running servers as failures
 - still reports local `env_file` and command-path advisory checks when Vision is down or incompatible
+- `CheckSkills` verifies OCA-owned skill deployment health:
+  - declared skills have source asset directories
+  - reserved `adv-*` namespace rejected
+  - declared skills present in target dir
+  - extra OCA-owned skill dirs in target produce warnings
+  - Advance-owned `adv-*` dirs in target are ignored
 
 Current defaults:
 
@@ -122,9 +135,9 @@ Current defaults:
 Current shipped commands:
 
 - `oca version`
-- `oca apply [--target ...]`
+- `oca apply [--target ...]` (targets: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles)
 - `oca diff`
-- `oca doctor --scope mcp`
+- `oca doctor --scope mcp|plugins|skills`
 - `oca debug plan`
 - `oca debug validate`
 
