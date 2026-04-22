@@ -224,7 +224,7 @@ Phase 3.5 completed the remaining declarative config surfaces for OCA-owned skil
 
 ## Phase 4: Primary Client UX + Theme
 
-**Goal:** current tmux-first client/session lifecycle, Obsidian theme, redesigned status bar, and new boot splash with animation. Builds on full config coverage from Phases 3 and 3.5.
+**Goal:** current tmux-first client/session lifecycle, Obsidian theme, redesigned status bar, and new boot splash with animation. Builds on full config coverage from Phases 3 and 3.5. Same-host re-entry from other terminals/devices is supported, but remains secondary to normal local usage.
 
 **Estimate:** 1-1.5 weeks
 
@@ -243,10 +243,12 @@ Phase 3.5 completed the remaining declarative config surfaces for OCA-owned skil
 
 - `oca session new` creates a tmux session, shows the boot splash, and launches the configured primary client in the current directory
 - `oca session list` shows active sessions
+- `oca session attach` can re-enter a same-host OCA tmux session from another terminal/device without losing running work
 - Obsidian theme loads cleanly in the current primary client with all palette colors applied
 - Status bar shows: session title + ADV change (row 0 left), repo/branch/worktree (row 0 right), window name (row 1 left), metrics + LLM gauges + clock (row 1 right)
 - Boot splash renders wordmark with indigo+ pulse effect on truecolor terminals
-- Stale session reaper cleans up unattached `oca-*` sessions
+- Stale session reaper cleans up unattached `oca-*` sessions without deleting sessions a user would reasonably expect to resume
+- Remote re-entry relies on existing host access paths (local shell, SSH, Tailscale), not custom transport or OCA-managed auth
 - No synthwave edges, no color-cycling, no per-session randomized borders
 
 **Tasks (high-level):**

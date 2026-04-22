@@ -20,46 +20,31 @@ This document specifies each of those surfaces. The canonical implementation liv
 
 Current v1 planning assumes OpenCode uses a JSON theme file referenced in `opencode.json` via `"theme": "obsidian"`. The file will live at `assets/themes/obsidian.json` in this repo and be installed to `~/.config/opencode/themes/obsidian.json` by `oca apply`.
 
-Canonical structure (to be finalized in Phase 4):
+OpenCode expects theme files at `~/.config/opencode/themes/<name>.json` (or `.opencode/themes/<name>.json` for project-scoped). The file is referenced in `opencode.json` via `"theme": "obsidian"`.
 
-```json
-{
-  "name": "obsidian",
-  "description": "OpenCode Advance signature theme — obsidian base with frosted indigo accent",
-  "author": "Sharper Flow",
-  "colors": {
-    "background": "#0B0D10",
-    "foreground": "#E8E6E3",
-    "cursor": "#8B9FE0",
-    "selection": "#2D3138",
-    "selectionForeground": "#E8E6E3",
-    "border": "#2D3138",
-    "panelBackground": "#1E2228",
-    "panelForeground": "#E8E6E3",
-    "mutedForeground": "#A8A6A3",
-    "dimForeground": "#6A6866",
-    "accent": "#6C7AB8",
-    "accentBright": "#8B9FE0",
-    "success": "#7A9B7A",
-    "warning": "#D4A843",
-    "error": "#D47A7A"
-  },
-  "syntax": {
-    "comment": "#6A6866",
-    "string": "#9FC19F",
-    "keyword": "#8B9FE0",
-    "function": "#E8E6E3",
-    "variable": "#A8A6A3",
-    "number": "#D4A843",
-    "type": "#B4C4F5",
-    "constant": "#8B9FE0",
-    "operator": "#A8A6A3",
-    "delimiter": "#6A6866"
-  }
-}
-```
+Schema: `$schema: "https://opencode.ai/theme.json"`. Uses a top-level `defs` block for reusable color references and a `theme` object with flat color keys. Each color value can be a hex string (`"#RRGGBB"`), ANSI integer (0–255), `"none"`, or a dark/light variant object (`{"dark": "...", "light": "..."}`). Reference by `defs` variable name is supported.
 
-The exact schema OpenCode expects will be verified during Phase 4 research before the file is generated. If OpenCode's theme JSON format differs from this draft, the draft is updated to match.
+Required keys: `primary`, `secondary`, `accent`, `text`, `textMuted`, `background`.
+
+Optional keys: `error`, `warning`, `success`, `info`, `backgroundPanel`, `backgroundElement`, `border`, `borderActive`, `borderSubtle`, `syntax*` (syntaxComment, syntaxKeyword, syntaxFunction, syntaxVariable, syntaxString, syntaxNumber, syntaxType, syntaxOperator, syntaxPunctuation), `markdown*` (markdownText, markdownHeading, markdownLink, markdownLinkText, markdownCode, markdownBlockQuote, markdownEmph, markdownStrong, markdownHorizontalRule, markdownListItem, markdownListEnumeration, markdownImage, markdownImageText, markdownCodeBlock), `diff*` keys.
+
+Canonical implementation lives at `assets/themes/obsidian.json` in this repo. The palette mapping:
+
+| OpenCode key | Palette name | Hex |
+|---|---|---|
+| background | Obsidian | `#0B0D10` |
+| text | Ivory | `#E8E6E3` |
+| textMuted | Muted Ivory | `#A8A6A3` |
+| primary | Indigo | `#6C7AB8` |
+| secondary | Indigo Bright | `#8B9FE0` |
+| accent | Indigo Glow | `#B4C4F5` |
+| error | Error Red | `#D47A7A` |
+| warning | Warning Gold | `#D4A843` |
+| success | Success Green | `#7A9B7A` |
+| backgroundPanel | Slate | `#1E2228` |
+| backgroundElement | Graphite | `#2D3138` |
+| border | Graphite | `#2D3138` |
+| borderActive | Indigo | `#6C7AB8` |
 
 ## Tmux theme (`obsidian.tmux.conf`)
 

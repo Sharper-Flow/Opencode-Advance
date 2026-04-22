@@ -14,7 +14,11 @@ oca_boot_splash() {
 
   oca_render_wordmark full
   if [[ -n "${OCA_SPLASH_VERSION:-}" ]]; then
-    printf '\nversion: %s\n' "$OCA_SPLASH_VERSION"
+    if [[ -n "${OCA_SPLASH_DIR:-}" ]]; then
+      printf '\nv%s · %s\n' "$OCA_SPLASH_VERSION" "$OCA_SPLASH_DIR"
+    else
+      printf '\nversion: %s\n' "$OCA_SPLASH_VERSION"
+    fi
   fi
 }
 

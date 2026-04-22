@@ -133,9 +133,10 @@ The v1.0 release is ready when all of the following are true:
 
 - [ ] `oca session new` creates a tmux session (`oca-<epoch>-<pid>`), renders obsidian theme, shows boot splash, and launches the configured primary client
 - [ ] `oca session list` lists active sessions with window count and memory
-- [ ] `oca session attach` / `switch` / `killall` / `restart` work
-- [ ] Stale session reaper cleans up unattached sessions after 4 hours (configurable)
+- [ ] `oca session attach` / `switch` / `killall` / `restart` work, with `attach` supporting same-host re-entry from another terminal/device and `switch` remaining the in-tmux retarget flow
+- [ ] Stale session reaper cleans up unattached sessions after 4 hours (configurable) without deleting sessions a user would reasonably expect to resume later
 - [ ] Per-session cache in `$OCA_CACHE_DIR/<session-id>/`
+- [ ] Cross-device support is defined as same-host tmux re-entry via existing access paths (local shell, SSH, Tailscale), not multi-host sync or custom transport
 
 ### Clean cutover
 

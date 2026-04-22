@@ -86,6 +86,7 @@ func newRootCmd(opts commandOptions) *cobra.Command {
 	cmd.AddCommand(newPinCmd(state))
 	cmd.AddCommand(newUpdateCmd(state))
 	cmd.AddCommand(newDebugCmd(state))
+	cmd.AddCommand(newSessionCmd(state))
 
 	return cmd
 }
