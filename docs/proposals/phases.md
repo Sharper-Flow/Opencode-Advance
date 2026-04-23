@@ -270,9 +270,73 @@ Phase 3.5 completed the remaining declarative config surfaces for OCA-owned skil
 
 ---
 
-## Phase 5: Installer + Shell Profile
+## Phase 5: Temporal Enablement
 
-**Goal:** `oca install` performs end-to-end first-time setup. Shell profile wiring (PATH, completions) is idempotent and reversible.
+**Status:** Advance has shipped Temporal as its primary state backend. This phase wires OCA to manage the Temporal infrastructure that Advance now depends on. The `[temporal]` section in `stack.toml` is already parsed (Phase 2 pre-allocated the hooks); this phase makes it operational.
+
+**Why this phase ships before installer/migration:** Advance already depends on Temporal. Every subsequent phase benefits from OCA managing it — the installer should install Temporal awareness, migration should produce a Temporal-ready stack, and v1.0 should ship with Temporal tooling. Waiting until after migration means shipping without Temporal support and retrofitting it later.
+
+**Goal:** Wire OCA to manage the Temporal infrastructure that Advance now requires as its primary state backend. Advance runs two durable workflows (`changeWorkflow`, `projectWorkflow`) backed by Temporal, with file-based fallback when Temporal is unavailable. OCA's job: install/detect the Temporal CLI, supervise a local dev server when requested, propagate `ADV_TEMPORAL_*` env vars, wire the Temporal client bundle into the Advance plugin load, and verify the whole chain via `oca doctor --scope temporal`.
+
+**Estimate:** 3-5 days
+
+**Deliverables:**
+
+- `internal/temporal/` — CLI detection, optional install flow, dev-server supervision, client-bundle resolution
+- `internal/render/temporal.go` — renders `[temporal]` config into a form the Advance plugin can consume (e.g., env file, plugin-boot config fragment)
+- `internal/health/temporal.go` — reachability, namespace existence, worker heartbeat (registered via the Phase 2 health-check registry)
+- `cmd/oca/temporal.go` — `oca temporal {status,start,stop,restart,logs}` for the supervised dev server
+- `cmd/oca/apply.go` — wire the reserved `--target temporal` surface (Phase 2 reserved; this phase implements)
+- `cmd/oca/doctor.go` — wire the reserved `--scope temporal` surface (Phase 2 reserved; this phase implements)
+- Env-file rendering: OCA writes `$OCA_CACHE_DIR/temporal.env` with `ADV_TEMPORAL_*` values; Advance plugin subprocess inherits them via the Phase 2 subprocess runner's explicit `env` parameter
+- `stack.example.toml` updated: the `[temporal]` placeholder block from Phase 2 becomes a fully documented live example
+
+**Exit criteria:**
+
+- `oca apply --target temporal` with `[temporal].enabled = false` (default) is a no-op that reports "temporal disabled"
+- `oca apply --target temporal` with `[temporal].enabled = true` and `[temporal].dev_server = false` validates reachability of the declared `address` and stops there
+- `oca apply --target temporal` with `[temporal].enabled = true` and `[temporal].dev_server = true` detects or installs the Temporal CLI, supervises `temporal server start-dev` as a background process (PID file in `$OCA_CACHE_DIR`), and ensures the declared namespace exists
+- `oca temporal status` reports: CLI path, dev-server PID (if any), reachability, namespace state, worker heartbeat
+- `oca doctor --scope temporal` returns pass when all of the above are healthy; fails with actionable remediation otherwise
+- When a plugin declares `temporal_bundle = "..."`, OCA passes it through the plugin-boot subprocess env so the Advance plugin's `createStore({ temporalBundle })` activates the overlay
+- Non-loopback `address` without `allow_remote = true` fails fast with a clear error (mirrors Advance's own fail-fast policy)
+- No agent-visible tool surface changes to Advance — this phase only wires the environment around the already-merged Advance code
+
+**Tasks (high-level):**
+
+- tk-phase5-01: Implement Temporal CLI detection (`temporal --version`); optional install via documented flow (brew / curl script), gated behind explicit `--install` flag — never silent
+- tk-phase5-02: Implement dev-server supervisor (start, stop, restart, PID file, log capture to `$OCA_CACHE_DIR`)
+- tk-phase5-03: Implement env-file rendering (`$OCA_CACHE_DIR/temporal.env`) with all `ADV_TEMPORAL_*` values; atomic write reusing Phase 1 render primitives
+- tk-phase5-04: Implement reachability / namespace / worker-heartbeat checks via the Phase 2 health-check registry
+- tk-phase5-05: Implement `oca temporal status/start/stop/restart/logs`
+- tk-phase5-06: Implement `oca apply --target temporal`
+- tk-phase5-07: Implement `oca doctor --scope temporal`
+- tk-phase5-08: Wire `temporal_bundle` into the Advance plugin's boot env via the Phase 2 subprocess runner's `env` parameter
+- tk-phase5-09: Integration test: `enabled = false` → no-op across all touchpoints
+- tk-phase5-10: Integration test: `enabled = true` + `dev_server = true` → end-to-end local dev-server lifecycle (start, reach, create namespace, stop)
+- tk-phase5-11: Integration test: non-loopback address without `allow_remote` → fail fast
+- tk-phase5-12: Update `stack.example.toml` with a full `[temporal]` example (uncommented + documented)
+- tk-phase5-13: `SETUP.md` / `README.md` — Temporal section explaining when to enable it and what OCA manages vs. what the user runs themselves
+
+**Explicitly out of scope (defer or decline):**
+
+- Managing a production Temporal cluster (this phase is local-dev / single-user)
+- Worker-process supervision beyond reading its heartbeat (the worker runs inside the Advance plugin process; OCA does not spawn it)
+- Temporal Cloud integration (only generic `address` + `allow_remote` are supported)
+
+**Advance Temporal architecture (already shipped, for reference):**
+
+Advance's Temporal integration uses two long-lived workflows:
+- `changeWorkflow` — per-change state machine (tasks, gates, wisdom, artifacts, re-entry)
+- `projectWorkflow` — per-project singleton (agenda, project-level wisdom, migration ledger)
+
+Operations use Temporal queries (read) and updates (mutate) with deterministic handlers. Worker runs in-process on Node hosts, or as an out-of-process Node child on Bun hosts (via `ADV_NODE_PATH`). Continue-as-new prevents unbounded history at configurable thresholds. Env vars: `ADV_TEMPORAL_ADDRESS`, `ADV_TEMPORAL_NAMESPACE`, `ADV_TEMPORAL_ALLOW_REMOTE`, `ADV_NODE_PATH`, `ADV_DISABLE_TEMPORAL`.
+
+---
+
+## Phase 6: Installer + Shell Profile
+
+**Goal:** `oca install` performs end-to-end first-time setup. Shell profile wiring (PATH, completions) is idempotent and reversible. Installer includes Temporal prerequisite checks and optional dev-server setup (leveraging Phase 5).
 
 **Estimate:** 4-5 days
 
@@ -294,19 +358,19 @@ Phase 3.5 completed the remaining declarative config surfaces for OCA-owned skil
 
 **Tasks (high-level):**
 
-- tk-phase5-01: Implement prerequisite check (git, tmux version, OpenCode, vision binary)
-- tk-phase5-02: Implement shell profile block management (add/remove idempotent)
-- tk-phase5-03: Implement `oca install` command with all steps
-- tk-phase5-04: Implement `oca completion <shell>` for bash/zsh/fish
-- tk-phase5-05: Implement `oca uninstall` command
-- tk-phase5-06: Integration test: fresh-VM install in Docker/chroot
-- tk-phase5-07: Integration test: install → uninstall → install again is clean
+- tk-phase6-01: Implement prerequisite check (git, tmux version, OpenCode, vision binary, Temporal CLI)
+- tk-phase6-02: Implement shell profile block management (add/remove idempotent)
+- tk-phase6-03: Implement `oca install` command with all steps
+- tk-phase6-04: Implement `oca completion <shell>` for bash/zsh/fish
+- tk-phase6-05: Implement `oca uninstall` command
+- tk-phase6-06: Integration test: fresh-VM install in Docker/chroot
+- tk-phase6-07: Integration test: install → uninstall → install again is clean
 
 ---
 
-## Phase 6: Migration + Doctor Expansion
+## Phase 7: Migration + Doctor Expansion
 
-**Goal:** `oca migrate from-open-chad` works on the maintainer's real open-chad state. Doctor expands to cover Advance state and cross-component health.
+**Goal:** `oca migrate from-open-chad` works on the maintainer's real open-chad state. Doctor expands to cover Advance state, Temporal health, and cross-component consistency. Migration produces a Temporal-ready stack.toml (leveraging Phase 5).
 
 **Estimate:** 4-5 days
 
@@ -316,97 +380,33 @@ Phase 3.5 completed the remaining declarative config surfaces for OCA-owned skil
 - `cmd/oca/migrate.go` — `oca migrate from-open-chad`, `oca migrate init`
 - `internal/health/advance.go` — ADV state checks
 - `internal/health/cross.go` — cross-component consistency checks
-- Expanded `oca doctor` output with all checks
+- Expanded `oca doctor` output with all checks (including Temporal scope from Phase 5)
 
 **Exit criteria:**
 
 - `oca migrate from-open-chad` successfully reads the maintainer's open-chad state and produces a valid stack.toml
 - The generated stack.toml, when applied, reproduces the user's current state (verified by diff)
-- `oca doctor` reports on: Advance checkout, plugin build state, ADV state directory, cross-component consistency (e.g., agent model references a declared provider)
+- `oca doctor` reports on: Advance checkout, plugin build state, ADV state directory, Temporal health, cross-component consistency (e.g., agent model references a declared provider)
 - Migration preserves user customizations (plugin paths, provider models, agent assignments)
 
 **Tasks (high-level):**
 
-- tk-phase6-01: Implement open-chad state reader (opencode.json + vision/servers.yaml + open-chad.json + config/opencode/)
-- tk-phase6-02: Implement stack.toml emitter
-- tk-phase6-03: Implement `oca migrate from-open-chad` command
-- tk-phase6-04: Implement `oca migrate init` command (minimal starter)
-- tk-phase6-05: Implement ADV state health checks
-- tk-phase6-06: Implement cross-component consistency checks
-- tk-phase6-07: Integration test: migration reproduces state
-- tk-phase6-08: Manual verification: run migration on maintainer's real environment
+- tk-phase7-01: Implement open-chad state reader (opencode.json + vision/servers.yaml + open-chad.json + config/opencode/)
+- tk-phase7-02: Implement stack.toml emitter
+- tk-phase7-03: Implement `oca migrate from-open-chad` command
+- tk-phase7-04: Implement `oca migrate init` command (minimal starter)
+- tk-phase7-05: Implement ADV state health checks
+- tk-phase7-06: Implement cross-component consistency checks
+- tk-phase7-07: Integration test: migration reproduces state
+- tk-phase7-08: Manual verification: run migration on maintainer's real environment
 
 ---
 
-## Phase 6.5: Temporal Enablement
-
-**Status:** Advance has shipped Temporal as its primary state backend. This phase wires OCA to manage the Temporal infrastructure that Advance now depends on. The `[temporal]` section in `stack.toml` is already parsed (Phase 2 pre-allocated the hooks); this phase makes it operational.
-
-**Goal:** Wire OCA to manage the Temporal infrastructure that Advance now requires as its primary state backend. Advance runs two durable workflows (`changeWorkflow`, `projectWorkflow`) backed by Temporal, with file-based fallback when Temporal is unavailable. OCA's job: install/detect the Temporal CLI, supervise a local dev server when requested, propagate `ADV_TEMPORAL_*` env vars, wire the Temporal client bundle into the Advance plugin load, and verify the whole chain via `oca doctor --scope temporal`.
-
-**Estimate:** 3-5 days
-
-**Deliverables:**
-
-- `internal/temporal/` — CLI detection, optional install flow, dev-server supervision, client-bundle resolution
-- `internal/render/temporal.go` — renders `[temporal]` config into a form the Advance plugin can consume (e.g., env file, plugin-boot config fragment)
-- `internal/health/temporal.go` — reachability, namespace existence, worker heartbeat (registered via the Phase 2 health-check registry)
-- `cmd/oca/temporal.go` — `oca temporal {status,start,stop,restart,logs}` for the supervised dev server
-- `cmd/oca/apply.go` — wire the reserved `--target temporal` surface (Phase 2 reserved; this phase implements)
-- `cmd/oca/doctor.go` — wire the reserved `--scope temporal` surface (Phase 2 reserved; this phase implements)
-- Env-file rendering: OCA writes `$OCA_CACHE_DIR/temporal.env` with `ADV_TEMPORAL_*` values; Advance plugin subprocess inherits them via the Phase 2 subprocess runner's explicit `env` parameter
-- `stack.example.toml` updated: the `[temporal]` placeholder block from Phase 2 becomes a fully documented live example
-
-**Exit criteria:**
-
-- `oca apply --target temporal` with `[temporal].enabled = false` (default) is a no-op that reports "temporal disabled"
-- `oca apply --target temporal` with `[temporal].enabled = true` and `[temporal].dev_server = false` validates reachability of the declared `address` and stops there
-- `oca apply --target temporal` with `[temporal].dev_server = true` detects or installs the Temporal CLI, supervises `temporal server start-dev` as a background process (PID file in `$OCA_CACHE_DIR`), and ensures the declared namespace exists
-- `oca temporal status` reports: CLI path, dev-server PID (if any), reachability, namespace state, worker heartbeat
-- `oca doctor --scope temporal` returns pass when all of the above are healthy; fails with actionable remediation otherwise
-- When a plugin declares `temporal_bundle = "..."`, OCA passes it through the plugin-boot subprocess env so the Advance plugin's `createStore({ temporalBundle })` activates the overlay
-- Non-loopback `address` without `allow_remote = true` fails fast with a clear error (mirrors Advance's own fail-fast policy)
-- No agent-visible tool surface changes to Advance — this phase only wires the environment around the already-merged Advance code
-
-**Tasks (high-level):**
-
-- tk-phase6.5-01: Implement Temporal CLI detection (`temporal --version`); optional install via documented flow (brew / curl script), gated behind explicit `--install` flag — never silent
-- tk-phase6.5-02: Implement dev-server supervisor (start, stop, restart, PID file, log capture to `$OCA_CACHE_DIR`)
-- tk-phase6.5-03: Implement env-file rendering (`$OCA_CACHE_DIR/temporal.env`) with all `ADV_TEMPORAL_*` values; atomic write reusing Phase 1 render primitives
-- tk-phase6.5-04: Implement reachability / namespace / worker-heartbeat checks via the Phase 2 health-check registry
-- tk-phase6.5-05: Implement `oca temporal status/start/stop/restart/logs`
-- tk-phase6.5-06: Implement `oca apply --target temporal`
-- tk-phase6.5-07: Implement `oca doctor --scope temporal`
-- tk-phase6.5-08: Wire `temporal_bundle` into the Advance plugin's boot env via the Phase 2 subprocess runner's `env` parameter
-- tk-phase6.5-09: Integration test: `enabled = false` → no-op across all touchpoints
-- tk-phase6.5-10: Integration test: `enabled = true` + `dev_server = true` → end-to-end local dev-server lifecycle (start, reach, create namespace, stop)
-- tk-phase6.5-11: Integration test: non-loopback address without `allow_remote` → fail fast
-- tk-phase6.5-12: Update `stack.example.toml` with a full `[temporal]` example (uncommented + documented)
-- tk-phase6.5-13: `SETUP.md` / `README.md` — Temporal section explaining when to enable it and what OCA manages vs. what the user runs themselves
-
-**Explicitly out of scope (defer or decline):**
-
-- Managing a production Temporal cluster (this phase is local-dev / single-user)
-- Worker-process supervision beyond reading its heartbeat (the worker runs inside the Advance plugin process; OCA does not spawn it)
-- Temporal Cloud integration (only generic `address` + `allow_remote` are supported)
-
-**Advance Temporal architecture (already shipped, for reference):**
-
-Advance's Temporal integration uses two long-lived workflows:
-- `changeWorkflow` — per-change state machine (tasks, gates, wisdom, artifacts, re-entry)
-- `projectWorkflow` — per-project singleton (agenda, project-level wisdom, migration ledger)
-
-Operations use Temporal queries (read) and updates (mutate) with deterministic handlers. Worker runs in-process on Node hosts, or as an out-of-process Node child on Bun hosts (via `ADV_NODE_PATH`). Continue-as-new prevents unbounded history at configurable thresholds. Env vars: `ADV_TEMPORAL_ADDRESS`, `ADV_TEMPORAL_NAMESPACE`, `ADV_TEMPORAL_ALLOW_REMOTE`, `ADV_NODE_PATH`, `ADV_DISABLE_TEMPORAL`.
-
----
-
-## Phase 7: Extras + Polish
+## Phase 8: Extras + Polish
 
 **Goal:** Discord integration (with new taglines), release pipeline, final README, polish pass.
 
 **Estimate:** 3-5 days
-
-**Deliverables:**
 
 - `lib/discord/` — ported and rewritten Discord Rich Presence integration
 - `lib/discord/taglines.toml` — all new taglines (data-driven, no "chad" era jokes)
@@ -475,10 +475,10 @@ Every phase is developed as one or more ADV changes following the 7-gate workflo
 - Phase 3 blocks on Phase 2 (extends the apply + target system)
 - Phase 3.5 blocks on Phase 3 (extends the apply + render system with new config surfaces)
 - Phase 4 blocks on Phase 3.5 (session/theme work requires full config coverage to be testable end-to-end)
-- Phase 5 blocks on Phase 4 (install uses the session lifecycle + theme)
-- Phase 6 blocks on Phase 5 (migration produces a stack.toml, which needs full coverage to be useful)
-- **Phase 6.5 blocks on Phase 2** (needs the Temporal inheritance hooks, generic subprocess runner, and health-check registry). Does NOT block Phase 3–7. Can be slotted in any time after Phase 2 lands, in any order relative to Phases 3–7, based on when the user wants Temporal managed by OCA. **Note:** Advance has already shipped Temporal as its primary state backend; this phase is about OCA managing the infra, not Advance adopting Temporal. Recommended placement: after Phase 6 (the user is on the new stack) and before Phase 7 (release) so v1.0 ships with Temporal-ready tooling.
-- Phase 7 blocks on Phase 6 (release is the last step). If Phase 6.5 is deferred past v1.0, Phase 7 releases without Temporal management; Phase 6.5 ships as v1.1.
+- **Phase 5 (Temporal) blocks on Phase 2 only** (needs the Temporal inheritance hooks, generic subprocess runner, and health-check registry). Moved before installer/migration because Advance already depends on Temporal and every subsequent phase benefits from OCA managing it.
+- Phase 6 (Installer) blocks on Phase 4 (uses session lifecycle + theme) and Phase 5 (includes Temporal prerequisite checks)
+- Phase 7 (Migration) blocks on Phase 6 (migration produces a stack.toml, which needs full coverage to be useful)
+- Phase 8 (Extras) blocks on Phase 7 (release is the last step)
 
 ### Out-of-phase work
 
@@ -496,12 +496,12 @@ Minor fixes, typos, doc updates, and CI tweaks can be committed outside of ADV c
 | 3: Core opencode.json coverage               | 1 week      | 3.5-5 weeks   |
 | 3.5: Skills + commands + formatters          | 3-4 days    | 4-5.5 weeks   |
 | 4: Primary client UX + theme                 | 1-1.5 weeks | 5-7 weeks     |
-| 5: Installer + shell                         | 4-5 days    | 5.5-7.5 weeks |
-| 6: Migration + doctor                        | 4-5 days    | 6-8 weeks     |
-| 6.5: Temporal enablement                      | 3-5 days    | 6.5-8.5 weeks |
-| 7: Extras + polish                           | 3-5 days    | 7-9 weeks     |
+| 5: Temporal enablement                       | 3-5 days    | 5.5-8 weeks   |
+| 6: Installer + shell                         | 4-5 days    | 6-9 weeks     |
+| 7: Migration + doctor                        | 4-5 days    | 7-10 weeks    |
+| 8: Extras + polish                           | 3-5 days    | 7.5-11 weeks  |
 
-**Total: 7-9 weeks of focused work; Phase 6.5 should be included in v1.0 since Advance now depends on Temporal.** Longer if interleaved with other work.
+**Total: 7.5-11 weeks of focused work.** Temporal enablement ships early (Phase 5) so installer, migration, and release all benefit. Longer if interleaved with other work.
 
 The estimate intentionally allows for:
 
@@ -517,7 +517,7 @@ If any phase blows its estimate by more than 2x, halt and re-plan. Do not push t
 
 A web dashboard for ADV change lifecycle monitoring and control, consuming Temporal's workflow state. Research spike completed 2026-04-23; findings documented in [`../notes/2026-04-23-temporal-dashboard-research.md`](../notes/2026-04-23-temporal-dashboard-research.md).
 
-**Prerequisite:** Phase 6.5 (Temporal Enablement) must ship first.
+**Prerequisite:** Phase 5 (Temporal Enablement) must ship first.
 
 **Desired capabilities:**
 - Change progress at a glance (gates, tasks, blockers)
