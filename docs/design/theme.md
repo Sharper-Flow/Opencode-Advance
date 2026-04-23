@@ -3,7 +3,7 @@
 The default OpenCode Advance theme is **Obsidian** — a cohesive dark theme that applies the OCA brand palette to current primary client surfaces and tmux/session surfaces:
 
 1. The current OpenCode chat/input UI target (`~/.config/opencode/themes/obsidian.json`)
-2. The tmux status bar and window decorations (`~/dev/opencodeadvance/lib/obsidian.tmux.conf`)
+2. The tmux status bar and window decorations (`assets/themes/obsidian.tmux.conf`)
 3. CLI output from `oca` itself
 4. The boot splash and doctor output
 
