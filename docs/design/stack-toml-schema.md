@@ -348,6 +348,13 @@ boot_splash          = true          # show GBA wordmark on session create
 boot_splash_timeout  = 1000          # ms before dropping into the session
 ```
 
+Design notes for Phase 4 session behavior:
+
+- OCA sessions are same-host tmux sessions. Re-entry from another device means reconnecting to the same host, not syncing sessions across machines.
+- Existing host access controls (local shell, SSH, Tailscale, OS account permissions) are the access boundary. No separate OCA session-auth config is planned here.
+- Reaper settings must be interpreted with resume safety in mind: a temporarily detached session may still be expected to come back later.
+- Multi-client / mobile-terminal behavior needs an explicit tmux window-size policy so a phone-sized client does not unintentionally degrade a desktop session. If that policy becomes user-tunable later, this section is where the schema should expose it.
+
 ---
 
 ## `[discord]`

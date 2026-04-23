@@ -229,4 +229,15 @@ The following are still design targets, not shipped:
 - `oca session ...`
 - `oca theme ...`
 
+### Planned `oca session` behavior (Phase 4 target)
+
+- tmux-backed session lifecycle stays **same-host only**. OCA does not design multi-host session sync.
+- `oca session new` creates a detached session on the dedicated OCA tmux socket, then applies normal OCA boot/theme behavior.
+- `oca session list` enumerates OCA-managed sessions on that socket only.
+- `oca session attach` is the outside-tmux re-entry path: reconnect from any terminal that can reach the same host, including occasional SSH/Tailscale/phone-terminal usage.
+- `oca session switch` is the inside-tmux retarget flow and should stay distinct from `attach`.
+- `oca session restart` and `killall` must operate only on OCA-managed sessions and preserve clear recovery semantics when failures occur.
+- Session re-entry relies on existing host access controls (local shell, SSH, Tailscale, OS account), not OCA-managed auth or transport.
+- Reaper behavior must assume temporary disconnect/resume is normal and must not delete sessions a user would reasonably expect to resume.
+
 Implementation sequencing for those commands lives in [`../proposals/phases.md`](../proposals/phases.md).
