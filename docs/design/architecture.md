@@ -233,9 +233,11 @@ Pluggable health checks with a `ResetForTesting()` contract so within-package te
 
 The following remain planned, not shipped:
 
-- agent/session/theme/toggle/formatter/command/skill rendering
+- agent/session/theme rendering
 - session/theme UX
 - migration from open-chad
-- broader `oca doctor` scopes (temporal reserved for Phase 6.5)
+- Temporal infrastructure management (Phase 6.5 — Advance now ships Temporal as its primary state backend; OCA needs to manage the CLI, dev server, and env vars)
+
+Advance's Temporal dependency is **current**, not future. Advance runs two durable workflows (`changeWorkflow`, `projectWorkflow`) via Temporal with file-backed fallback. OCA's Phase 6.5 will manage the Temporal infra (CLI detection, dev-server supervision, env-file rendering, health checks) that Advance needs to function.
 
 See [`../proposals/phases.md`](../proposals/phases.md) for sequencing.

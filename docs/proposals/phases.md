@@ -336,11 +336,11 @@ Phase 3.5 completed the remaining declarative config surfaces for OCA-owned skil
 
 ---
 
-## Phase 6.5: Temporal Enablement (opt-in)
+## Phase 6.5: Temporal Enablement
 
-**Status:** Reserved. Lights up the Temporal inheritance hooks pre-allocated in Phase 2. Optional — a user who does not enable `[temporal].enabled = true` in `stack.toml` experiences no behavior change.
+**Status:** Advance has shipped Temporal as its primary state backend. This phase wires OCA to manage the Temporal infrastructure that Advance now depends on. The `[temporal]` section in `stack.toml` is already parsed (Phase 2 pre-allocated the hooks); this phase makes it operational.
 
-**Goal:** Turn the Temporal-backed storage layer that Advance ships (optional, opt-in) into a first-class OCA-managed feature: install / detect the Temporal CLI, supervise a local dev server when requested, propagate `ADV_TEMPORAL_*` env vars, wire `temporalBundle` into the Advance plugin load, and verify the whole chain via `oca doctor --scope temporal`.
+**Goal:** Wire OCA to manage the Temporal infrastructure that Advance now requires as its primary state backend. Advance runs two durable workflows (`changeWorkflow`, `projectWorkflow`) backed by Temporal, with file-based fallback when Temporal is unavailable. OCA's job: install/detect the Temporal CLI, supervise a local dev server when requested, propagate `ADV_TEMPORAL_*` env vars, wire the Temporal client bundle into the Advance plugin load, and verify the whole chain via `oca doctor --scope temporal`.
 
 **Estimate:** 3-5 days
 
@@ -349,7 +349,7 @@ Phase 3.5 completed the remaining declarative config surfaces for OCA-owned skil
 - `internal/temporal/` — CLI detection, optional install flow, dev-server supervision, client-bundle resolution
 - `internal/render/temporal.go` — renders `[temporal]` config into a form the Advance plugin can consume (e.g., env file, plugin-boot config fragment)
 - `internal/health/temporal.go` — reachability, namespace existence, worker heartbeat (registered via the Phase 2 health-check registry)
-- `cmd/oca/temporal.go` — `oca temporal {status,start,stop,restart,logs}` for the optional supervised dev server
+- `cmd/oca/temporal.go` — `oca temporal {status,start,stop,restart,logs}` for the supervised dev server
 - `cmd/oca/apply.go` — wire the reserved `--target temporal` surface (Phase 2 reserved; this phase implements)
 - `cmd/oca/doctor.go` — wire the reserved `--scope temporal` surface (Phase 2 reserved; this phase implements)
 - Env-file rendering: OCA writes `$OCA_CACHE_DIR/temporal.env` with `ADV_TEMPORAL_*` values; Advance plugin subprocess inherits them via the Phase 2 subprocess runner's explicit `env` parameter
@@ -385,8 +385,16 @@ Phase 3.5 completed the remaining declarative config surfaces for OCA-owned skil
 **Explicitly out of scope (defer or decline):**
 
 - Managing a production Temporal cluster (this phase is local-dev / single-user)
-- Worker-process supervision beyond reading its heartbeat (the worker runs inside the Advance plugin; OCA does not spawn it)
+- Worker-process supervision beyond reading its heartbeat (the worker runs inside the Advance plugin process; OCA does not spawn it)
 - Temporal Cloud integration (only generic `address` + `allow_remote` are supported)
+
+**Advance Temporal architecture (already shipped, for reference):**
+
+Advance's Temporal integration uses two long-lived workflows:
+- `changeWorkflow` — per-change state machine (tasks, gates, wisdom, artifacts, re-entry)
+- `projectWorkflow` — per-project singleton (agenda, project-level wisdom, migration ledger)
+
+Operations use Temporal queries (read) and updates (mutate) with deterministic handlers. Worker runs in-process on Node hosts, or as an out-of-process Node child on Bun hosts (via `ADV_NODE_PATH`). Continue-as-new prevents unbounded history at configurable thresholds. Env vars: `ADV_TEMPORAL_ADDRESS`, `ADV_TEMPORAL_NAMESPACE`, `ADV_TEMPORAL_ALLOW_REMOTE`, `ADV_NODE_PATH`, `ADV_DISABLE_TEMPORAL`.
 
 ---
 
@@ -467,7 +475,7 @@ Every phase is developed as one or more ADV changes following the 7-gate workflo
 - Phase 4 blocks on Phase 3.5 (session/theme work requires full config coverage to be testable end-to-end)
 - Phase 5 blocks on Phase 4 (install uses the session lifecycle + theme)
 - Phase 6 blocks on Phase 5 (migration produces a stack.toml, which needs full coverage to be useful)
-- **Phase 6.5 blocks on Phase 2** (needs the Temporal inheritance hooks, generic subprocess runner, and health-check registry). Does NOT block Phase 3–7. Can be slotted in any time after Phase 2 lands, in any order relative to Phases 3–7, based on when the user wants Temporal live. Recommended placement: after Phase 6 (the user is on the new stack) and before Phase 7 (release) so v1.0 ships with Temporal-ready tooling even when the feature itself stays opt-in.
+- **Phase 6.5 blocks on Phase 2** (needs the Temporal inheritance hooks, generic subprocess runner, and health-check registry). Does NOT block Phase 3–7. Can be slotted in any time after Phase 2 lands, in any order relative to Phases 3–7, based on when the user wants Temporal managed by OCA. **Note:** Advance has already shipped Temporal as its primary state backend; this phase is about OCA managing the infra, not Advance adopting Temporal. Recommended placement: after Phase 6 (the user is on the new stack) and before Phase 7 (release) so v1.0 ships with Temporal-ready tooling.
 - Phase 7 blocks on Phase 6 (release is the last step). If Phase 6.5 is deferred past v1.0, Phase 7 releases without Temporal management; Phase 6.5 ships as v1.1.
 
 ### Out-of-phase work
@@ -488,10 +496,10 @@ Minor fixes, typos, doc updates, and CI tweaks can be committed outside of ADV c
 | 4: Primary client UX + theme                 | 1-1.5 weeks | 5-7 weeks     |
 | 5: Installer + shell                         | 4-5 days    | 5.5-7.5 weeks |
 | 6: Migration + doctor                        | 4-5 days    | 6-8 weeks     |
-| 6.5: Temporal enablement (opt-in, optional)  | 3-5 days    | 6.5-8.5 weeks |
+| 6.5: Temporal enablement                      | 3-5 days    | 6.5-8.5 weeks |
 | 7: Extras + polish                           | 3-5 days    | 7-9 weeks     |
 
-**Total: 7-9 weeks of focused work if Phase 6.5 is included in v1.0; 6-8 weeks if deferred to v1.1.** Longer if interleaved with other work.
+**Total: 7-9 weeks of focused work; Phase 6.5 should be included in v1.0 since Advance now depends on Temporal.** Longer if interleaved with other work.
 
 The estimate intentionally allows for:
 

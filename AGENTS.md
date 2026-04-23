@@ -158,8 +158,9 @@ At v1.0 release time, the user runs `oca migrate from-open-chad` which performs 
 | `~/.config/opencode/agents/mechanic.md`       | **oca**           | Environment-level agent                            |
 | `~/.config/opencode/agents/adv.md`            | **Advance**       | ADV orchestrator agent (via sync-global.sh)        |
 | `~/.config/opencode/agents/plan.md`           | **Advance + overlay** | ADV agent with overlay block; absorbed former `scout` role |
-| `~/.config/opencode/agents/adv-researcher.md` | **Advance**       | ADV agent (repo-scoped)                            |
-| `~/.config/opencode/agents/tron.md`           | **Advance**       | ADV agent (repo-scoped)                            |
+| `~/.config/opencode/agents/adv-researcher.md` | **Advance**       | ADV research + validation agent (bundled global)   |
+| `~/.config/opencode/agents/adv-engineer.md`   | **Advance**       | ADV delegated code-writing executor (bundled global)|
+| `~/.config/opencode/agents/tron.md`           | **Advance**       | ADV agent (repo-local, `.opencode/agents/`)        |
 | `~/.config/opencode/command/adv-*.md`         | **Advance**       | ADV slash commands                                 |
 | `~/.config/opencode/command/oca-*.md`         | **oca**           | OpenCode Advance slash commands (if any)          |
 | `~/.config/opencode/skills/adv-*/`            | **Advance**       | ADV methodology skills                             |
@@ -190,6 +191,18 @@ At v1.0 release time, the user runs `oca migrate from-open-chad` which performs 
 Any file not in the "oca" or "Advance" column is user-owned and MUST NOT be touched by `oca apply`.
 
 Recent Advance changes consolidated shared agents: `scout -> plan` and `refine -> build`. OCA docs should not describe `scout.md` or `refine.md` as current shipped Advance assets.
+
+### Advance Temporal migration
+
+Advance now uses **Temporal as its primary state backend**. Key implications for OCA:
+
+- State storage moved from JSON files + SQLite to Temporal durable workflows (`changeWorkflow`, `projectWorkflow`)
+- File-backed store is now the **fallback** path (used when Temporal is unavailable or `ADV_DISABLE_TEMPORAL=1`)
+- OCA's Phase 6.5 will manage the Temporal infrastructure (CLI, dev server, env vars) that Advance depends on
+- New `adv-engineer` agent (bundled global) for delegated code-writing execution
+- `adv-researcher` promoted from repo-scoped to bundled global
+- Worker model: in-process (Node hosts) or out-of-process child (Bun hosts via `ADV_NODE_PATH`)
+- Continue-as-new prevents unbounded workflow history (configurable thresholds)
 
 ---
 
