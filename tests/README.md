@@ -17,10 +17,11 @@ Go unit tests live next to their source code (e.g., `internal/config/types_test.
 
 | File                        | Scope                                              |
 | --------------------------- | -------------------------------------------------- |
-| `shell/install_test.sh`       | `oca install` against a chroot'd fresh Ubuntu       |
-| `shell/session_test.sh`       | tmux session lifecycle                             |
-| `shell/boot_splash_test.sh`   | Boot splash rendering on different terminal types  |
-| `shell/status_bar_test.sh`    | Status bar renderer output                         |
+| `shell/brand_helpers_test.sh` | Palette, wordmark rendering across terminal types  |
+| `shell/verification_workflow_test.sh` | CI verification workflow                      |
+| `shell/session_test.sh`       | tmux session lifecycle (planned, Phase 4 foundation) |
+| `shell/boot_splash_test.sh`   | Boot splash rendering on different terminal types (planned, Phase 4 richness) |
+| `shell/status_bar_test.sh`    | Status bar renderer output (planned, Phase 4 richness) |
 
 ## Test isolation policy
 
@@ -30,4 +31,4 @@ Use `t.TempDir()` in Go tests, `mktemp -d` in bash tests, and honor the `OCA_*_D
 
 ## Status
 
-Empty — populated progressively in each phase. Phase 1 adds the first integration tests for `oca apply --target mcp`.
+Populated starting in Phase 0 (shell brand helper tests) and Phase 1 (Go integration tests). Phase 4 foundation adds session integration tests (Go, in `internal/session/session_test.go` and `cmd/oca/` tests). Shell-level session/boot-splash tests are planned for Phase 4 richness.

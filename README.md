@@ -197,14 +197,18 @@ The intent is that all development and testing happen in a disposable sandbox un
 ## Repository layout
 
 ```text
-cmd/oca/                 Go CLI entry point
+cmd/oca/                 Go CLI entry point (apply, doctor, diff, pin, update, session, debug)
 internal/config/         stack.toml parser + validation
-internal/render/         programmatic MCP rendering + merge logic
-internal/health/         MCP doctor checks
+internal/render/         programmatic rendering + merge logic
+internal/health/         MCP / plugin / skills health checks
+internal/subprocess/     generic command runner with timeout/signal/exit classification
+internal/plugin/         git clone/pull, build, pin, npm handler
+internal/sync/           Advance sync-global.sh invocation
+internal/session/        tmux session lifecycle (create/list/next-name)
 internal/migrate/        open-chad import path
 assets/                  agent / instruction / skill / theme assets
-templates/               reserved for later phases (Phase 1 render is programmatic)
-lib/                     shell/client UX helpers (palette, wordmark, tmux, splash)
+templates/               Go templates (tmux managed-block wrapper)
+lib/                     shell/client UX helpers (palette, wordmark, boot splash, session lifecycle)
 tests/                   integration and shell-level tests
 docs/design/             architecture, schema, brand, CLI, theme
 docs/proposals/          v1 proposal, phase plan, first-boot guide

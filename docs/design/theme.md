@@ -38,6 +38,7 @@ Canonical implementation lives at `assets/themes/obsidian.json` in this repo. Th
 | primary | Indigo | `#6C7AB8` |
 | secondary | Indigo Bright | `#8B9FE0` |
 | accent | Indigo Glow | `#B4C4F5` |
+| info | Indigo Bright | `#8B9FE0` |
 | error | Error Red | `#D47A7A` |
 | warning | Warning Gold | `#D4A843` |
 | success | Success Green | `#7A9B7A` |
@@ -50,7 +51,22 @@ Canonical implementation lives at `assets/themes/obsidian.json` in this repo. Th
 
 A clean two-row status bar, inspired in spirit by the open-chad layout but without synthwave edges, color-cycling, or per-session palette randomization.
 
-### Row layout
+### Row layout (foundation)
+
+The current foundation implementation uses static placeholders — no `#()` shell calls, no metrics, no ADV state reading. Richness additions (metrics, gauges, worktree markers) are tracked as Phase 4 follow-up.
+
+```
+Row 0 (top):
+  left       session name (Indigo+, bold)
+  center     Graphite separator (│)
+  right      host short (Muted Ivory) + clock HH:MM (Muted Ivory)
+
+Row 1 (bottom):
+  left       window list: index:name per window (Muted Ivory; active = Indigo bold)
+  right      date YYYY-MM-DD (Muted Ivory)
+```
+
+Planned richness (Phase 4 follow-up, not yet shipped):
 
 ```
 Row 0 (top):
@@ -64,13 +80,27 @@ Row 1 (bottom):
 
 ### Colors
 
+Foundation (shipped):
+
 | Element                      | Color       | Notes                                                  |
 | ---------------------------- | ----------- | ------------------------------------------------------ |
 | Status bar background        | Slate       | Both rows                                              |
 | Status bar foreground        | Ivory       | Default text                                           |
+| Session name (row 0 left)    | Indigo+     | Bold, `#{session_name}`                                |
+| Host (row 0 right)           | Muted Ivory | `#{host_short}`                                        |
+| Clock (row 0 right)          | Muted Ivory | `HH:MM`                                                |
 | Inactive window name         | Muted Ivory | Dimmed                                                 |
 | Active window name           | Indigo      | Bold, no background change                             |
-| Session title                | Ivory       | Left of row 0                                          |
+| Date (row 1 right)           | Muted Ivory | `YYYY-MM-DD`                                           |
+| Pane border (inactive)       | Graphite    |                                                        |
+| Pane border (active)         | Indigo      | Subtle focus indicator                                 |
+| Message text (tmux messages) | Ivory       |                                                        |
+| Message background           | Slate       |                                                        |
+
+Planned richness (Phase 4 follow-up):
+
+| Element                      | Color       | Notes                                                  |
+| ---------------------------- | ----------- | ------------------------------------------------------ |
 | ADV change indicator         | Indigo      | When an ADV change is active; uses gate progress glyph |
 | Repo / branch                | Muted Ivory | Right of row 0                                         |
 | Worktree marker              | Indigo+     | Only when current pane is in a worktree                |

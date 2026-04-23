@@ -69,10 +69,10 @@ opencodeadvance/
 │   ├── cds                             # Scratch dir launcher
 │   └── ocashell.sh                     # Completion bootstrap
 │
-├── lib/                                # Shell-only helpers (tmux theming, status bar)
-│   ├── obsidian.tmux.conf              # Live theme file (also present in assets/)
-│   ├── status_bar.sh                   # Status bar renderer
-│   ├── boot_splash.sh                  # Boot splash with wordmark reveal
+├── lib/                                # Shell-only helpers (tmux theming, boot splash)
+│   ├── palette.sh                      # Truecolor/256/mono palette + NO_COLOR handling
+│   ├── wordmark.sh                     # Compact 3-line wordmark renderer
+│   ├── boot_splash.sh                  # Boot splash with wordmark reveal + version line
 │   ├── session_lifecycle.sh            # tmux session creation/list primitives
 │   └── discord/                        # Discord Rich Presence integration
 │

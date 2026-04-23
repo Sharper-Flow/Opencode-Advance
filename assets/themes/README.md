@@ -2,13 +2,16 @@
 
 Theme assets for OpenCode Advance.
 
-## Inventory (target state at v1.0)
+## Inventory
 
 | File                          | Purpose                                      |
 | ----------------------------- | -------------------------------------------- |
 | `obsidian.json`                 | OpenCode UI theme (chat, input, syntax)     |
 | `obsidian.tmux.conf`            | Tmux status bar + window theme              |
-| `obsidian-light.tmux.conf`      | (Future) Light variant                      |
+
+Planned additions:
+
+| `obsidian-light.tmux.conf`      | Light variant (future)                      |
 
 ## Obsidian theme spec
 
@@ -21,4 +24,4 @@ See [`../../docs/design/theme.md`](../../docs/design/theme.md) for the full Obsi
 
 ## Status
 
-Empty — populated in Phase 4 (session + theme phase). Before then, the theme exists as specification only.
+Populated in Phase 4 foundation. `obsidian.json` and `obsidian.tmux.conf` shipped. Light variant deferred.

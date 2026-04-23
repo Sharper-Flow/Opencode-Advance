@@ -2,19 +2,19 @@
 
 This directory holds bash scripts that handle integration with tmux, the shell, and the terminal — work that is genuinely cleaner in bash than in Go.
 
-## Inventory (target state at v1.0)
+## Inventory
 
 | File                       | Purpose                                                        | Phase |
 | -------------------------- | -------------------------------------------------------------- | ----- |
 | `palette.sh`                 | Color constants (OCA_COLOR_OBSIDIAN, etc.) as env vars       | 0     |
 | `wordmark.sh`                | Wordmark rendering functions (full / compact / short)        | 0     |
-| `boot_splash.sh`             | Boot splash animation (wordmark reveal with indigo pulse)    | 0 / 4 |
-| `status_bar.sh`              | Tmux status bar renderer (replaces status_left/right)        | 4     |
-| `session_lifecycle.sh`       | tmux session creation / teardown / reaper hooks             | 4     |
-| `obsidian.tmux.conf`         | Live tmux theme file (referenced by templates)               | 4     |
-| `discord/setup.sh`           | Discord Rich Presence wizard (enable/disable/status)         | 7     |
-| `discord/update.sh`          | Rate-limited Discord presence updater                        | 7     |
-| `discord/taglines.toml`      | Data-driven tagline pool (new, non-"chad" era)             | 7     |
+| `boot_splash.sh`             | Boot splash with wordmark reveal + version line              | 0 / 4 |
+| `session_lifecycle.sh`       | tmux session creation / list primitives (shell counterpart to `internal/session/`) | 4     |
+| `status_bar.sh`              | Tmux status bar renderer (planned, Phase 4 richness)        | 4     |
+| `obsidian.tmux.conf`         | *(moved to `assets/themes/` — referenced by `resolveTmuxConf()` at runtime)* | 4     |
+| `discord/setup.sh`           | Discord Rich Presence wizard (enable/disable/status)         | 8     |
+| `discord/update.sh`          | Rate-limited Discord presence updater                        | 8     |
+| `discord/taglines.toml`      | Data-driven tagline pool (new, non-"chad" era)             | 8     |
 
 ## Why bash here?
 
@@ -29,4 +29,4 @@ The Go CLI (`cmd/oca/`) handles everything else — parsing, validation, renderi
 
 ## Status
 
-Empty — populated in Phases 0 and 4.
+Populated through Phases 0 and 4 foundation. Current files: `palette.sh`, `wordmark.sh`, `boot_splash.sh`, `session_lifecycle.sh`. Phase 4 richness will add `status_bar.sh`. Discord scripts are Phase 8.
