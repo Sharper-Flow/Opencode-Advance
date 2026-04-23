@@ -163,7 +163,7 @@ When `provides` includes a category, `oca apply` will NOT render or copy assets 
 | Category           | What OCA skips                                     |
 | ------------------ | -------------------------------------------------- |
 | `adv-commands`       | `assets/command/adv-*.md`                            |
-| `adv-agents`         | `assets/agents/{plan,scout,refine,adv-*,tron}.md`    |
+| `adv-agents`         | `assets/agents/{plan,adv-*,tron}.md`                  |
 | `adv-skills`         | `assets/skills/adv-*/`                               |
 | `adv-overlays`       | Overlay blocks in shared agent files                |
 | `adv-instructions`   | `ADV_INSTRUCTIONS.md` in the instructions list       |

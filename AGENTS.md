@@ -93,10 +93,11 @@ opencodeadvance/
 │   │   └── first-boot.md               # How to initialize ADV in this repo
 │   └── specs/                          # Generated spec docs (populated by ADV)
 │
-├── .adv/                               # ADV state directories (plugin-managed)
-│   ├── specs/                          # Capability specs (written by ADV)
-│   ├── changes/                        # Active change proposals (written by ADV)
-│   └── archive/                        # Completed changes (written by ADV)
+├── .adv/                               # ADV in-repo state (specs only)
+│   └── specs/                          # Capability specs (written by ADV, git-tracked)
+│                                       # Mutable state (changes, archive, wisdom, agenda) lives in
+│                                       # $XDG_DATA_HOME/opencode/plugins/advance/{project-id}/
+│                                       # managed by Temporal workflows with file-backed fallback
 │
 └── .github/
     └── workflows/                      # CI (populated in Phase 1)
@@ -157,7 +158,7 @@ At v1.0 release time, the user runs `oca migrate from-open-chad` which performs 
 | `~/.config/opencode/agents/general.md`        | **oca + overlay** | Base: oca. Advance injects ADV overlay block       |
 | `~/.config/opencode/agents/mechanic.md`       | **oca**           | Environment-level agent                            |
 | `~/.config/opencode/agents/adv.md`            | **Advance**       | ADV orchestrator agent (via sync-global.sh)        |
-| `~/.config/opencode/agents/plan.md`           | **Advance + overlay** | ADV agent with overlay block; absorbed former `scout` role |
+| `~/.config/opencode/agents/plan.md`           | **Advance + overlay** | ADV agent with overlay block                       |
 | `~/.config/opencode/agents/adv-researcher.md` | **Advance**       | ADV research + validation agent (bundled global)   |
 | `~/.config/opencode/agents/adv-engineer.md`   | **Advance**       | ADV delegated code-writing executor (bundled global)|
 | `~/.config/opencode/agents/tron.md`           | **Advance**       | ADV agent (repo-local, `.opencode/agents/`)        |
