@@ -96,6 +96,13 @@ Row 1 (bottom):
 
 Use thin Graphite vertical bars as dividers where sections meet: `│`. No angular "powerline" arrows. No colored fills.
 
+### Cross-device / mobile re-entry expectations
+
+- The same tmux theme must remain usable when a user re-enters from another terminal or device on the same host.
+- Smaller clients (for example a phone terminal) must not permanently degrade a desktop layout, so the tmux config should set an explicit window-size policy. Default decision for Obsidian: `window-size latest`.
+- Visual richness may degrade on limited terminals, but attach/reconnect must stay functional without a separate mobile-only session mode.
+- Remote/mobile support in Phase 4 means occasional SSH/Tailscale re-entry, not a separate transport layer or multi-host sync system.
+
 ## CLI output styling
 
 When `oca` commands produce output, follow these conventions:
