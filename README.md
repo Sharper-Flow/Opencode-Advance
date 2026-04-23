@@ -10,7 +10,7 @@
 
 **A declarative, reproducible OpenCode environment and workflow platform.**
 
-_Status: Phases 1, 2, 3, and 3.5 are implemented on `trunk`. Current next milestone: Phase 4. First stable release remains v1.0._
+_Status: Phases 1, 2, 3, and 3.5 are implemented on `trunk`. Phase 4 foundation (session/theme assets, `oca session new/list`) is in progress. First stable release remains v1.0._
 
 </div>
 
@@ -129,7 +129,7 @@ This repository has **Phase 1 + Phase 2 + Phase 3 + Phase 3.5 implementations** 
 - installer / migration / client-session lifecycle logic
 - release packaging / distribution workflow
 - `oca install`, `oca migrate`, and interactive `oca add` / `oca remove` flows
-- Phase 4 tmux/session/theme UX work
+- Phase 4 richness: status bar metrics, LLM fuel gauges, session attach/switch/killall/restart, `oca theme` commands, boot splash animation
 
 ### Resume here
 
@@ -217,7 +217,7 @@ Current intended target environment:
 
 - Linux (Ubuntu / Debian primary target; others best-effort)
 - `git`
-- `tmux` 3.2+ (current planned primary session runtime)
+- `tmux` 3.4+ (current planned primary session runtime; uses `status 2`, `status-format[0]`, `pane-border-lines`)
 - OpenCode CLI
 - internet access for initial plugin and MCP setup
 - `vision` daemon available on `PATH`
@@ -266,7 +266,7 @@ Then:
 
 1. `/adv-status` — check for any active changes to complete first
 2. Use `phase0FoundationBrand` as the shipped Phase 0 reference point
-3. Start the next phase change from `docs/proposals/phases.md` (currently Phase 4)
+3. Start the next phase change from `docs/proposals/phases.md` (currently Phase 4 richness — foundation in progress)
 4. Use `NEXT_STEPS.md` for the exact resume sequence and current state
 
 ## Contributing

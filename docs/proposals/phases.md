@@ -224,6 +224,8 @@ Phase 3.5 completed the remaining declarative config surfaces for OCA-owned skil
 
 ## Phase 4: Primary Client UX + Theme
 
+**Foundation status:** Change `phase4FoundationSessionTheme` is in progress on `trunk` (8/11 tasks done). Delivered so far: Obsidian theme assets (JSON + tmux conf), `internal/session` package, `oca session new/list` CLI commands, `lib/session_lifecycle.sh`, `lib/boot_splash.sh` extension, managed-block tmux template. Remaining: integration tests, docs update, spec creation. The items below describe the full Phase 4 scope; foundation ships a subset.
+
 **Goal:** current tmux-first client/session lifecycle, Obsidian theme, redesigned status bar, and new boot splash with animation. Builds on full config coverage from Phases 3 and 3.5. Same-host re-entry from other terminals/devices is supported, but remains secondary to normal local usage.
 
 **Estimate:** 1-1.5 weeks

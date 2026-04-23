@@ -13,7 +13,7 @@ This file is the fastest way to resume work in `~/dev/opencodeadvance` later.
 - Phase 3 providers/permissions/watcher/LSP rendering, composed apply, and `oca diff` are archived and merged
 - Phase 3.5 skills/commands/formatters/OpenCode toggles rendering and `oca doctor --scope skills` are archived and merged
 - CI and local verification cover Go tests, vet, builds, and race runs for shipped phases
-- **Current ADV focus:** start Phase 4
+- **Current ADV focus:** Phase 4 foundation in progress (`phase4FoundationSessionTheme` — 8/11 tasks done)
 
 ## Resume from here
 
@@ -29,21 +29,20 @@ Then:
 1. Run `/adv-status`
 2. Confirm there are no new active changes to finish first
 3. Start the next implementation change from the roadmap in `docs/proposals/phases.md`
-4. Begin with Phase 4 discovery/design/planning, not an older archived phase
+4. Complete the active Phase 4 foundation change if not yet archived
 
 ## Recommended workflow
 
 - Treat `phase0FoundationBrand` as the shipped reference baseline for later phases
 - Treat `phase1StackTomlParserMcpApply`, `phase2PluginInstruction`, and `phase3CoreOpencodeJsonCoverage` as archived shipped references
-- Start the next implementation change for **Phase 4: primary client UX + theme**
+- Start the next implementation change for **Phase 4 richness** (after foundation is archived)
 - Keep implementation in separate per-phase changes following `docs/proposals/phases.md`
 - Archive each phase before starting the next one
 
 ## Immediate implementation target (Phase 4)
 
-- implement primary client/session lifecycle commands
-- ship Obsidian theme + tmux theme assets
-- build status bar + boot splash + session lifecycle helpers
+- **Foundation (in progress):** complete integration tests, docs update, and spec for `phase4FoundationSessionTheme`
+- **Richness (next):** status bar metrics, LLM fuel gauges, session attach/switch/killall/restart, boot splash animation, `oca theme` commands
 - keep shipped config rendering behavior stable while layering UX/runtime work on top
 - keep all writes isolated from live user config
 

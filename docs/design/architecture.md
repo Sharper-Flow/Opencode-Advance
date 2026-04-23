@@ -2,7 +2,7 @@
 
 This document is the canonical high-level architecture reference for the code that is **actually implemented today**.
 
-Current implemented scope on this branch is **Phase 1, Phase 2, Phase 3, and Phase 3.5 rendering**:
+Current implemented scope on this branch is **Phase 1, Phase 2, Phase 3, Phase 3.5 rendering, and Phase 4 foundation (session/theme assets)**:
 
 - `stack.toml` parsing for `[meta]`, `[mcp]`, `[plugins]`, `[instructions]`, `[providers]`, `[permissions]`, `[watcher]`, `[lsp]`, `[skills]`, `[commands]`, `[formatters]`, `[opencode]`, plus deferred future sections
 - `oca apply --target mcp|plugins|instructions|providers|permissions|watcher|lsp|skills|commands|formatters|toggles`
@@ -11,7 +11,9 @@ Current implemented scope on this branch is **Phase 1, Phase 2, Phase 3, and Pha
 - `oca doctor --scope mcp`, `oca doctor --scope plugins`, and `oca doctor --scope skills`
 - `oca debug plan` and `oca debug validate`
 - `oca pin` and `oca update`
+- `oca session new [--name <name>] [--no-splash]` and `oca session list` (Phase 4 foundation)
 - plugin lifecycle: git clone/pull, build, pin, sync-global.sh delegation
+- Obsidian theme assets (JSON + tmux conf) and managed-block tmux template
 
 Future phases are tracked in [`../proposals/phases.md`](../proposals/phases.md).
 
@@ -27,7 +29,7 @@ stack.toml
         └─► skills/ (OCA-owned skill directories copied from assets/skills/)
 ```
 
-OCA now renders skills, commands, formatters, and OpenCode toggles (Phase 3.5). OCA still does **not** render agents, session, discord, or theme/session configuration. Those sections remain deferred for later phases.
+OCA now renders skills, commands, formatters, and OpenCode toggles (Phase 3.5). Phase 4 foundation adds session lifecycle (`internal/session/`, `cmd/oca/session.go`) and theme assets (`assets/themes/`, `templates/tmux.conf.block.gotmpl`). OCA still does **not** render agents, discord, or apply theme/session config through `oca apply`. Those sections remain deferred for later phases.
 
 ## Subsystems
 
@@ -130,7 +132,20 @@ Current defaults:
 - per-request timeout: caller-controlled, defaulted by CLI
 - execution model: sequential, not worker-pooled
 
-### 4. CLI (`cmd/oca/`)
+### 4. Session (`internal/session/`)
+
+Phase 4 foundation. Manages OCA tmux sessions on a dedicated socket.
+
+- `Manager` struct with socket + tmux binary path
+- `NewManager(socket)` validates tmux binary on PATH
+- `Create(ctx, name, workingDir, tmuxConfPath)` runs `tmux -L <socket> [-f <conf>] new-session -d -s <name> -c <dir>` via `subprocess.Run`
+- `List(ctx)` parses `tmux -L <socket> list-sessions -F '#{session_name}\t#{session_attached}'`, filters by `oca-` prefix
+- `NextSessionName(ctx, repoSlug)` scans existing sessions, finds next sequential `oca-<slug>-<n>`
+- Pre-validates working dir exists before tmux call
+- All external commands through `internal/subprocess`
+- `OCA_TMUX_SOCKET` env override (default: `"oca"`)
+
+### 5. CLI (`cmd/oca/`)
 
 Current shipped commands:
 
@@ -140,6 +155,9 @@ Current shipped commands:
 - `oca doctor --scope mcp|plugins|skills`
 - `oca debug plan`
 - `oca debug validate`
+- `oca pin` and `oca update`
+- `oca session new [--name <name>] [--no-splash]`
+- `oca session list` (aliases: `ls`)
 
 Shared shipped flags:
 
@@ -152,7 +170,8 @@ Not implemented yet:
 
 - `install`, `uninstall`
 - migration commands beyond scaffolding
-- session / theme command groups
+- `oca session attach`, `oca session switch`, `oca session killall`, `oca session restart`
+- `oca theme` command group
 
 ## Data flow: `oca apply --target mcp`
 
@@ -233,8 +252,10 @@ Pluggable health checks with a `ResetForTesting()` contract so within-package te
 
 The following remain planned, not shipped:
 
-- agent/session/theme rendering
-- session/theme UX
+- agent rendering
+- session attach/switch/killall/restart
+- `oca theme` command group
+- status bar richness (metrics, LLM fuel gauges, ADV state)
 - migration from open-chad
 - Temporal infrastructure management (Phase 6.5 — Advance now ships Temporal as its primary state backend; OCA needs to manage the CLI, dev server, and env vars)
 

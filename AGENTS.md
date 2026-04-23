@@ -41,8 +41,12 @@ opencodeadvance/
 │
 ├── internal/                           # Internal Go packages
 │   ├── config/                         # stack.toml parser + schema validation
-│   ├── render/                         # Templates + JSON merge logic
-│   ├── health/                         # MCP/plugin/instruction health checks
+│   ├── render/                         # Programmatic rendering + JSON merge logic
+│   ├── health/                         # MCP/plugin/skills health checks
+│   ├── subprocess/                     # Generic command runner with timeout/signal/exit classification
+│   ├── plugin/                         # Git clone/pull, build, pin, npm handler
+│   ├── sync/                           # Advance sync-global.sh invocation
+│   ├── session/                        # Tmux session lifecycle (create/list/next-name)
 │   └── migrate/                        # open-chad → opencode-advance importer
 │
 ├── assets/                             # Static files, copied as-is to ~/.config/opencode/
@@ -69,7 +73,7 @@ opencodeadvance/
 │   ├── obsidian.tmux.conf              # Live theme file (also present in assets/)
 │   ├── status_bar.sh                   # Status bar renderer
 │   ├── boot_splash.sh                  # Boot splash with wordmark reveal
-│   ├── session_lifecycle.sh            # tmux session teardown hooks
+│   ├── session_lifecycle.sh            # tmux session creation/list primitives
 │   └── discord/                        # Discord Rich Presence integration
 │
 ├── tests/                              # Test suites

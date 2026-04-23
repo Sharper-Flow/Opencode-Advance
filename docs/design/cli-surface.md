@@ -216,6 +216,45 @@ Renders `[opencode]` toggles into `opencode.json` (theme, default_agent, share, 
 
 Checks OCA-owned skill deployment health: declared skills present, reserved namespace enforcement, extra skill detection.
 
+## Shipped in Phase 4 (foundation)
+
+Phase 4 foundation adds the session command group with `new` and `list` subcommands, plus theme/tmux assets.
+
+### `oca session new [--name <name>] [--no-splash]`
+
+Create a new detached OCA tmux session with Obsidian theming.
+
+Flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--name <name>` | explicit session name (default: auto-generated `oca-<slug>-<n>`) |
+| `--no-splash` | skip boot splash on session creation |
+
+Behavior:
+
+- creates a detached tmux session on the dedicated OCA socket (`OCA_TMUX_SOCKET`, default `"oca"`)
+- auto-generates name from repo slug basename + next sequential number if `--name` not provided
+- resolves the Obsidian tmux conf from `assets/themes/obsidian.tmux.conf`
+- triggers `lib/boot_splash.sh` via `tmux send-keys` unless `--no-splash`
+- boot splash version line shows `v<version> · <working_dir>` via `OCA_SPLASH_VERSION` + `OCA_SPLASH_DIR`
+- supports `--output text|json`
+- exit codes: `0` success, `1` session creation failure (tmux error, invalid dir)
+
+### `oca session list`
+
+List all OCA-managed tmux sessions on the current socket.
+
+Aliases: `ls`
+
+Behavior:
+
+- enumerates sessions filtered by `oca-*` prefix on the dedicated socket
+- text output: `<name>\t<attached|detached>` per line
+- JSON output: array of `{name, attached}` objects
+- empty output: `"no OCA sessions"`
+- supports `--output text|json`
+
 ## Planned later-phase commands
 
 The following are still design targets, not shipped:
@@ -226,7 +265,10 @@ The following are still design targets, not shipped:
 - `oca add ...`
 - `oca remove ...`
 - `oca clean`
-- `oca session ...`
+- `oca session attach`
+- `oca session switch`
+- `oca session killall`
+- `oca session restart`
 - `oca theme ...`
 
 ### Planned `oca session` behavior (Phase 4 target)

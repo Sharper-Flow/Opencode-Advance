@@ -2,11 +2,11 @@
 
 ## Summary
 
-OpenCode Advance currently has **completed Phases 0, 1, 2, 3, and 3.5** on `trunk`.
+OpenCode Advance currently has **completed Phases 0, 1, 2, 3, and 3.5** on `trunk`, with **Phase 4 foundation in progress**.
 
-- Implementation status: **Phase 3.5 archived and merged**
-- Repository status: **config rendering now ships for MCP, plugins, instructions, providers, permissions, watcher, LSP, skills, commands, formatters, and OpenCode toggles, plus `oca diff`, composed apply, and `oca doctor --scope skills`**
-- Recommended next action: start **Phase 4** from `docs/proposals/phases.md`
+- Implementation status: **Phase 3.5 archived and merged; Phase 4 foundation (session/theme assets, `oca session new/list`) in progress**
+- Repository status: **config rendering ships for MCP, plugins, instructions, providers, permissions, watcher, LSP, skills, commands, formatters, and OpenCode toggles, plus `oca diff`, composed apply, `oca doctor --scope skills`, and Phase 4 foundation session/theme assets**
+- Recommended next action: **complete Phase 4 foundation** (integration tests + docs), then proceed to Phase 4 richness
 
 ## What is done
 
@@ -43,12 +43,14 @@ OpenCode Advance currently has **completed Phases 0, 1, 2, 3, and 3.5** on `trun
 - `oca diff` shipped
 - composed no-target `oca apply` shipped
 - agents explicitly kept out of shipped Phase 3 scope
+- Phase 4 foundation: Obsidian theme assets (JSON + tmux conf), `internal/session` package, `oca session new/list` CLI, `lib/session_lifecycle.sh`, `lib/boot_splash.sh` version+dir extension, managed-block tmux template — in progress
 
 ## What is not done
 
-- No installer / migration / session lifecycle implementation yet
+- No installer / migration implementation yet
 - No release packaging workflow yet
-- No Phase 4 primary client/session/theme implementation yet
+- Phase 4 richness not done: status bar metrics, LLM fuel gauges, session attach/switch/killall/restart, `oca theme` commands, boot splash animation
+- Phase 4 foundation remaining: integration tests, docs update, spec creation
 
 ## Decision log snapshot
 
@@ -64,4 +66,4 @@ OpenCode Advance currently has **completed Phases 0, 1, 2, 3, and 3.5** on `trun
 
 ## Resume guidance
 
-If you are returning to this repo later, start with `NEXT_STEPS.md`, verify there is no newer active change, and begin the Phase 4 change.
+If you are returning to this repo later, start with `NEXT_STEPS.md`, verify there is no newer active change, and complete or continue the Phase 4 foundation change (`phase4FoundationSessionTheme`).
