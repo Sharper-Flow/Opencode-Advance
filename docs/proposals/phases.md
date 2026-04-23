@@ -510,3 +510,27 @@ The estimate intentionally allows for:
 - Unforeseen complexity (Go template edge cases, Advance API drift, etc.)
 
 If any phase blows its estimate by more than 2x, halt and re-plan. Do not push through.
+
+---
+
+## Post-v1: Temporal Dashboard (research complete, not yet scoped)
+
+A web dashboard for ADV change lifecycle monitoring and control, consuming Temporal's workflow state. Research spike completed 2026-04-23; findings documented in [`../notes/2026-04-23-temporal-dashboard-research.md`](../notes/2026-04-23-temporal-dashboard-research.md).
+
+**Prerequisite:** Phase 6.5 (Temporal Enablement) must ship first.
+
+**Desired capabilities:**
+- Change progress at a glance (gates, tasks, blockers)
+- Multi-change orchestration view
+- Agent activity and cost tracking (retries, time invested, doom-loop state)
+- Temporal operational health (server, worker, namespace)
+- Full control surface (approve gates, retry tasks, cancel changes, manage agenda)
+
+**Key research findings:**
+- Temporal Web has no plugin system — custom domain views require a separate frontend
+- Browser → Temporal Server direct is not possible (no gRPC-Web, no CORS); requires a proxy
+- Viable paths: ui-server sidecar (low effort, bundled with dev server), custom Node proxy, or OCA-embedded Go proxy (best UX, most effort)
+- Advance exposes 5 change queries + 11 updates, 5 project queries + 4 updates — sufficient for a full control surface
+- Search attributes enable filtered workflow listing across all changes
+
+**Phase placement TBD** — depends on Phase 6.5 completion and user demand. Likely v1.1+ scope.
