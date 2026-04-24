@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -282,6 +283,16 @@ func TestParseSessionList(t *testing.T) {
 			input:  "oca-repo-0\t0\noca-repo-1\t1\n",
 			expect: []Session{{Name: "oca-repo-0", Attached: false}, {Name: "oca-repo-1", Attached: true}},
 		},
+		{
+			name:   "with path field",
+			input:  "oca-repo-0\t1\t/tmp/repo\n",
+			expect: []Session{{Name: "oca-repo-0", Attached: true, Path: "/tmp/repo"}},
+		},
+		{
+			name:   "multiple with path",
+			input:  "oca-repo-0\t0\t/home/user/a\noca-repo-1\t1\t/home/user/b\n",
+			expect: []Session{{Name: "oca-repo-0", Attached: false, Path: "/home/user/a"}, {Name: "oca-repo-1", Attached: true, Path: "/home/user/b"}},
+		},
 	}
 
 	for _, tt := range tests {
@@ -297,7 +308,190 @@ func TestParseSessionList(t *testing.T) {
 				if s.Attached != tt.expect[i].Attached {
 					t.Errorf("session[%d].Attached = %v, want %v", i, s.Attached, tt.expect[i].Attached)
 				}
+				if s.Path != tt.expect[i].Path {
+					t.Errorf("session[%d].Path = %q, want %q", i, s.Path, tt.expect[i].Path)
+				}
 			}
 		})
+	}
+}
+
+func TestGetSessionByName(t *testing.T) {
+	testTmuxAvailable(t)
+	cleanupSocket(t, testSocket)
+	defer cleanupSocket(t, testSocket)
+
+	m, err := NewManager(testSocket)
+	if err != nil {
+		t.Fatalf("NewManager() error: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	sessionName := "oca-get-test-0"
+	if err := m.Create(ctx, sessionName, tmpDir, ""); err != nil {
+		t.Fatalf("Create() error: %v", err)
+	}
+
+	// Found
+	s, err := m.GetSessionByName(ctx, sessionName)
+	if err != nil {
+		t.Fatalf("GetSessionByName() error: %v", err)
+	}
+	if s == nil {
+		t.Fatal("GetSessionByName() returned nil")
+	}
+	if s.Name != sessionName {
+		t.Errorf("Name = %q, want %q", s.Name, sessionName)
+	}
+
+	// Not found
+	s, err = m.GetSessionByName(ctx, "nonexistent")
+	if err != nil {
+		t.Fatalf("GetSessionByName(nonexistent) error: %v", err)
+	}
+	if s != nil {
+		t.Errorf("GetSessionByName(nonexistent) = %+v, want nil", s)
+	}
+}
+
+func TestKill(t *testing.T) {
+	testTmuxAvailable(t)
+	cleanupSocket(t, testSocket)
+	defer cleanupSocket(t, testSocket)
+
+	m, err := NewManager(testSocket)
+	if err != nil {
+		t.Fatalf("NewManager() error: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	sessionName := "oca-kill-test-0"
+	if err := m.Create(ctx, sessionName, tmpDir, ""); err != nil {
+		t.Fatalf("Create() error: %v", err)
+	}
+
+	// Verify it exists
+	sessions, err := m.List(ctx)
+	if err != nil {
+		t.Fatalf("List() error: %v", err)
+	}
+	found := false
+	for _, s := range sessions {
+		if s.Name == sessionName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("session not found before kill")
+	}
+
+	// Kill it
+	if err := m.Kill(ctx, sessionName); err != nil {
+		t.Fatalf("Kill() error: %v", err)
+	}
+
+	// Verify it's gone
+	sessions, err = m.List(ctx)
+	if err != nil {
+		t.Fatalf("List() after kill error: %v", err)
+	}
+	for _, s := range sessions {
+		if s.Name == sessionName {
+			t.Fatal("session still exists after kill")
+		}
+	}
+}
+
+func TestKillAll(t *testing.T) {
+	testTmuxAvailable(t)
+	cleanupSocket(t, testSocket)
+	defer cleanupSocket(t, testSocket)
+
+	m, err := NewManager(testSocket)
+	if err != nil {
+		t.Fatalf("NewManager() error: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Create two sessions
+	for i := 0; i < 2; i++ {
+		name := fmt.Sprintf("oca-killall-test-%d", i)
+		if err := m.Create(ctx, name, tmpDir, ""); err != nil {
+			t.Fatalf("Create(%s) error: %v", name, err)
+		}
+	}
+
+	// Verify they exist
+	sessions, err := m.List(ctx)
+	if err != nil {
+		t.Fatalf("List() error: %v", err)
+	}
+	if len(sessions) != 2 {
+		t.Fatalf("expected 2 sessions, got %d", len(sessions))
+	}
+
+	// Kill all
+	count, err := m.KillAll(ctx)
+	if err != nil {
+		t.Fatalf("KillAll() error: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("KillAll() returned %d, want 2", count)
+	}
+
+	// Verify all gone
+	sessions, err = m.List(ctx)
+	if err != nil {
+		t.Fatalf("List() after KillAll error: %v", err)
+	}
+	if len(sessions) != 0 {
+		t.Errorf("expected 0 sessions after KillAll, got %d", len(sessions))
+	}
+}
+
+func TestRestart(t *testing.T) {
+	testTmuxAvailable(t)
+	cleanupSocket(t, testSocket)
+	defer cleanupSocket(t, testSocket)
+
+	m, err := NewManager(testSocket)
+	if err != nil {
+		t.Fatalf("NewManager() error: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	sessionName := "oca-restart-test-0"
+	if err := m.Create(ctx, sessionName, tmpDir, ""); err != nil {
+		t.Fatalf("Create() error: %v", err)
+	}
+
+	// Restart
+	if err := m.Restart(ctx, sessionName, tmpDir, ""); err != nil {
+		t.Fatalf("Restart() error: %v", err)
+	}
+
+	// Verify it still exists
+	s, err := m.GetSessionByName(ctx, sessionName)
+	if err != nil {
+		t.Fatalf("GetSessionByName() after restart error: %v", err)
+	}
+	if s == nil {
+		t.Fatal("session not found after restart")
+	}
+	if s.Name != sessionName {
+		t.Errorf("Name = %q, want %q", s.Name, sessionName)
 	}
 }

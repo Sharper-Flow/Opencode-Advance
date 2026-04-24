@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Sharper-Flow/Opencode-Advance/internal/subprocess"
@@ -30,6 +31,7 @@ var sessionNamePattern = regexp.MustCompile(`^oca-([a-zA-Z0-9_-]+)-(\d+)$`)
 type Session struct {
 	Name     string
 	Attached bool
+	Path     string // NEW: working directory of the session
 }
 
 // Manager manages OCA tmux sessions on a specific socket.
@@ -82,7 +84,7 @@ func (m *Manager) Create(ctx context.Context, name, workingDir, tmuxConfPath str
 // List returns all OCA-managed sessions on the manager's socket.
 // Filters by the "oca-" prefix.
 func (m *Manager) List(ctx context.Context) ([]Session, error) {
-	args := []string{"-L", m.socket, "list-sessions", "-F", "#{session_name}\t#{session_attached}"}
+	args := []string{"-L", m.socket, "list-sessions", "-F", "#{session_name}\t#{session_attached}\t#{session_path}"}
 
 	res, err := subprocess.Run(ctx, subprocess.Cmd{
 		Name:    m.tmuxPath,
@@ -147,8 +149,8 @@ func parseSessionList(output string) []Session {
 		if line == "" {
 			continue
 		}
-		parts := strings.SplitN(line, "\t", 2)
-		if len(parts) != 2 {
+		parts := strings.SplitN(line, "\t", 3)
+		if len(parts) < 2 {
 			continue
 		}
 		name := parts[0]
@@ -156,7 +158,11 @@ func parseSessionList(output string) []Session {
 			continue
 		}
 		attached := parts[1] == "1"
-		sessions = append(sessions, Session{Name: name, Attached: attached})
+		path := ""
+		if len(parts) >= 3 {
+			path = parts[2]
+		}
+		sessions = append(sessions, Session{Name: name, Attached: attached, Path: path})
 	}
 	return sessions
 }
@@ -175,4 +181,109 @@ var execLookPath = defaultLookPath
 
 func defaultLookPath(file string) (string, error) {
 	return exec.LookPath(file)
+}
+
+// Attach attaches to an existing tmux session, replacing the current process.
+// This is a client-side operation that execs tmux directly.
+func (m *Manager) Attach(ctx context.Context, name string) error {
+	args := []string{"-L", m.socket, "attach", "-t", name}
+	// Use syscall.Exec to replace the current process with tmux
+	return syscall.Exec(m.tmuxPath, append([]string{"tmux"}, args...), os.Environ())
+}
+
+// SwitchClient switches the current tmux client to a different session.
+func (m *Manager) SwitchClient(ctx context.Context, name string) error {
+	args := []string{"-L", m.socket, "switch-client", "-t", name}
+	_, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    m.tmuxPath,
+		Args:    args,
+		Timeout: sessionTimeout,
+	})
+	if err != nil {
+		return fmt.Errorf("tmux switch-client failed: %w", err)
+	}
+	return nil
+}
+
+// Kill destroys a tmux session.
+func (m *Manager) Kill(ctx context.Context, name string) error {
+	args := []string{"-L", m.socket, "kill-session", "-t", name}
+	_, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    m.tmuxPath,
+		Args:    args,
+		Timeout: sessionTimeout,
+	})
+	if err != nil {
+		return fmt.Errorf("tmux kill-session failed: %w", err)
+	}
+	return nil
+}
+
+// KillAll destroys all OCA-managed sessions. Returns the count killed.
+func (m *Manager) KillAll(ctx context.Context) (int, error) {
+	sessions, err := m.List(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	killed := 0
+	for _, s := range sessions {
+		if err := m.Kill(ctx, s.Name); err != nil {
+			return killed, fmt.Errorf("kill session %q: %w", s.Name, err)
+		}
+		killed++
+	}
+	return killed, nil
+}
+
+// Restart kills and recreates a session with the same name and working directory.
+func (m *Manager) Restart(ctx context.Context, name, workingDir, tmuxConfPath string) error {
+	// Get current session info before killing
+	var currentPath string
+	if s, err := m.GetSessionByName(ctx, name); err == nil && s != nil {
+		currentPath = s.Path
+	}
+
+	// Use provided working dir, or fall back to current session's path
+	if workingDir == "" && currentPath != "" {
+		workingDir = currentPath
+	}
+
+	// Kill
+	if err := m.Kill(ctx, name); err != nil {
+		return fmt.Errorf("kill session %q: %w", name, err)
+	}
+
+	// Verify dead (poll with 100ms sleep, max 2s timeout)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		s, err := m.GetSessionByName(ctx, name)
+		if err != nil {
+			return fmt.Errorf("verify session dead: %w", err)
+		}
+		if s == nil {
+			break // Session is gone
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	// Create
+	if err := m.Create(ctx, name, workingDir, tmuxConfPath); err != nil {
+		return fmt.Errorf("recreate session %q: %w", name, err)
+	}
+	return nil
+}
+
+// GetSessionByName finds a single session by exact name.
+func (m *Manager) GetSessionByName(ctx context.Context, name string) (*Session, error) {
+	sessions, err := m.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range sessions {
+		if s.Name == name {
+			return &s, nil
+		}
+	}
+	return nil, nil
 }
