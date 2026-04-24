@@ -69,6 +69,58 @@ oca_session_list() {
   done <<< "$output"
 }
 
+# session_attach — attach to an existing tmux session (replaces process).
+# Usage: session_attach <name>
+oca_session_attach() {
+  local name="$1"
+  if [[ -z "$name" ]]; then
+    printf 'usage: session_attach <name>\n' >&2
+    return 2
+  fi
+
+  local socket
+  socket=$(oca_session_socket)
+  exec tmux -L "$socket" attach -t "$name"
+}
+
+# session_kill — kill a specific tmux session.
+# Usage: session_kill <name>
+oca_session_kill() {
+  local name="$1"
+  if [[ -z "$name" ]]; then
+    printf 'usage: session_kill <name>\n' >&2
+    return 2
+  fi
+
+  local socket
+  socket=$(oca_session_socket)
+  tmux -L "$socket" kill-session -t "$name" || {
+    printf 'session_kill: tmux failed (exit %d)\n' "$?" >&2
+    return 1
+  }
+}
+
+# session_killall — kill all OCA-managed tmux sessions.
+oca_session_killall() {
+  local socket
+  socket=$(oca_session_socket)
+
+  local output
+  output=$(tmux -L "$socket" list-sessions -F '#{session_name}' 2>/dev/null) || {
+    # No server or no sessions
+    return 0
+  }
+
+  local count=0
+  while IFS= read -r name; do
+    if [[ "$name" == oca-* ]]; then
+      tmux -L "$socket" kill-session -t "$name" && ((count++))
+    fi
+  done <<< "$output"
+
+  printf 'killed %d session(s)\n' "$count"
+}
+
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   case "${1:-}" in
     new)
@@ -79,8 +131,20 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
       shift
       oca_session_list
       ;;
+    attach)
+      shift
+      oca_session_attach "$@"
+      ;;
+    kill)
+      shift
+      oca_session_kill "$@"
+      ;;
+    killall)
+      shift
+      oca_session_killall
+      ;;
     *)
-      printf 'usage: %s {new|list}\n' "$(basename "$0")" >&2
+      printf 'usage: %s {new|list|attach|kill|killall}\n' "$(basename "$0")" >&2
       exit 2
       ;;
   esac
