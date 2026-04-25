@@ -13,7 +13,8 @@ This document is the source material for the first ADV change in this repository
 - Phase 3 (`phase3CoreOpencodeJsonCoverage`) is complete, archived, and merged to `trunk`
 - Phase 3.5 (`addPhase35ConfigCoverageSkills`) is complete, archived, and merged to `trunk`
 - Phase 4 (`phase4FoundationSessionTheme` + `completePhase4SessionLifecycle`) is complete, archived, and merged to `trunk`
-- Current recommended next phase: **Phase 5: Temporal enablement**
+- Phase 5 (`phase5TemporalEnablement`) is complete, archived, and merged to `trunk`
+- Current recommended next phase: **Phase 6: Installer + Shell Profile**
 - This document remains the umbrella roadmap for the full v1.0 effort
 
 ---
@@ -234,9 +235,10 @@ See [`phases.md`](phases.md) for the full phase sequencing. Rough shape:
 4. **Phase 3: Core opencode.json coverage** — providers, permissions, LSP, watcher, diff command
 5. **Phase 3.5: Skills + commands + formatters + toggles** — OCA-owned skills, custom commands, formatter config, OpenCode-level toggles
 6. **Phase 4: Primary client UX + theme** — current tmux-first lifecycle, obsidian theme, new status bar, boot splash
-7. **Phase 5: Installer + shell** — `oca install`, shell profile wiring, completions
-8. **Phase 6: Migration + doctor** — `oca migrate from-open-chad`, expanded doctor, ADV state integration
-9. **Phase 7: Extras + polish** — Discord (new taglines), release pipeline, final README
+7. **Phase 5: Temporal enablement** — `[temporal]` config, apply rendering, health checks, status bar integration
+8. **Phase 6: Installer + shell** — `oca install`, shell profile wiring, completions
+9. **Phase 7: Migration + doctor** — `oca migrate from-open-chad`, expanded doctor, ADV state integration
+10. **Phase 8: Extras + polish** — Discord (new taglines), release pipeline, final README
 
 Estimated total: 6.5-8.5 weeks of focused work.
 
