@@ -146,8 +146,8 @@ func TestValidateTemporal_NonLoopbackWithoutAllowRemote(t *testing.T) {
 	// Non-loopback address without allow_remote=true → error.
 	stack := minimalStack()
 	stack.Temporal = &TemporalSection{
-		Enabled:  boolPtr(true),
-		Address:  "10.0.0.1:7233",
+		Enabled:     boolPtr(true),
+		Address:     "10.0.0.1:7233",
 		AllowRemote: boolPtr(false),
 	}
 	errs := validateTemporal(stack)
@@ -169,9 +169,9 @@ func TestValidateTemporal_NonLoopbackWithAllowRemote(t *testing.T) {
 	// Non-loopback address WITH allow_remote=true → OK.
 	stack := minimalStack()
 	stack.Temporal = &TemporalSection{
-		Enabled:      boolPtr(true),
-		Address:      "10.0.0.1:7233",
-		AllowRemote:  boolPtr(true),
+		Enabled:     boolPtr(true),
+		Address:     "10.0.0.1:7233",
+		AllowRemote: boolPtr(true),
 	}
 	errs := validateTemporal(stack)
 	if errs.HasErrors() {

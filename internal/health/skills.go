@@ -86,8 +86,8 @@ func CheckSkills(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check, 
 			continue
 		}
 		checks = append(checks, Check{
-			Name:   fmt.Sprintf("skills.%s.source", name),
-			Status: StatusPass,
+			Name:    fmt.Sprintf("skills.%s.source", name),
+			Status:  StatusPass,
 			Message: fmt.Sprintf("source asset directory exists: %s", name),
 		})
 
@@ -103,8 +103,8 @@ func CheckSkills(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check, 
 			continue
 		}
 		checks = append(checks, Check{
-			Name:   fmt.Sprintf("skills.%s.present", name),
-			Status: StatusPass,
+			Name:    fmt.Sprintf("skills.%s.present", name),
+			Status:  StatusPass,
 			Message: fmt.Sprintf("skill %q present in target dir", name),
 		})
 	}

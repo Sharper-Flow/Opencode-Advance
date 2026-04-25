@@ -49,25 +49,28 @@ func TestDoctorCommand_PluginsScope(t *testing.T) {
 	}
 }
 
-func TestDoctorCommand_TemporalReserved(t *testing.T) {
-	tmp := t.TempDir()
-	stackPath := filepath.Join(tmp, "stack.toml")
-	writeFile(t, stackPath, "[meta]\nversion = \"1.0.0\"\n")
+func TestDoctorCommand_TemporalScope(t *testing.T) {
+	t.Run("nil temporal", func(t *testing.T) {
+		tmp := t.TempDir()
+		t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(tmp, "opencode"))
+		t.Setenv("OCA_VISION_CONFIG_DIR", filepath.Join(tmp, "vision"))
+		t.Setenv("OCA_CACHE_DIR", filepath.Join(tmp, "cache"))
+		if err := os.MkdirAll(filepath.Join(tmp, "opencode"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		stackPath := filepath.Join(tmp, "stack.toml")
+		writeFile(t, stackPath, "[meta]\nversion = \"1.0.0\"\n")
 
-	var stdout, stderr bytes.Buffer
-	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
-	cmd.SetArgs([]string{"doctor", "--scope", "temporal", "--config", stackPath})
-	err := cmd.Execute()
-	if err == nil {
-		t.Fatal("expected temporal reserved error")
-	}
-	ec, ok := err.(interface{ ExitCode() int })
-	if !ok || ec.ExitCode() != 2 {
-		t.Fatalf("wrong exit code: %v", err)
-	}
-	if !strings.Contains(err.Error(), "reserved for Phase 6.5") {
-		t.Fatalf("unexpected error: %v", err)
-	}
+		var stdout, stderr bytes.Buffer
+		cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
+		cmd.SetArgs([]string{"doctor", "--scope", "temporal", "--config", stackPath})
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("doctor temporal: %v stderr=%s", err, stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "temporal.enabled") {
+			t.Fatalf("expected temporal.enabled in output, got %q", stdout.String())
+		}
+	})
 }
 
 func TestDoctorCommand_UnknownScope(t *testing.T) {

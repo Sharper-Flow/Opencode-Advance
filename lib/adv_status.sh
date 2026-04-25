@@ -200,6 +200,78 @@ oca_adv_active_summary() {
   printf ''
 }
 
+# ── Temporal Health ────────────────────────────────────────
+
+# oca_adv_temporal_health — Probe Temporal server reachability for status bar.
+# Reads $OCA_CACHE_DIR/temporal.env for address, probes with bash /dev/tcp.
+# Returns: "T:✓" on success, "T:✗" if unreachable AND Advance state dir exists,
+#          empty string otherwise (no temporal.env or no ADV state dir).
+# Caches result for 10s.
+oca_adv_temporal_health() {
+  local cache_dir="${OCA_CACHE_DIR:-${XDG_RUNTIME_DIR:-/tmp}/opencode-advance}"
+  local env_file="$cache_dir/temporal.env"
+  local cache_file="$cache_dir/temporal_health"
+
+  # Need temporal.env to know what to probe
+  if [[ ! -f "$env_file" ]]; then
+    return 0
+  fi
+
+  # Need ADV state dir to care about Temporal
+  local xdg="${XDG_DATA_HOME:-$HOME/.local/share}"
+  if [[ ! -d "$xdg/opencode/plugins/advance" ]]; then
+    return 0
+  fi
+
+  # Parse address from temporal.env
+  local addr
+  addr=$(grep '^ADV_TEMPORAL_ADDRESS=' "$env_file" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')
+  if [[ -z "$addr" ]]; then
+    return 0
+  fi
+
+  # Extract host and port
+  local host port
+  if [[ "$addr" == *:* ]]; then
+    host="${addr%:*}"
+    port="${addr##*:}"
+  else
+    host="$addr"
+    port="7233"
+  fi
+  # Handle IPv6 brackets
+  if [[ "$host" == \[* ]]; then
+    host="${host#[}"
+    host="${host%]}"
+  fi
+
+  # Check cache (10s TTL)
+  if [[ -f "$cache_file" ]]; then
+    local now cache_mtime age
+    now=$(date +%s)
+    cache_mtime=$(stat -c %Y "$cache_file" 2>/dev/null || echo 0)
+    age=$(( now - cache_mtime ))
+    if (( age <= 10 )); then
+      cat "$cache_file"
+      return 0
+    fi
+  fi
+
+  # Probe
+  local result
+  if timeout 1 bash -c "cat < /dev/tcp/${host}/${port}" >/dev/null 2>&1; then
+    result="T:✓"
+  else
+    result="T:✗"
+  fi
+
+  # Write cache
+  mkdir -p "$cache_dir"
+  printf '%s' "$result" > "$cache_file"
+
+  printf '%s' "$result"
+}
+
 # ── CLI Entry Point ────────────────────────────────────────
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

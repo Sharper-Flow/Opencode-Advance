@@ -8,7 +8,7 @@ import (
 	"github.com/Sharper-Flow/Opencode-Advance/internal/config"
 )
 
-func boolPtr(b bool) *bool { return &b }
+func boolPtr(b bool) *bool    { return &b }
 func strPtr(s string) *string { return &s }
 
 func TestRenderTemporalEnv_AllFields(t *testing.T) {

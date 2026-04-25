@@ -19,9 +19,9 @@ func init() {
 }
 
 type Options struct {
-	VisionAdminURL  string
-	Timeout         time.Duration
-	HTTPClient      *http.Client
+	VisionAdminURL   string
+	Timeout          time.Duration
+	HTTPClient       *http.Client
 	SkillsAssetsRoot string // Root of OCA-owned skill source directories
 	SkillsTargetDir  string // Target directory where skills are deployed
 }
@@ -144,6 +144,18 @@ func CheckMCP(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check, err
 	}
 	checks = append(checks, envFileChecks(stack)...)
 	checks = append(checks, commandPathChecks(stack)...)
+
+	depChecks, err := CheckDependencies(ctx, stack, opts)
+	if err != nil {
+		checks = append(checks, Check{
+			Name:    "dependencies",
+			Status:  StatusWarn,
+			Message: fmt.Sprintf("dependency check error: %v", err),
+		})
+	} else {
+		checks = append(checks, depChecks...)
+	}
+
 	return checks, nil
 }
 

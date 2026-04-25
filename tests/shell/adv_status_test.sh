@@ -120,4 +120,43 @@ CHANGES=$(oca_adv_find_active_changes "$XDG_DATA_HOME/opencode/plugins/advance/$
 assert_not_contains "$CHANGES" "testChange01" "archived changes should be excluded"
 printf 'OK\n'
 
+printf 'adv_status: temporal health empty when no temporal.env... '
+RESULT=$(oca_adv_temporal_health)
+assert_eq "$RESULT" "" "should return empty when temporal.env missing"
+printf 'OK\n'
+
+printf 'adv_status: temporal health empty when no ADV dir... '
+mkdir -p "$OCA_CACHE_DIR"
+printf 'ADV_TEMPORAL_ADDRESS=127.0.0.1:7233\n' > "$OCA_CACHE_DIR/temporal.env"
+# Move ADV dir aside temporarily
+mv "$XDG_DATA_HOME/opencode/plugins/advance" "$XDG_DATA_HOME/opencode/plugins/advance.bak"
+RESULT=$(oca_adv_temporal_health)
+assert_eq "$RESULT" "" "should return empty when ADV dir missing"
+mv "$XDG_DATA_HOME/opencode/plugins/advance.bak" "$XDG_DATA_HOME/opencode/plugins/advance"
+rm -f "$OCA_CACHE_DIR/temporal.env"
+printf 'OK\n'
+
+printf 'adv_status: temporal health warns when unreachable... '
+mkdir -p "$OCA_CACHE_DIR"
+printf 'ADV_TEMPORAL_ADDRESS=127.0.0.1:1\n' > "$OCA_CACHE_DIR/temporal.env"
+# Ensure cache is fresh by removing any stale cache
+rm -f "$OCA_CACHE_DIR/temporal_health"
+RESULT=$(oca_adv_temporal_health)
+assert_eq "$RESULT" "T:✗" "should return T:✗ when unreachable"
+rm -f "$OCA_CACHE_DIR/temporal.env" "$OCA_CACHE_DIR/temporal_health"
+printf 'OK\n'
+
+printf 'adv_status: temporal health cache works... '
+mkdir -p "$OCA_CACHE_DIR"
+printf 'ADV_TEMPORAL_ADDRESS=127.0.0.1:1\n' > "$OCA_CACHE_DIR/temporal.env"
+rm -f "$OCA_CACHE_DIR/temporal_health"
+RESULT1=$(oca_adv_temporal_health)
+assert_eq "$RESULT1" "T:✗" "first call should probe"
+# Write a fake cache to simulate cached result
+printf 'T:✓' > "$OCA_CACHE_DIR/temporal_health"
+RESULT2=$(oca_adv_temporal_health)
+assert_eq "$RESULT2" "T:✓" "cached call should return cached value"
+rm -f "$OCA_CACHE_DIR/temporal.env" "$OCA_CACHE_DIR/temporal_health"
+printf 'OK\n'
+
 printf '\nAll adv_status tests passed.\n'

@@ -11,10 +11,10 @@ import (
 
 // Env var names for the Temporal environment file.
 const (
-	EnvTemporalAddress    = "ADV_TEMPORAL_ADDRESS"
-	EnvTemporalNamespace  = "ADV_TEMPORAL_NAMESPACE"
+	EnvTemporalAddress     = "ADV_TEMPORAL_ADDRESS"
+	EnvTemporalNamespace   = "ADV_TEMPORAL_NAMESPACE"
 	EnvTemporalAllowRemote = "ADV_TEMPORAL_ALLOW_REMOTE"
-	EnvNodePath           = "ADV_NODE_PATH"
+	EnvNodePath            = "ADV_NODE_PATH"
 )
 
 // CacheDir returns the OCA cache directory using a 4-tier fallback chain:

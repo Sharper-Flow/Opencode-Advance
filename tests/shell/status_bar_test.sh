@@ -70,6 +70,29 @@ assert_contains "$OUTPUT" "za" "row1 should contain za gauge"
 rm -rf "$WORK_DIR"
 printf 'OK\n'
 
+printf 'status_bar: row0 includes temporal health when configured... '
+WORK_DIR=$(mktemp -d)
+export OCA_CACHE_DIR="$WORK_DIR/cache"
+export XDG_DATA_HOME="$WORK_DIR/xdg-data"
+mkdir -p "$OCA_CACHE_DIR"
+mkdir -p "$XDG_DATA_HOME/opencode/plugins/advance"
+printf 'ADV_TEMPORAL_ADDRESS=127.0.0.1:1\n' > "$OCA_CACHE_DIR/temporal.env"
+OUTPUT=$(oca_status_row0 "test" "/tmp")
+assert_contains "$OUTPUT" "T:✗" "row0 should show temporal health when env exists"
+rm -rf "$WORK_DIR"
+printf 'OK\n'
+
+printf 'status_bar: row0 omits temporal health when not configured... '
+WORK_DIR=$(mktemp -d)
+export OCA_CACHE_DIR="$WORK_DIR/cache"
+export XDG_DATA_HOME="$WORK_DIR/xdg-data"
+mkdir -p "$OCA_CACHE_DIR"
+# No temporal.env, no ADV dir
+OUTPUT=$(oca_status_row0 "test" "/tmp")
+assert_not_contains "$OUTPUT" "T:" "row0 should not show temporal health when not configured"
+rm -rf "$WORK_DIR"
+printf 'OK\n'
+
 printf 'status_bar: performance budget under 200ms... '
 START=$(date +%s%N)
 OUTPUT=$(oca_status_row0 "test" "/tmp")

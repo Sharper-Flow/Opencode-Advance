@@ -14,9 +14,9 @@ type CheckFn func(context.Context, *cfg.Stack, Options) ([]Check, error)
 var ErrUnknownScope = errors.New("unknown health scope")
 
 var (
-	registryMu            sync.RWMutex
-	registry              = map[string]CheckFn{}
-	builtinRegistrations  []builtinRegistration
+	registryMu           sync.RWMutex
+	registry             = map[string]CheckFn{}
+	builtinRegistrations []builtinRegistration
 )
 
 type builtinRegistration struct {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -63,12 +64,10 @@ func newApplyCmd(state *commandState) *cobra.Command {
 			// Validate all targets before applying any.
 			for _, t := range targets {
 				switch t {
-				case "mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp", "skills", "commands", "formatters", "toggles":
+				case "mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp", "skills", "commands", "formatters", "toggles", "temporal":
 					// known
-				case "temporal":
-					return newCLIError(2, "target %q reserved for Phase 6.5; see docs/proposals/phases.md § Phase 6.5", t)
 				default:
-					return newCLIError(2, "unknown target %q; supported: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles", t)
+					return newCLIError(2, "unknown target %q; supported: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles, temporal", t)
 				}
 			}
 
@@ -132,15 +131,19 @@ func newApplyCmd(state *commandState) *cobra.Command {
 					if err := applyToggles(ctx, state, stack, paths, dryRun); err != nil {
 						return err
 					}
+				case "temporal":
+					if err := applyTemporal(state, stack, dryRun); err != nil {
+						return err
+					}
 				}
 			}
 			return nil
 		},
 	}
-	cmd.Flags().StringArrayVar(&targets, "target", nil, "Target(s) to apply (supported: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles)")
+	cmd.Flags().StringArrayVar(&targets, "target", nil, "Target(s) to apply (supported: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles, temporal)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print the render plan without writing files")
 	_ = cmd.RegisterFlagCompletionFunc("target", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp", "skills", "commands", "formatters", "toggles"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp", "skills", "commands", "formatters", "toggles", "temporal"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
@@ -250,6 +253,33 @@ func applyToggles(ctx context.Context, state *commandState, stack *config.Stack,
 		return newCLIError(3, "plan toggles: %w", err)
 	}
 	return emitPlanOrApply(state, plan, dryRun, "apply toggles")
+}
+
+func applyTemporal(state *commandState, stack *config.Stack, dryRun bool) error {
+	if stack.Temporal == nil || !stack.Temporal.IsEnabled() {
+		if _, err := fmt.Fprintf(state.opts.Stdout, "temporal: disabled (no-op)\n"); err != nil {
+			return err
+		}
+		return nil
+	}
+	if dryRun {
+		if _, err := fmt.Fprintf(state.opts.Stdout, "rendered\t%s\n", filepath.Join(render.CacheDir(), "temporal.env")); err != nil {
+			return err
+		}
+		return nil
+	}
+	content, err := render.RenderTemporalEnv(stack)
+	if err != nil {
+		return newCLIError(3, "render temporal env: %w", err)
+	}
+	envPath := filepath.Join(render.CacheDir(), "temporal.env")
+	if _, err := render.WriteAtomic(envPath, []byte(content), 0o600, 3); err != nil {
+		return newCLIError(3, "write temporal env: %w", err)
+	}
+	if _, err := fmt.Fprintf(state.opts.Stdout, "rendered\t%s\n", envPath); err != nil {
+		return err
+	}
+	return nil
 }
 
 func applyInstructions(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool) error {

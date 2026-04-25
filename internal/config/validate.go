@@ -626,9 +626,9 @@ func validateLSP(s *Stack) ValidationErrors {
 
 // validShareValues are the allowed values for opencode.share.
 var validShareValues = map[string]bool{
-	"":        true,
-	"manual":  true,
-	"auto":    true,
+	"":         true,
+	"manual":   true,
+	"auto":     true,
 	"disabled": true,
 }
 

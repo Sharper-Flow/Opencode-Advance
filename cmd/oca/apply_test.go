@@ -134,8 +134,12 @@ func TestApplyCommand_TargetPluginsRunsSyncAfterRender(t *testing.T) {
 	}
 }
 
-func TestApplyCommand_TemporalReserved(t *testing.T) {
+func TestApplyCommand_TemporalNoOp(t *testing.T) {
 	tmp := t.TempDir()
+	t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(tmp, "opencode"))
+	t.Setenv("OCA_VISION_CONFIG_DIR", filepath.Join(tmp, "vision"))
+	t.Setenv("OCA_CACHE_DIR", filepath.Join(tmp, "cache"))
+
 	stackPath := filepath.Join(tmp, "stack.toml")
 	writeFile(t, stackPath, `[meta]
 version = "1.0.0"
@@ -144,16 +148,48 @@ version = "1.0.0"
 	var stdout, stderr bytes.Buffer
 	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
 	cmd.SetArgs([]string{"apply", "--target", "temporal", "--config", stackPath})
-	err := cmd.Execute()
-	if err == nil {
-		t.Fatal("expected reserved temporal error")
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("apply temporal no-op: %v stderr=%s", err, stderr.String())
 	}
-	ec, ok := err.(interface{ ExitCode() int })
-	if !ok || ec.ExitCode() != 2 {
-		t.Fatalf("exit code wrong: %v", err)
+	if !strings.Contains(stdout.String(), "temporal: disabled (no-op)") {
+		t.Fatalf("expected no-op message, got stdout=%q", stdout.String())
 	}
-	if !strings.Contains(err.Error(), "reserved for Phase 6.5") {
-		t.Fatalf("unexpected error: %v", err)
+}
+
+func TestApplyCommand_TemporalRenders(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(tmp, "opencode"))
+	t.Setenv("OCA_VISION_CONFIG_DIR", filepath.Join(tmp, "vision"))
+	t.Setenv("OCA_CACHE_DIR", filepath.Join(tmp, "cache"))
+
+	stackPath := filepath.Join(tmp, "stack.toml")
+	writeFile(t, stackPath, `[meta]
+version = "1.0.0"
+
+[temporal]
+enabled = true
+address = "127.0.0.1:7233"
+namespace = "default"
+`)
+
+	var stdout, stderr bytes.Buffer
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"apply", "--target", "temporal", "--config", stackPath})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("apply temporal render: %v stderr=%s", err, stderr.String())
+	}
+
+	envPath := filepath.Join(tmp, "cache", "temporal.env")
+	if !strings.Contains(stdout.String(), envPath) {
+		t.Fatalf("expected path in stdout, got stdout=%q", stdout.String())
+	}
+
+	content, err := os.ReadFile(envPath)
+	if err != nil {
+		t.Fatalf("read temporal.env: %v", err)
+	}
+	if !strings.Contains(string(content), "ADV_TEMPORAL_ADDRESS=127.0.0.1:7233") {
+		t.Fatalf("unexpected content: %s", string(content))
 	}
 }
 

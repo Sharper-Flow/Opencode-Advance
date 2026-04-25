@@ -29,8 +29,8 @@ type Stack struct {
 	// Phase 3 typed sections
 	Providers   ProvidersSection   `toml:"providers"`
 	Permissions PermissionsSection `toml:"permissions"`
-	Watcher     WatcherSection    `toml:"watcher"`
-	LSP         LSPSection        `toml:"lsp"`
+	Watcher     WatcherSection     `toml:"watcher"`
+	LSP         LSPSection         `toml:"lsp"`
 
 	// Phase 3.5 typed sections
 	Skills     SkillsSection     `toml:"skills"`
@@ -141,12 +141,12 @@ type CircuitBreaker struct {
 type ProvidesCategory string
 
 const (
-	ProvidesCommands    ProvidesCategory = "adv-commands"
-	ProvidesAgents      ProvidesCategory = "adv-agents"
-	ProvidesSkills      ProvidesCategory = "adv-skills"
-	ProvidesOverlays    ProvidesCategory = "adv-overlays"
+	ProvidesCommands     ProvidesCategory = "adv-commands"
+	ProvidesAgents       ProvidesCategory = "adv-agents"
+	ProvidesSkills       ProvidesCategory = "adv-skills"
+	ProvidesOverlays     ProvidesCategory = "adv-overlays"
 	ProvidesInstructions ProvidesCategory = "adv-instructions"
-	ProvidesTemporal    ProvidesCategory = "adv-temporal" // reserved Phase 6.5
+	ProvidesTemporal     ProvidesCategory = "adv-temporal" // reserved Phase 6.5
 )
 
 // IsValid returns true if the category is a known provides value.
@@ -163,16 +163,16 @@ func (p ProvidesCategory) IsValid() bool {
 // either git-sourced (with checkout + optional subdir + build + sync)
 // or npm-sourced (with a "npm:pkg@version" source string).
 type Plugin struct {
-	Source       string   `toml:"source"`                 // git URL or "npm:pkg@version"
-	Ref          string   `toml:"ref,omitempty"`          // branch/tag/SHA; default "trunk"
-	Checkout     string   `toml:"checkout,omitempty"`    // local clone path
-	Subdir       string   `toml:"subdir,omitempty"`       // subdir within checkout
-	Build        []string `toml:"build,omitempty"`        // build commands
-	Path         string   `toml:"path,omitempty"`         // load path, supports {checkout}/{subdir}
-	Sync         string   `toml:"sync,omitempty"`         // post-build sync script
+	Source       string             `toml:"source"`             // git URL or "npm:pkg@version"
+	Ref          string             `toml:"ref,omitempty"`      // branch/tag/SHA; default "trunk"
+	Checkout     string             `toml:"checkout,omitempty"` // local clone path
+	Subdir       string             `toml:"subdir,omitempty"`   // subdir within checkout
+	Build        []string           `toml:"build,omitempty"`    // build commands
+	Path         string             `toml:"path,omitempty"`     // load path, supports {checkout}/{subdir}
+	Sync         string             `toml:"sync,omitempty"`     // post-build sync script
 	Provides     []ProvidesCategory `toml:"provides,omitempty"`
-	Instructions []string `toml:"instructions,omitempty"` // instruction files
-	Enabled      *bool    `toml:"enabled,omitempty"`     // default true
+	Instructions []string           `toml:"instructions,omitempty"` // instruction files
+	Enabled      *bool              `toml:"enabled,omitempty"`      // default true
 }
 
 // IsGitSource returns true for git URL sources (not npm: prefixed).
@@ -302,14 +302,14 @@ func decodeProviderModels(raw any) (map[string]ProviderModel, error) {
 // ProviderModel describes a single model under a provider.
 // Shape translation to opencode.json happens in the render layer.
 type ProviderModel struct {
-	Name     string            `toml:"name,omitempty"`
-	Context  int               `toml:"context,omitempty"`
-	Output   int               `toml:"output,omitempty"`
-	Inputs   []string          `toml:"inputs,omitempty"`
-	Outputs  []string          `toml:"outputs,omitempty"`
-	Options  map[string]any    `toml:"options,omitempty"`
-	Variants map[string]any    `toml:"variants,omitempty"`
-	Extra    map[string]any    `toml:"-"`
+	Name     string         `toml:"name,omitempty"`
+	Context  int            `toml:"context,omitempty"`
+	Output   int            `toml:"output,omitempty"`
+	Inputs   []string       `toml:"inputs,omitempty"`
+	Outputs  []string       `toml:"outputs,omitempty"`
+	Options  map[string]any `toml:"options,omitempty"`
+	Variants map[string]any `toml:"variants,omitempty"`
+	Extra    map[string]any `toml:"-"`
 }
 
 // modelName is passed explicitly because ProviderModel is identified by its
@@ -371,17 +371,17 @@ func (m *ProviderModel) UnmarshalTOML(modelName string, value any) error {
 // PermissionsSection is the [permissions] table.
 // Shape translation (default → .permission["*"]) happens in the render layer.
 type PermissionsSection struct {
-	Default          string            `toml:"default,omitempty"`
-	DoomLoop         string            `toml:"doom_loop,omitempty"`
+	Default           string            `toml:"default,omitempty"`
+	DoomLoop          string            `toml:"doom_loop,omitempty"`
 	ExternalDirectory map[string]string `toml:"external_directory,omitempty"`
-	Bash             map[string]string `toml:"bash,omitempty"`
-	Extra            map[string]any    `toml:"-"`
+	Bash              map[string]string `toml:"bash,omitempty"`
+	Extra             map[string]any    `toml:"-"`
 }
 
 // WatcherSection is the [watcher] table.
 type WatcherSection struct {
-	Ignore []string         `toml:"ignore,omitempty"`
-	Extra  map[string]any   `toml:"-"`
+	Ignore []string       `toml:"ignore,omitempty"`
+	Extra  map[string]any `toml:"-"`
 }
 
 // LSPSection is the [lsp] table — a map of LSP server name to LSP.
@@ -493,11 +493,11 @@ type CommandsSection map[string]Command
 
 // Command describes a custom slash command declared in [commands.<name>].
 type Command struct {
-	Description string `toml:"description"`
-	Template    string `toml:"template"`
-	Agent       string `toml:"agent,omitempty"`
-	Model       string `toml:"model,omitempty"`
-	Subtask     *bool  `toml:"subtask,omitempty"`
+	Description string         `toml:"description"`
+	Template    string         `toml:"template"`
+	Agent       string         `toml:"agent,omitempty"`
+	Model       string         `toml:"model,omitempty"`
+	Subtask     *bool          `toml:"subtask,omitempty"`
 	Extra       map[string]any `toml:"-"`
 }
 
@@ -544,15 +544,15 @@ func (c *Command) UnmarshalTOML(value any) error {
 
 // OpenCodeSection is the [opencode] table — top-level OpenCode behavior toggles.
 type OpenCodeSection struct {
-	Theme            string               `toml:"theme,omitempty"`
-	DefaultAgent     string               `toml:"default_agent,omitempty"`
-	Share            string               `toml:"share,omitempty"`
-	Snapshot         *bool                `toml:"snapshot,omitempty"`
-	Autoupdate       *AutoupdateValue     `toml:"autoupdate,omitempty"`
-	Compaction       *CompactionSection   `toml:"compaction,omitempty"`
+	Theme             string               `toml:"theme,omitempty"`
+	DefaultAgent      string               `toml:"default_agent,omitempty"`
+	Share             string               `toml:"share,omitempty"`
+	Snapshot          *bool                `toml:"snapshot,omitempty"`
+	Autoupdate        *AutoupdateValue     `toml:"autoupdate,omitempty"`
+	Compaction        *CompactionSection   `toml:"compaction,omitempty"`
 	DisabledProviders *ProviderListSection `toml:"disabled_providers,omitempty"`
 	EnabledProviders  *ProviderListSection `toml:"enabled_providers,omitempty"`
-	Extra            map[string]any       `toml:"-"`
+	Extra             map[string]any       `toml:"-"`
 }
 
 // UnmarshalTOML implements custom decoding to capture extra unknown fields
@@ -632,9 +632,9 @@ func parseAutoupdateValue(v any) *AutoupdateValue {
 
 // CompactionSection is the [opencode.compaction] passthrough table.
 type CompactionSection struct {
-	Auto     *bool `toml:"auto,omitempty"`
-	Prune    *bool `toml:"prune,omitempty"`
-	Reserved int   `toml:"reserved,omitempty"`
+	Auto     *bool          `toml:"auto,omitempty"`
+	Prune    *bool          `toml:"prune,omitempty"`
+	Reserved int            `toml:"reserved,omitempty"`
 	Extra    map[string]any `toml:"-"`
 }
 

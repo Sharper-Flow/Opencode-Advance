@@ -81,6 +81,14 @@ oca_status_row0() {
     printf ' %s' "$(_oca_status_color '#6C7AB8')$adv_state$(_oca_status_reset)"
   fi
 
+  # Temporal health
+  local temporal_health
+  temporal_health=$(oca_adv_temporal_health 2>/dev/null)
+  if [[ -n "$temporal_health" ]]; then
+    printf ' %s' "$(_oca_status_color '#2D3138')│$(_oca_status_reset)"
+    printf ' %s' "$(_oca_status_color '#A8A6A3')$temporal_health$(_oca_status_reset)"
+  fi
+
   # Right side: host + clock
   printf '%s' "#[align=right]"
   printf ' %s' "$(_oca_status_color '#A8A6A3')$(_oca_status_host)$(_oca_status_reset)"
