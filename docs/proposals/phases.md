@@ -224,7 +224,7 @@ Phase 3.5 completed the remaining declarative config surfaces for OCA-owned skil
 
 ## Phase 4: Primary Client UX + Theme
 
-**Foundation status:** Change `phase4FoundationSessionTheme` is in progress on `trunk` (8/11 tasks done). Delivered so far: Obsidian theme assets (JSON + tmux conf), `internal/session` package, `oca session new/list` CLI commands, `lib/session_lifecycle.sh`, `lib/boot_splash.sh` extension, managed-block tmux template. Remaining: integration tests, docs update, spec creation. The items below describe the full Phase 4 scope; foundation ships a subset.
+**Status:** Complete — delivered in archived changes `phase4FoundationSessionTheme` and `completePhase4SessionLifecycle`, merged to `trunk`.
 
 **Goal:** current tmux-first client/session lifecycle, Obsidian theme, redesigned status bar, and new boot splash with animation. Builds on full config coverage from Phases 3 and 3.5. Same-host re-entry from other terminals/devices is supported, but remains secondary to normal local usage.
 
@@ -234,39 +234,40 @@ Phase 3.5 completed the remaining declarative config surfaces for OCA-owned skil
 
 - `assets/themes/obsidian.json` — primary client theme asset (current OpenCode/TUI target)
 - `assets/themes/obsidian.tmux.conf` — tmux status bar theme
-- `lib/status_bar.sh` — status bar renderers (replaces `status_left.sh`, `status_right.sh`)
-- `lib/boot_splash.sh` — full boot splash with animation (indigo pulse, wordmark reveal)
-- `lib/session_lifecycle.sh` — session creation, teardown, reaper
-- `cmd/oca/session.go` — `oca session new/list/attach/switch/killall/restart`
-- `cmd/oca/theme.go` — `oca theme list/set/preview`
+- `lib/status_bar.sh` — status bar renderers (row0: session + git + ADV state + host + clock; row1: window list + LLM gauges + date)
+- `lib/boot_splash.sh` — full boot splash with indigo pulse animation (16-frame truecolor interpolation)
+- `lib/adv_status.sh` — ADV state reader for status bar (reads change.json, finds active changes, summarizes gate progress)
+- `lib/llm_gauge.sh` — LLM provider fuel gauge renderer (4 providers, colorized ASCII bars)
+- `lib/session_lifecycle.sh` — session creation shell wrapper
+- `cmd/oca/session.go` — `oca session new/list/attach/switch/kill/killall/restart/reap`
+- `cmd/oca/theme.go` — `oca theme list/apply`
+- `internal/session/session.go` — Manager with Create, List, NextSessionName, Attach, SwitchClient, Kill, KillAll, Restart, GetSessionByName, SetGlobalEnv
 - tmux config block template (`templates/tmux.conf.block.gotmpl`)
+- 11 CLI integration tests covering all session commands
+- Shell tests for adv_status.sh, llm_gauge.sh, status_bar.sh in `tests/shell/`
 
 **Exit criteria:**
 
-- `oca session new` creates a tmux session, shows the boot splash, and launches the configured primary client in the current directory
-- `oca session list` shows active sessions
-- `oca session attach` can re-enter a same-host OCA tmux session from another terminal/device without losing running work
-- Obsidian theme loads cleanly in the current primary client with all palette colors applied
-- Status bar shows: session title + ADV change (row 0 left), repo/branch/worktree (row 0 right), window name (row 1 left), metrics + LLM gauges + clock (row 1 right)
-- Boot splash renders wordmark with indigo+ pulse effect on truecolor terminals
-- Stale session reaper cleans up unattached `oca-*` sessions without deleting sessions a user would reasonably expect to resume
-- Remote re-entry relies on existing host access paths (local shell, SSH, Tailscale), not custom transport or OCA-managed auth
-- No synthwave edges, no color-cycling, no per-session randomized borders
+- [x] `oca session new` creates a tmux session, shows the boot splash, and launches the configured primary client in the current directory
+- [x] `oca session list` shows active sessions
+- [x] `oca session attach` can re-enter a same-host OCA tmux session from another terminal/device without losing running work
+- [x] Obsidian theme loads cleanly in the current primary client with all palette colors applied
+- [x] Status bar shows: session title + ADV change (row 0 left), repo/branch/worktree (row 0 right), window name (row 1 left), metrics + LLM gauges + clock (row 1 right)
+- [x] Boot splash renders wordmark with indigo+ pulse effect on truecolor terminals
+- [x] Stale session reaper cleans up unattached `oca-*` sessions without deleting sessions a user would reasonably expect to resume
+- [x] Remote re-entry relies on existing host access paths (local shell, SSH, Tailscale), not custom transport or OCA-managed auth
+- [x] No synthwave edges, no color-cycling, no per-session randomized borders
+- [x] OCA_REPO_ROOT injected into tmux global env during session creation for status bar script resolution
 
-**Tasks (high-level):**
+**Historical implementation reference:**
 
-- tk-phase4-01: Design and implement `assets/themes/obsidian.json`
-- tk-phase4-02: Design and implement `assets/themes/obsidian.tmux.conf`
-- tk-phase4-03: Port and rewrite `lib/status_bar.sh`
-- tk-phase4-04: Implement boot splash with animation
-- tk-phase4-05: Port and rewrite `lib/session_lifecycle.sh`
-- tk-phase4-06: Implement `oca session new/list/attach/switch/killall/restart`
-- tk-phase4-07: Implement `oca theme list/set/preview`
-- tk-phase4-08: Implement ADV state reading for status bar
-- tk-phase4-09: Implement LLM fuel gauge renderer (reuse open-chad logic, rewrite in clean form)
-- tk-phase4-10: Write tmux config block template
-- tk-phase4-11: Integration test: session new → boot splash → primary client launches
-- tk-phase4-12: Manual verification: visual check of status bar on truecolor + 256-color terminals
+- Foundation archived change: `phase4FoundationSessionTheme`
+- Completion archived change: `completePhase4SessionLifecycle`
+- Next recommended phase: **Phase 5**
+
+### Retrospective
+
+Phase 4 shipped the full tmux-first client/session lifecycle across two ADV changes. The foundation change delivered significantly more scope than its task list suggested — session lifecycle commands (attach, switch, kill, killall, restart, reap), theme management, status bar with ADV state and LLM gauges, and boot splash animation were all implemented in the foundation change. The completion change fixed a critical runtime bug (OCA_REPO_ROOT not injected into tmux global env, making status bar blank), added CLI integration tests for all session commands, and created the completion spec. Key lesson: the `obsidian.tmux.conf` uses `$OCA_REPO_ROOT` in `#()` format expansions which must be injected via `tmux setenv -g` at session creation time — tmux `#()` runs in a fresh shell and cannot resolve the variable otherwise.
 
 ---
 

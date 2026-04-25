@@ -11,7 +11,9 @@ This document is the source material for the first ADV change in this repository
 - Phase 1 (`phase1StackTomlParserMcpApply`) is complete, archived, and merged to `trunk`
 - Phase 2 (`phase2PluginInstruction`) is complete, archived, and merged to `trunk`
 - Phase 3 (`phase3CoreOpencodeJsonCoverage`) is complete, archived, and merged to `trunk`
-- Current recommended next phase: **Phase 4: primary client UX + theme**
+- Phase 3.5 (`addPhase35ConfigCoverageSkills`) is complete, archived, and merged to `trunk`
+- Phase 4 (`phase4FoundationSessionTheme` + `completePhase4SessionLifecycle`) is complete, archived, and merged to `trunk`
+- Current recommended next phase: **Phase 5: Temporal enablement**
 - This document remains the umbrella roadmap for the full v1.0 effort
 
 ---
