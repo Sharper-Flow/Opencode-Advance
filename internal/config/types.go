@@ -201,10 +201,27 @@ type InstructionsSection struct {
 	Order []string `toml:"order,omitempty"`
 }
 
-// TemporalSection is the [temporal] table. Reserved for Phase 6.5;
-// parsed with advisory tolerance (no error on unknown fields).
+// TemporalSection is the [temporal] table. Phase 5 expands this from a
+// reserved stub to a fully-validated config section with defaults.
+// Validation (validateTemporal) fills defaults for Address and Namespace
+// when enabled.
 type TemporalSection struct {
-	Enabled *bool `toml:"enabled,omitempty"` // default true if absent
+	Enabled     *bool  `toml:"enabled,omitempty"`      // default true if absent
+	Address     string `toml:"address,omitempty"`      // default "127.0.0.1:7233"
+	Namespace   string `toml:"namespace,omitempty"`    // default "default"
+	AllowRemote *bool  `toml:"allow_remote,omitempty"` // must be true for non-loopback
+	NodePath    string `toml:"node_path,omitempty"`    // optional override for node binary
+}
+
+// IsEnabled returns the effective enabled state. Nil means true.
+func (t *TemporalSection) IsEnabled() bool {
+	if t == nil {
+		return false
+	}
+	if t.Enabled == nil {
+		return true
+	}
+	return *t.Enabled
 }
 
 // ---------------------------------------------------------------------------

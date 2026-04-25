@@ -125,6 +125,9 @@ func (s *Stack) Validate() error {
 	errs = append(errs, validateCommands(s)...)
 	errs = append(errs, validateOpenCode(s)...)
 
+	// [temporal] — Phase 5
+	errs = append(errs, validateTemporal(s)...)
+
 	// Deferred sections — classify as known-but-deferred (ok) or
 	// truly unknown (error).
 	for name := range s.DeferredSections {
@@ -403,18 +406,64 @@ func validateInstructions(s *Stack) ValidationErrors {
 	return errs
 }
 
-// validateTemporalReserved returns an advisory warning that [temporal] is
-// reserved for Phase 6.5. It produces []Warning, not ValidationErrors,
-// since this is a forward-compatibility signal, not a hard error.
-func validateTemporalReserved(s *Stack) []Warning {
+// validateTemporal validates the [temporal] section and applies defaults.
+// When Temporal is nil or disabled, it is a no-op. When enabled (or
+// Enabled absent, which defaults to true), defaults are applied:
+//   - Address defaults to "127.0.0.1:7233"
+//   - Namespace defaults to "default"
+//
+// A non-loopback address requires AllowRemote=true.
+func validateTemporal(s *Stack) ValidationErrors {
 	if s.Temporal == nil {
 		return nil
 	}
-	return []Warning{{
-		Path:    "temporal",
-		Message: "[temporal] section is reserved for a future phase (Phase 6.5 — Temporal Enablement)",
-		Hint:    "See docs/proposals/phases.md § Phase 6.5. This section will be implemented later.",
-	}}
+	if !s.Temporal.IsEnabled() {
+		return nil
+	}
+
+	var errs ValidationErrors
+
+	// Apply defaults.
+	if s.Temporal.Address == "" {
+		s.Temporal.Address = "127.0.0.1:7233"
+	}
+	if s.Temporal.Namespace == "" {
+		s.Temporal.Namespace = "default"
+	}
+
+	// Validate: non-loopback requires allow_remote=true.
+	if !isLoopbackAddress(s.Temporal.Address) {
+		if s.Temporal.AllowRemote == nil || !*s.Temporal.AllowRemote {
+			errs = append(errs, ValidationError{
+				Path:    "temporal.allow_remote",
+				Message: "must be true when address is non-loopback (security: prevents accidental exposure)",
+			})
+		}
+	}
+
+	return errs
+}
+
+// isLoopbackAddress checks if a host:port string points to a loopback
+// address. Handles 127.x.x.x, localhost, and [::1].
+func isLoopbackAddress(addr string) bool {
+	host := addr
+	if idx := strings.LastIndex(addr, ":"); idx != -1 {
+		host = addr[:idx]
+	}
+	// Strip brackets from [::1]:port
+	host = strings.TrimPrefix(host, "[")
+	host = strings.TrimSuffix(host, "]")
+
+	switch host {
+	case "127.0.0.1", "localhost", "::1":
+		return true
+	}
+	// 127.x.x.x range
+	if strings.HasPrefix(host, "127.") {
+		return true
+	}
+	return false
 }
 
 // validateProviders checks per-provider and per-model rules.

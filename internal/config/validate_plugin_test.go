@@ -106,14 +106,125 @@ func TestValidateInstructions_ValidOrderOK(t *testing.T) {
 	}
 }
 
-func TestValidateTemporal_ProducesAdvisoryWarning(t *testing.T) {
+func TestValidateTemporal_NilSectionIsNoop(t *testing.T) {
+	// nil Temporal → no validation errors.
+	stack := minimalStack()
+	errs := validateTemporal(stack)
+	if errs.HasErrors() {
+		t.Errorf("nil Temporal should produce no errors: %v", errs)
+	}
+}
+
+func TestValidateTemporal_DefaultsLoopbackOK(t *testing.T) {
+	// enabled=true, no address → defaults to 127.0.0.1:7233, no error.
+	stack := minimalStack()
+	stack.Temporal = &TemporalSection{Enabled: boolPtr(true)}
+	errs := validateTemporal(stack)
+	if errs.HasErrors() {
+		t.Errorf("default loopback config should pass: %v", errs)
+	}
+	// Verify defaults were applied.
+	if stack.Temporal.Address != "127.0.0.1:7233" {
+		t.Errorf("Address = %q, want 127.0.0.1:7233", stack.Temporal.Address)
+	}
+	if stack.Temporal.Namespace != "default" {
+		t.Errorf("Namespace = %q, want default", stack.Temporal.Namespace)
+	}
+}
+
+func TestValidateTemporal_DisabledNoop(t *testing.T) {
+	// enabled=false → no validation, no defaults applied.
 	stack := minimalStack()
 	stack.Temporal = &TemporalSection{Enabled: boolPtr(false)}
-	warnings := validateTemporalReserved(stack)
-	// validateTemporalReserved produces Warnings (not ValidationErrors),
-	// so we check warnings are non-empty.
-	if len(warnings) == 0 {
-		t.Error("expected advisory warning for [temporal], got none")
+	errs := validateTemporal(stack)
+	if errs.HasErrors() {
+		t.Errorf("disabled temporal should produce no errors: %v", errs)
+	}
+}
+
+func TestValidateTemporal_NonLoopbackWithoutAllowRemote(t *testing.T) {
+	// Non-loopback address without allow_remote=true → error.
+	stack := minimalStack()
+	stack.Temporal = &TemporalSection{
+		Enabled:  boolPtr(true),
+		Address:  "10.0.0.1:7233",
+		AllowRemote: boolPtr(false),
+	}
+	errs := validateTemporal(stack)
+	if !errs.HasErrors() {
+		t.Fatal("expected error for non-loopback without allow_remote")
+	}
+	found := false
+	for _, e := range errs {
+		if e.Path == "temporal.allow_remote" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected allow_remote error, got: %v", errs)
+	}
+}
+
+func TestValidateTemporal_NonLoopbackWithAllowRemote(t *testing.T) {
+	// Non-loopback address WITH allow_remote=true → OK.
+	stack := minimalStack()
+	stack.Temporal = &TemporalSection{
+		Enabled:      boolPtr(true),
+		Address:      "10.0.0.1:7233",
+		AllowRemote:  boolPtr(true),
+	}
+	errs := validateTemporal(stack)
+	if errs.HasErrors() {
+		t.Errorf("non-loopback with allow_remote should pass: %v", errs)
+	}
+}
+
+func TestValidateTemporal_ExplicitDefaultsPreserved(t *testing.T) {
+	// Explicit address matching default should not error.
+	stack := minimalStack()
+	stack.Temporal = &TemporalSection{
+		Enabled:   boolPtr(true),
+		Address:   "127.0.0.1:7233",
+		Namespace: "production",
+	}
+	errs := validateTemporal(stack)
+	if errs.HasErrors() {
+		t.Errorf("explicit loopback config should pass: %v", errs)
+	}
+	if stack.Temporal.Namespace != "production" {
+		t.Errorf("Namespace = %q, want production", stack.Temporal.Namespace)
+	}
+}
+
+func TestValidateTemporal_NilEnabledDefaultsTrue(t *testing.T) {
+	// nil Enabled (field absent) treated as enabled → defaults applied.
+	stack := minimalStack()
+	stack.Temporal = &TemporalSection{
+		Address: "127.0.0.1:7233",
+	}
+	errs := validateTemporal(stack)
+	if errs.HasErrors() {
+		t.Errorf("nil Enabled with loopback should pass: %v", errs)
+	}
+	if stack.Temporal.Address != "127.0.0.1:7233" {
+		t.Errorf("Address = %q, want 127.0.0.1:7233", stack.Temporal.Address)
+	}
+}
+
+func TestValidateTemporal_IntegratedWithValidate(t *testing.T) {
+	// Full Validate() call includes temporal errors.
+	stack := minimalStack()
+	stack.Temporal = &TemporalSection{
+		Enabled:     boolPtr(true),
+		Address:     "192.168.1.1:7233",
+		AllowRemote: boolPtr(false),
+	}
+	err := stack.Validate()
+	if err == nil {
+		t.Fatal("expected Validate() to return errors for non-loopback temporal")
+	}
+	if !ValidationErrorContains(err, "allow_remote") {
+		t.Errorf("expected allow_remote error in Validate(), got: %v", err)
 	}
 }
 

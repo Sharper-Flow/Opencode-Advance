@@ -114,21 +114,32 @@ order = ["identity.md", "rules.yaml", "{checkout}/ADV_INSTRUCTIONS.md"]
 }
 
 func TestParse_TemporalSectionAdvisoryTolerance(t *testing.T) {
-	// [temporal] is reserved for Phase 6.5; parser must tolerate it without error.
+	// [temporal] is a fully-typed Phase 5 section; parser must accept it.
 	temporalTOML := `
 [meta]
 version = "1.0.0"
 
 [temporal]
-# reserved for Phase 6.5
-enabled = false
+enabled = true
+address = "127.0.0.1:7233"
+namespace = "default"
+allow_remote = false
 `
 	stack, err := Parse([]byte(temporalTOML))
 	if err != nil {
 		t.Fatalf("Parse failed on [temporal]: %v", err)
 	}
 	if stack.Temporal == nil {
-		t.Fatal("Temporal not parsed (advisory tolerance failed)")
+		t.Fatal("Temporal not parsed")
+	}
+	if !stack.Temporal.IsEnabled() {
+		t.Error("expected enabled=true")
+	}
+	if stack.Temporal.Address != "127.0.0.1:7233" {
+		t.Errorf("Address = %q, want 127.0.0.1:7233", stack.Temporal.Address)
+	}
+	if stack.Temporal.Namespace != "default" {
+		t.Errorf("Namespace = %q, want default", stack.Temporal.Namespace)
 	}
 }
 
