@@ -274,6 +274,22 @@ func (m *Manager) Restart(ctx context.Context, name, workingDir, tmuxConfPath st
 	return nil
 }
 
+// SetGlobalEnv sets a global environment variable in the tmux server.
+// This is used to inject runtime values (like OCA_REPO_ROOT) that are
+// referenced by tmux conf #() format expansions.
+func (m *Manager) SetGlobalEnv(ctx context.Context, key, value string) error {
+	args := []string{"-L", m.socket, "setenv", "-g", key, value}
+	_, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    m.tmuxPath,
+		Args:    args,
+		Timeout: sessionTimeout,
+	})
+	if err != nil {
+		return fmt.Errorf("tmux setenv -g %s failed: %w", key, err)
+	}
+	return nil
+}
+
 // GetSessionByName finds a single session by exact name.
 func (m *Manager) GetSessionByName(ctx context.Context, name string) (*Session, error) {
 	sessions, err := m.List(ctx)

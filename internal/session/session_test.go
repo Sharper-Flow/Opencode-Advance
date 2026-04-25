@@ -495,3 +495,42 @@ func TestRestart(t *testing.T) {
 		t.Errorf("Name = %q, want %q", s.Name, sessionName)
 	}
 }
+
+func TestSetGlobalEnv(t *testing.T) {
+	testTmuxAvailable(t)
+	socket := fmt.Sprintf("ocatest-setenv-%d", os.Getpid())
+	t.Cleanup(func() { cleanupSocket(t, socket) })
+
+	m, err := NewManager(socket)
+	if err != nil {
+		t.Fatalf("NewManager() error: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Start a server by creating a session
+	tmpDir := t.TempDir()
+	if err := m.Create(ctx, "oca-test-env", tmpDir, ""); err != nil {
+		t.Fatalf("Create() error: %v", err)
+	}
+
+	// Set a global env var
+	if err := m.SetGlobalEnv(ctx, "OCA_TEST_VAR", "hello-world"); err != nil {
+		t.Fatalf("SetGlobalEnv() error: %v", err)
+	}
+
+	// Verify via tmux showenv -g
+	res, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    m.tmuxPath,
+		Args:    []string{"-L", socket, "showenv", "-g", "OCA_TEST_VAR"},
+		Timeout: 5 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("showenv -g failed: %v", err)
+	}
+	got := strings.TrimSpace(string(res.Output))
+	if got != "OCA_TEST_VAR=hello-world" {
+		t.Errorf("env = %q, want %q", got, "OCA_TEST_VAR=hello-world")
+	}
+}
