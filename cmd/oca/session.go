@@ -85,6 +85,16 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 				return newCLIError(1, "create session: %v", err)
 			}
 
+			// Inject OCA_REPO_ROOT into tmux global env so status_bar.sh
+			// can be found by obsidian.tmux.conf #() expansions.
+			repoRoot := mustGetRepoRoot()
+			if repoRoot != "." {
+				if err := mgr.SetGlobalEnv(ctx, "OCA_REPO_ROOT", repoRoot); err != nil {
+					// Non-fatal: status bar degrades gracefully when unset
+					fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to set OCA_REPO_ROOT: %v\n", err)
+				}
+			}
+
 			// Trigger boot splash unless --no-splash
 			if !noSplash {
 				triggerSplash(ctx, socket, sessionName, state)
@@ -372,6 +382,11 @@ func newSessionRestartCmd(state *commandState) *cobra.Command {
 			tmuxConf := resolveTmuxConf()
 			if err := mgr.Restart(ctx, args[0], workingDir, tmuxConf); err != nil {
 				return newCLIError(1, "restart session: %v", err)
+			}
+			// Re-inject OCA_REPO_ROOT after restart (new server may not inherit)
+			repoRoot := mustGetRepoRoot()
+			if repoRoot != "." {
+				_ = mgr.SetGlobalEnv(ctx, "OCA_REPO_ROOT", repoRoot)
 			}
 			if state.output == "json" {
 				return printJSON(cmd.OutOrStdout(), map[string]string{"session": args[0], "status": "restarted"})
