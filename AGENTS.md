@@ -201,9 +201,9 @@ Recent Advance changes consolidated shared agents: `scout -> plan` and `refine -
 
 Advance now uses **Temporal as its primary state backend**. Key implications for OCA:
 
-- State storage moved from JSON files + SQLite to Temporal durable workflows (`changeWorkflow`, `projectWorkflow`)
-- File-backed store is now the **fallback** path (used when Temporal is unavailable or `ADV_DISABLE_TEMPORAL=1`)
-- OCA's Phase 6.5 will manage the Temporal infrastructure (CLI, dev server, env vars) that Advance depends on
+- State storage moved from JSON files to Temporal durable workflows (`changeWorkflow`, `projectWorkflow`)
+- File-backed JSON is the Temporal adapter's internal persistence layer (not a runtime fallback); `ADV_DISABLE_TEMPORAL=1` is a test/dev escape hatch only
+- OCA's Phase 5 managed the Temporal infrastructure (CLI, dev server, env vars) that Advance depends on (completeTemporalOnlyMigration and retireLegacyStorageBackend branches pending upstream)
 - New `adv-engineer` agent (bundled global) for delegated code-writing execution
 - `adv-researcher` promoted from repo-scoped to bundled global
 - Worker model: in-process (Node hosts) or out-of-process child (Bun hosts via `ADV_NODE_PATH`)
