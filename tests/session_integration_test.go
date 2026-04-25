@@ -294,6 +294,250 @@ func sessionTestRepoRoot(t *testing.T) string {
 	}
 }
 
+func TestIntegration_SessionKill(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+
+	socket := testSocketFor(t)
+	cleanupITestSocket(t, socket)
+	defer cleanupITestSocket(t, socket)
+
+	bin := buildSessionTestBinary(t)
+	tmpDir := t.TempDir()
+	env := append(os.Environ(),
+		"OCA_TMUX_SOCKET="+socket,
+		"OCA_OPENCODE_CONFIG_DIR="+filepath.Join(tmpDir, "config"),
+		"OCA_CACHE_DIR="+filepath.Join(tmpDir, "cache"),
+		"OCA_ASSETS_ROOT="+filepath.Join(sessionTestRepoRoot(t), "assets"),
+	)
+
+	// Create a session
+	createCmd := exec.Command(bin, "session", "new", "--name", "oca-testkill-0", "--no-splash")
+	createCmd.Dir = tmpDir
+	createCmd.Env = env
+	if out, err := createCmd.CombinedOutput(); err != nil {
+		t.Fatalf("session new failed: %v\n%s", err, out)
+	}
+
+	// Kill the session
+	killCmd := exec.Command(bin, "session", "kill", "oca-testkill-0")
+	killCmd.Dir = tmpDir
+	killCmd.Env = env
+	if out, err := killCmd.CombinedOutput(); err != nil {
+		t.Fatalf("session kill failed: %v\n%s", err, out)
+	}
+
+	// Verify it's gone
+	listCmd := exec.Command(bin, "session", "list")
+	listCmd.Dir = tmpDir
+	listCmd.Env = env
+	out, err := listCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("session list failed: %v\n%s", err, out)
+	}
+	if strings.Contains(string(out), "oca-testkill-0") {
+		t.Errorf("killed session should not appear in list, got: %q", string(out))
+	}
+}
+
+func TestIntegration_SessionKillall(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+
+	socket := testSocketFor(t)
+	cleanupITestSocket(t, socket)
+	defer cleanupITestSocket(t, socket)
+
+	bin := buildSessionTestBinary(t)
+	tmpDir := t.TempDir()
+	env := append(os.Environ(),
+		"OCA_TMUX_SOCKET="+socket,
+		"OCA_OPENCODE_CONFIG_DIR="+filepath.Join(tmpDir, "config"),
+		"OCA_CACHE_DIR="+filepath.Join(tmpDir, "cache"),
+		"OCA_ASSETS_ROOT="+filepath.Join(sessionTestRepoRoot(t), "assets"),
+	)
+
+	// Create two sessions
+	for _, name := range []string{"oca-testkillall-0", "oca-testkillall-1"} {
+		createCmd := exec.Command(bin, "session", "new", "--name", name, "--no-splash")
+		createCmd.Dir = tmpDir
+		createCmd.Env = env
+		if out, err := createCmd.CombinedOutput(); err != nil {
+			t.Fatalf("session new %s failed: %v\n%s", name, err, out)
+		}
+	}
+
+	// Kill all sessions
+	killallCmd := exec.Command(bin, "session", "killall")
+	killallCmd.Dir = tmpDir
+	killallCmd.Env = env
+	if out, err := killallCmd.CombinedOutput(); err != nil {
+		t.Fatalf("session killall failed: %v\n%s", err, out)
+	}
+
+	// Verify list is empty
+	listCmd := exec.Command(bin, "session", "list")
+	listCmd.Dir = tmpDir
+	listCmd.Env = env
+	out, err := listCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("session list failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "no OCA sessions") {
+		t.Errorf("expected 'no OCA sessions' after killall, got: %q", string(out))
+	}
+}
+
+func TestIntegration_SessionRestart(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+
+	socket := testSocketFor(t)
+	cleanupITestSocket(t, socket)
+	defer cleanupITestSocket(t, socket)
+
+	bin := buildSessionTestBinary(t)
+	tmpDir := t.TempDir()
+	env := append(os.Environ(),
+		"OCA_TMUX_SOCKET="+socket,
+		"OCA_OPENCODE_CONFIG_DIR="+filepath.Join(tmpDir, "config"),
+		"OCA_CACHE_DIR="+filepath.Join(tmpDir, "cache"),
+		"OCA_ASSETS_ROOT="+filepath.Join(sessionTestRepoRoot(t), "assets"),
+	)
+
+	// Create a session
+	createCmd := exec.Command(bin, "session", "new", "--name", "oca-testrestart-0", "--no-splash")
+	createCmd.Dir = tmpDir
+	createCmd.Env = env
+	if out, err := createCmd.CombinedOutput(); err != nil {
+		t.Fatalf("session new failed: %v\n%s", err, out)
+	}
+
+	// Restart it
+	restartCmd := exec.Command(bin, "session", "restart", "oca-testrestart-0")
+	restartCmd.Dir = tmpDir
+	restartCmd.Env = env
+	if out, err := restartCmd.CombinedOutput(); err != nil {
+		t.Fatalf("session restart failed: %v\n%s", err, out)
+	}
+
+	// Verify it still exists
+	listCmd := exec.Command(bin, "session", "list")
+	listCmd.Dir = tmpDir
+	listCmd.Env = env
+	out, err := listCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("session list failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "oca-testrestart-0") {
+		t.Errorf("restarted session should appear in list, got: %q", string(out))
+	}
+}
+
+func TestIntegration_SessionReap(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+
+	socket := testSocketFor(t)
+	cleanupITestSocket(t, socket)
+	defer cleanupITestSocket(t, socket)
+
+	bin := buildSessionTestBinary(t)
+	tmpDir := t.TempDir()
+	env := append(os.Environ(),
+		"OCA_TMUX_SOCKET="+socket,
+		"OCA_OPENCODE_CONFIG_DIR="+filepath.Join(tmpDir, "config"),
+		"OCA_CACHE_DIR="+filepath.Join(tmpDir, "cache"),
+		"OCA_ASSETS_ROOT="+filepath.Join(sessionTestRepoRoot(t), "assets"),
+	)
+
+	// Create a session
+	createCmd := exec.Command(bin, "session", "new", "--name", "oca-testreap-0", "--no-splash")
+	createCmd.Dir = tmpDir
+	createCmd.Env = env
+	if out, err := createCmd.CombinedOutput(); err != nil {
+		t.Fatalf("session new failed: %v\n%s", err, out)
+	}
+
+	// Dry-run reap on fresh session should not error (fresh sessions are below min age)
+	reapCmd := exec.Command(bin, "session", "reap", "--dry-run")
+	reapCmd.Dir = tmpDir
+	reapCmd.Env = env
+	out, err := reapCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("session reap --dry-run failed: %v\n%s", err, out)
+	}
+
+	// Fresh sessions won't be reaped due to 5m minimum age; just verify no crash.
+	_ = string(out)
+
+	// Actual reap on fresh session should also not error
+	reapRealCmd := exec.Command(bin, "session", "reap")
+	reapRealCmd.Dir = tmpDir
+	reapRealCmd.Env = env
+	if out, err := reapRealCmd.CombinedOutput(); err != nil {
+		t.Fatalf("session reap failed: %v\n%s", err, out)
+	}
+
+	// Session should still exist since it's fresh
+	listCmd := exec.Command(bin, "session", "list")
+	listCmd.Dir = tmpDir
+	listCmd.Env = env
+	out, err = listCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("session list failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "oca-testreap-0") {
+		t.Errorf("fresh session should not be reaped, got: %q", string(out))
+	}
+}
+
+func TestIntegration_SessionNew_SetsRepoRoot(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+
+	socket := testSocketFor(t)
+	cleanupITestSocket(t, socket)
+	defer cleanupITestSocket(t, socket)
+
+	bin := buildSessionTestBinary(t)
+	tmpDir := t.TempDir()
+	repoRoot := sessionTestRepoRoot(t)
+	env := append(os.Environ(),
+		"OCA_TMUX_SOCKET="+socket,
+		"OCA_OPENCODE_CONFIG_DIR="+filepath.Join(tmpDir, "config"),
+		"OCA_CACHE_DIR="+filepath.Join(tmpDir, "cache"),
+		"OCA_ASSETS_ROOT="+filepath.Join(repoRoot, "assets"),
+	)
+
+	// Create session from repo root so mustGetRepoRoot() finds lib/boot_splash.sh
+	createCmd := exec.Command(bin, "session", "new", "--name", "oca-testroot-0", "--no-splash")
+	createCmd.Dir = repoRoot
+	createCmd.Env = env
+	if out, err := createCmd.CombinedOutput(); err != nil {
+		t.Fatalf("session new failed: %v\n%s", err, out)
+	}
+
+	// Read OCA_REPO_ROOT from tmux global environment
+	showenvCmd := exec.Command("tmux", "-L", socket, "showenv", "-g", "OCA_REPO_ROOT")
+	showenvCmd.Dir = repoRoot
+	out, err := showenvCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("tmux showenv failed: %v\n%s", err, out)
+	}
+
+	output := string(out)
+	// tmux showenv outputs: OCA_REPO_ROOT=/path/to/repo
+	if !strings.Contains(output, repoRoot) {
+		t.Errorf("OCA_REPO_ROOT should contain %q, got: %q", repoRoot, output)
+	}
+}
+
 // Ensure the integration test binary is not stale.
 func waitBrief() {
 	// Give tmux servers time to clean up
