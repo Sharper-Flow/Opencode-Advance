@@ -29,7 +29,7 @@ instructions = ["{checkout}/ADV_INSTRUCTIONS.md"]
 source = "npm:@franlol/opencode-md-table-formatter@latest"
 
 [temporal]
-# reserved for Phase 6.5
+# temporal section with advisory tolerance
 `
 
 func TestParse_PluginsSectionTypedFields(t *testing.T) {

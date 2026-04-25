@@ -146,7 +146,7 @@ const (
 	ProvidesSkills       ProvidesCategory = "adv-skills"
 	ProvidesOverlays     ProvidesCategory = "adv-overlays"
 	ProvidesInstructions ProvidesCategory = "adv-instructions"
-	ProvidesTemporal     ProvidesCategory = "adv-temporal" // reserved Phase 6.5
+	ProvidesTemporal     ProvidesCategory = "adv-temporal" // Temporal config owned by OCA (Phase 5+)
 )
 
 // IsValid returns true if the category is a known provides value.

@@ -43,7 +43,7 @@ func TestContractGenericity(t *testing.T) {
 }
 
 // TestEnvMergeOntoInherited proves Cmd.Env merges onto os.Environ() rather
-// than replacing it — a key reuse property for Phase 6.5 (Temporal env).
+// than replacing it — a key reuse property for Temporal CLI (Phase 5+).
 // Covers AC17.
 func TestEnvMergeOntoInherited(t *testing.T) {
 	if runtime.GOOS == "windows" {

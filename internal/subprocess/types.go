@@ -5,7 +5,7 @@
 // arguments.
 //
 // Design reference: design.md § K1 (subprocess is one generic package;
-// domain wrappers call it). Reused unchanged by Phase 6.5 for Temporal CLI.
+// domain wrappers call it). Reused by Temporal CLI health checks (Phase 5+).
 package subprocess
 
 import "time"

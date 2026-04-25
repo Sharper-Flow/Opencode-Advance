@@ -25,7 +25,7 @@ var knownSections = map[string]bool{
 	// Phase 2 typed sections
 	"plugins":      true,
 	"instructions": true,
-	"temporal":     true, // reserved Phase 6.5 — advisory tolerance
+	"temporal":     true, // advisory tolerance — parsed but validation handled by validateTemporal
 	// Phase 2+ — parsed as deferred raw maps
 	"providers":    true,
 	"agents":       true,

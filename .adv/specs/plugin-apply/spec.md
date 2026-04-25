@@ -13,7 +13,7 @@ Phase 2 capability spec for plugin lifecycle, plugin render surfaces, sync deleg
 - `rq-plugin-instructions01` — Declared `[instructions].order` stays authoritative, plugin-provided instructions append deterministically, and `adv-instructions` entries are omitted from OCA render when ownership is plugin-patched.
 - `rq-plugin-pin01` — `oca pin` captures current git HEAD SHAs into `stack.toml` for selected or all git plugins without mutating npm plugin declarations.
 - `rq-plugin-doctor01` — `oca doctor --scope plugins` verifies checkout presence, built artifact presence, local git ref resolvability, rendered plugin entry presence, and classifies plugin drift.
-- `rq-plugin-reserve-temporal01` — `[temporal]`, `adv-temporal`, and temporal CLI surfaces are reserved and rejected with explicit Phase 6.5 messaging until implemented.
+- `rq-plugin-reserve-temporal01` — `[temporal]`, `adv-temporal`, and temporal CLI surfaces are validated and rendered by OCA (implemented in Phase 5). `provides = ["adv-temporal"]` in plugin config defers to OCA's rendering.
 - `rq-plugin-subprocess01` — All plugin git/build/sync operations use the generic subprocess runner with explicit timeout, exit classification, and combined output capture.
 - `rq-plugin-healthcheck-registry01` — Doctor scopes register through a shared health-check registry with builtin replay support for test resets and future scope expansion.
 - `rq-plugin-isolation01` — Plugin apply, doctor, pin, and update flows honor `OCA_OPENCODE_CONFIG_DIR`, `OCA_VISION_CONFIG_DIR`, `OCA_CACHE_DIR`, and `OCA_PLUGIN_CHECKOUT_ROOT` for test/dev isolation.

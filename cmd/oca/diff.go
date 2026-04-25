@@ -22,10 +22,8 @@ has drift. Does not modify any files.`,
 			}
 			if target != "" {
 				switch target {
-				case "mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp":
+				case "mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp", "temporal":
 					// known
-				case "temporal":
-					return newCLIError(2, "target %q reserved for Phase 6.5; see docs/proposals/phases.md § Phase 6.5", target)
 				default:
 					return newCLIError(2, "unknown target %q; supported: mcp, plugins, instructions, providers, permissions, watcher, lsp", target)
 				}
