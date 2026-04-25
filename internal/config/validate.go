@@ -445,7 +445,7 @@ func validateTemporal(s *Stack) ValidationErrors {
 }
 
 // isLoopbackAddress checks if a host:port string points to a loopback
-// address. Handles 127.x.x.x, localhost, and [::1].
+// address. Handles 127.x.x.x, localhost, ::1, and IPv6-mapped IPv4 (::ffff:127.x.x.x).
 func isLoopbackAddress(addr string) bool {
 	host := addr
 	if idx := strings.LastIndex(addr, ":"); idx != -1 {
@@ -462,6 +462,13 @@ func isLoopbackAddress(addr string) bool {
 	// 127.x.x.x range
 	if strings.HasPrefix(host, "127.") {
 		return true
+	}
+	// IPv6-mapped IPv4 loopback (::ffff:127.x.x.x)
+	if strings.HasPrefix(host, "::ffff:") {
+		mappedHost := strings.TrimPrefix(host, "::ffff:")
+		if strings.HasPrefix(mappedHost, "127.") || mappedHost == "127.0.0.1" {
+			return true
+		}
 	}
 	return false
 }

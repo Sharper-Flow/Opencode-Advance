@@ -257,6 +257,12 @@ oca_adv_temporal_health() {
     fi
   fi
 
+  # Validate host/port before expansion (prevent injection)
+  if [[ ! "$host" =~ ^[0-9a-fA-F.:]+$ ]] || [[ ! "$port" =~ ^[0-9]+$ ]]; then
+    printf ''
+    return 0
+  fi
+
   # Probe
   local result
   if timeout 1 bash -c "cat < /dev/tcp/${host}/${port}" >/dev/null 2>&1; then

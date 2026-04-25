@@ -179,6 +179,32 @@ func TestValidateTemporal_NonLoopbackWithAllowRemote(t *testing.T) {
 	}
 }
 
+func TestValidateTemporal_IPv6MappedLoopback(t *testing.T) {
+	// ::ffff:127.0.0.1 is a loopback address (IPv6-mapped IPv4).
+	stack := minimalStack()
+	stack.Temporal = &TemporalSection{
+		Enabled: boolPtr(true),
+		Address: "::ffff:127.0.0.1:7233",
+	}
+	errs := validateTemporal(stack)
+	if errs.HasErrors() {
+		t.Errorf("IPv6-mapped loopback should pass without allow_remote: %v", errs)
+	}
+}
+
+func TestValidateTemporal_IPv6MappedNonLoopback(t *testing.T) {
+	// ::ffff:10.0.0.1 is NOT loopback → requires allow_remote.
+	stack := minimalStack()
+	stack.Temporal = &TemporalSection{
+		Enabled: boolPtr(true),
+		Address: "::ffff:10.0.0.1:7233",
+	}
+	errs := validateTemporal(stack)
+	if !errs.HasErrors() {
+		t.Fatal("expected error for IPv6-mapped non-loopback without allow_remote")
+	}
+}
+
 func TestValidateTemporal_ExplicitDefaultsPreserved(t *testing.T) {
 	// Explicit address matching default should not error.
 	stack := minimalStack()
