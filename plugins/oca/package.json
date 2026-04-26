@@ -1,0 +1,23 @@
+{
+  "name": "@sharperflow/oca-plugin",
+  "version": "0.1.0",
+  "description": "OpenCode Advance umbrella plugin — session tracker, status telemetry, and future OCA features",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist/ --target bun",
+    "test": "bun test",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "^1.0.0",
+    "typescript": "^5.5.0"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": "^1.0.0"
+  }
+}
