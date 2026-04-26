@@ -349,8 +349,8 @@ func validatePlugins(s *Stack) ValidationErrors {
 			continue // can't validate further without source
 		}
 
-		if plugin.IsNPMSource() {
-			// npm sources only need source; checkout/path/build are not applicable.
+		if plugin.IsNPMSource() || plugin.IsLocalSource() {
+			// npm and local sources only need source; checkout/path/build are not applicable.
 			// Still validate provides enum below.
 		} else {
 			// Git source requires checkout and path.

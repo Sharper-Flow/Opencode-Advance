@@ -47,6 +47,11 @@ func CheckPlugins(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check,
 				Check{Name: "plugins." + name + ".built_artifact", Status: StatusPass, Message: "npm source - no local artifact required"},
 				Check{Name: "plugins." + name + ".git_ref", Status: StatusPass, Message: "npm source - no git ref required"},
 			)
+		} else if plugin.IsLocalSource() {
+			localDir := plugin.Source[6:] // strip "local:" prefix
+			checks = append(checks, statCheck("plugins."+name+".local_dir_exists", localDir, "local directory present", "local directory missing"))
+			checks = append(checks, statCheck("plugins."+name+".built_artifact", fragment, "built artifact present", "built artifact missing"))
+			checks = append(checks, Check{Name: "plugins." + name + ".git_ref", Status: StatusPass, Message: "local source - no git ref required"})
 		} else {
 			checks = append(checks, statCheck("plugins."+name+".checkout_exists", plugin.Checkout, "checkout present", "checkout missing"))
 			checks = append(checks, statCheck("plugins."+name+".built_artifact", plugin.Path, "built artifact present", "built artifact missing"))

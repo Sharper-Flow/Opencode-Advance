@@ -175,14 +175,22 @@ type Plugin struct {
 	Enabled      *bool              `toml:"enabled,omitempty"`      // default true
 }
 
-// IsGitSource returns true for git URL sources (not npm: prefixed).
+// IsGitSource returns true for git URL sources (not npm: or local: prefixed).
 func (p Plugin) IsGitSource() bool {
-	return len(p.Source) >= 4 && p.Source[:4] != "npm:"
+	if len(p.Source) < 4 {
+		return false
+	}
+	return p.Source[:4] != "npm:" && p.Source[:4] != "loca"
 }
 
 // IsNPMSource returns true for npm:-prefixed sources.
 func (p Plugin) IsNPMSource() bool {
 	return len(p.Source) >= 4 && p.Source[:4] == "npm:"
+}
+
+// IsLocalSource returns true for local:-prefixed sources.
+func (p Plugin) IsLocalSource() bool {
+	return len(p.Source) >= 6 && p.Source[:6] == "local:"
 }
 
 // IsEnabled returns the effective enabled state. Nil means true.
