@@ -192,6 +192,9 @@ At v1.0 release time, the user runs `oca migrate from-open-chad` which performs 
 | `~/.config/vision/servers.yaml`               | **oca**           | Rendered from stack.toml                           |
 | `~/.tmux.conf` (OCA block only)               | **oca**           | Managed block, rest is user-owned                  |
 | `~/.zshrc` / `~/.bashrc` (OCA block only)     | **oca**           | Managed block, rest is user-owned                  |
+| `plugins/oca/` (source)                       | **oca**           | OCA umbrella plugin source (TypeScript, bun-built) |
+| `~/.config/opencode/plugins/oca/index.js`     | **oca**           | Installed OCA plugin artifact                      |
+| `$XDG_STATE_HOME/oca/panes/`                  | **oca**           | Per-pane session state (plugin write, CLI read)    |
 
 Any file not in the "oca" or "Advance" column is user-owned and MUST NOT be touched by `oca apply`.
 
