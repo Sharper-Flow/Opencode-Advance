@@ -318,6 +318,43 @@ Phase 5 shipped a narrow 4-pillar Temporal enablement. Scope was deliberately cu
 
 ---
 
+## Phase 5.5: Vision Slot Group Support
+
+**Goal:** Add first-class `[mcp.slot_groups.*]` support to `stack.toml` so Playwright pools (and future slot-group use cases) can be declared declaratively and rendered by `oca apply` into both `vision/servers.yaml` and `opencode.json`.
+
+**Estimate:** 2-3 days
+
+**Why a .5 phase:** Slot groups are a narrow, self-contained feature that blocks Phase 6 (installer) because the installer must produce a complete `stack.toml` including Playwright slot groups. It does not warrant a full numbered phase, but it has enough surface (parser, validation, render, health, docs) to need explicit scoping.
+
+**Deliverables:**
+
+- `internal/config/types.go` — `SlotGroup` struct + `MCPSection.SlotGroups` field
+- `internal/config/validate.go` — `validateMCPSlotGroups` with full collision detection (servers ↔ groups ↔ slots, template-name vs declared keys)
+- `internal/render/vision_yaml.go` — emit top-level `slot_groups:` map in `vision/servers.yaml`
+- `internal/render/opencode_json.go` — `RenderSlotGroupFragment` emitting single `.mcp.<group>` remote entry at `group_port`
+- `internal/health/mcp.go` — tiered slot group health probe (`/v1/slots/{group}` → TCP fallback → warn on missing API)
+- `stack.example.toml` — replace Playwright comments with three real slot group declarations
+- `docs/design/stack-toml-schema.md` — document `[mcp.slot_groups.<name>]` section
+- Golden-file tests updated to include slot groups in the full-stack fixture
+
+**Exit criteria:**
+
+- [x] `stack.toml` parses and validates `[mcp.slot_groups.<name>]` with all fields
+- [x] `oca apply --target mcp` renders slot groups into `vision/servers.yaml` under `slot_groups:`
+- [x] `oca apply --target mcp` emits a single `.mcp.<group-name>` entry per group at `group_port`
+- [x] Port collision detection covers servers, group ports, and synthesized slot ports across groups
+- [x] `oca doctor --scope mcp` reports slot group health (pass/warn) via Vision's slots API or TCP fallback
+- [x] `stack.example.toml` includes working Playwright slot group examples that pass validation
+- [x] All tests pass with no regressions in existing MCP server behavior
+
+**Dependency notes:**
+
+- Blocks Phase 6 (installer): installer must emit a complete stack including Playwright slot groups
+- Blocks Phase 7 (migration): migration must convert existing hand-managed slot groups into declarative config
+- Depends on Phase 1 (MCP apply foundations) and Phase 5 (Temporal) — the actual blockers are Phase 1 render/health primitives, not Temporal
+
+---
+
 ## Phase 6: Installer + Shell Profile
 
 **Goal:** `oca install` performs end-to-end first-time setup. Shell profile wiring (PATH, completions) is idempotent and reversible. Installer includes Temporal prerequisite checks and optional dev-server setup (leveraging Phase 5).
@@ -460,7 +497,8 @@ Every phase is developed as one or more ADV changes following the 7-gate workflo
 - Phase 3.5 blocks on Phase 3 (extends the apply + render system with new config surfaces)
 - Phase 4 blocks on Phase 3.5 (session/theme work requires full config coverage to be testable end-to-end)
 - **Phase 5 (Temporal) blocks on Phase 2 only** (needs the Temporal inheritance hooks, generic subprocess runner, and health-check registry). Moved before installer/migration because Advance already depends on Temporal and every subsequent phase benefits from OCA managing it.
-- Phase 6 (Installer) blocks on Phase 4 (uses session lifecycle + theme) and Phase 5 (includes Temporal prerequisite checks)
+- **Phase 5.5 (Slot Groups) blocks on Phase 1** (extends MCP render/health/validation). Narrow feature that blocks the installer because the example stack must include Playwright slot groups.
+- Phase 6 (Installer) blocks on Phase 4 (uses session lifecycle + theme), Phase 5 (includes Temporal prerequisite checks), and Phase 5.5 (installer must emit complete stack with slot groups)
 - Phase 7 (Migration) blocks on Phase 6 (migration produces a stack.toml, which needs full coverage to be useful)
 - Phase 8 (Extras) blocks on Phase 7 (release is the last step)
 
@@ -481,7 +519,8 @@ Minor fixes, typos, doc updates, and CI tweaks can be committed outside of ADV c
 | 3.5: Skills + commands + formatters          | 3-4 days    | 4-5.5 weeks   |
 | 4: Primary client UX + theme                 | 1-1.5 weeks | 5-7 weeks     |
 | 5: Temporal enablement                       | 3-5 days    | 5.5-8 weeks   |
-| 6: Installer + shell                         | 4-5 days    | 6-9 weeks     |
+| 5.5: Vision slot group support               | 2-3 days    | 6-8.5 weeks   |
+| 6: Installer + shell                         | 4-5 days    | 6.5-9 weeks     |
 | 7: Migration + doctor                        | 4-5 days    | 7-10 weeks    |
 | 8: Extras + polish                           | 3-5 days    | 7.5-11 weeks  |
 

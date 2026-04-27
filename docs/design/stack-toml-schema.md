@@ -125,6 +125,96 @@ The `required = true` flag marks servers that the stack cannot function without.
 
 ---
 
+## `[mcp.slot_groups.<name>]`
+
+Declares a Vision slot group: a pool of N identical MCP servers synthesized at load time behind a single virtual listener. Vision expands the group into per-slot servers (`<template>-1` .. `<template>-<count>`) on contiguous ports starting at `base_port`. OCA renders the group declaration into `vision/servers.yaml` and emits a single `.mcp.<group-name>` entry in `opencode.json` pointing at the stable `group_port`.
+
+```toml
+[mcp.slot_groups.playwright-headless]
+template  = "playwright-headless"
+base_port = 6301
+count     = 4
+group_port = 6300
+
+[mcp.slot_groups.playwright-headless.defaults]
+command = "npx"
+args    = ["playwright-mcp", "--headless"]
+```
+
+| Field         | Type     | Required | Default | Notes                                                                    |
+| ------------- | -------- | -------- | ------- | ------------------------------------------------------------------------ |
+| `template`      | string   | yes      | —       | Prefix for synthesized server names (`<template>-1` .. `<template>-<count>`) |
+| `base_port`     | integer  | yes      | —       | Port of the first synthesized slot; slots occupy `base_port` .. `base_port+count-1` |
+| `count`         | integer  | yes      | —       | Number of synthesized slots. Must be >= 2.                              |
+| `group_port`    | integer  | yes      | —       | Port of the virtual group listener that agents connect to               |
+| `defaults`      | table    | no       | `{}`    | ServerConfig fields applied to every synthesized slot. Same shape as `[mcp.servers.<name>]` except `port` is rejected (Vision derives it). |
+
+### Validation rules
+
+- `template`, `base_port`, `count`, `group_port` are all required
+- `count` must be >= 2
+- `base_port + count - 1` must be within the allowed port range (default max: 6325)
+- `group_port` must be within the allowed port range
+- `defaults.port` is rejected (slot ports are derived from `base_port`)
+- Port collision checks span: all declared `[mcp.servers.*]` ports, all `group_port` values, all slot port ranges (`base_port` .. `base_port+count-1`), cross-group
+- Synthesized template names (`<template>-1` .. `<template>-<count>`) must not collide with declared `[mcp.servers.*]` keys
+
+### OpenCode behavior
+
+For each slot group, OCA emits **one** `.mcp.<group-name>` entry:
+
+```json
+{
+  "mcp": {
+    "playwright-headless": {
+      "type": "remote",
+      "url": "http://localhost:6300/mcp",
+      "enabled": true,
+      "oauth": false
+    }
+  }
+}
+```
+
+Agents address the pool through the stable `group_port` URL. Vision routes each session to the least-loaded healthy slot.
+
+### Full Playwright example
+
+```toml
+[mcp.slot_groups.playwright-headless]
+template  = "playwright-headless"
+base_port = 6301
+count     = 4
+group_port = 6300
+
+[mcp.slot_groups.playwright-headless.defaults]
+command = "npx"
+args    = ["playwright-mcp", "--headless"]
+
+[mcp.slot_groups.playwright-headed]
+template  = "playwright-headed"
+base_port = 6306
+count     = 2
+group_port = 6305
+
+[mcp.slot_groups.playwright-headed.defaults]
+command = "npx"
+args    = ["playwright-mcp"]
+
+[mcp.slot_groups.playwright-auth]
+template  = "playwright-auth"
+base_port = 6309
+count     = 2
+group_port = 6308
+
+[mcp.slot_groups.playwright-auth.defaults]
+command = "npx"
+args    = ["playwright-mcp", "--headless"]
+# user_data_dir for auth profile is per-user — set absolute path in your stack.toml
+```
+
+---
+
 ## `[plugins.<name>]`
 
 Declares a plugin that OpenCode will load.
