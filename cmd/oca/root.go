@@ -89,6 +89,9 @@ func newRootCmd(opts commandOptions) *cobra.Command {
 	cmd.AddCommand(newSessionCmd(state))
 	cmd.AddCommand(newThemeCmd(state))
 	cmd.AddCommand(newPaneCmd(state))
+	cmd.AddCommand(newInstallCmd(state))
+	cmd.AddCommand(newUninstallCmd(state))
+	cmd.AddCommand(newCompletionCmd(state))
 
 	return cmd
 }
