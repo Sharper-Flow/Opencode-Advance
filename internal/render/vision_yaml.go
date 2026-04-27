@@ -37,6 +37,14 @@ type visionServerYAML struct {
 	Description           string              `yaml:"description,omitempty"`
 }
 
+type slotGroupYAML struct {
+	Template  string          `yaml:"template"`
+	BasePort  int             `yaml:"base_port"`
+	Count     int             `yaml:"count"`
+	GroupPort int             `yaml:"group_port"`
+	Defaults  *yaml.Node      `yaml:"defaults,omitempty"`
+}
+
 // RenderVisionServers renders full vision/servers.yaml. daemon-type servers are skipped.
 func RenderVisionServers(stack *cfg.Stack, sourcePath string) ([]byte, error) {
 	root := &yaml.Node{Kind: yaml.MappingNode}
@@ -65,6 +73,31 @@ func RenderVisionServers(stack *cfg.Stack, sourcePath string) ([]byte, error) {
 			node,
 		)
 	}
+
+	if len(stack.MCP.SlotGroups) > 0 {
+		groupsNode := &yaml.Node{Kind: yaml.MappingNode}
+		groupNames := make([]string, 0, len(stack.MCP.SlotGroups))
+		for name := range stack.MCP.SlotGroups {
+			groupNames = append(groupNames, name)
+		}
+		sort.Strings(groupNames)
+		for _, name := range groupNames {
+			g := stack.MCP.SlotGroups[name]
+			node, err := slotGroupNode(g)
+			if err != nil {
+				return nil, err
+			}
+			groupsNode.Content = append(groupsNode.Content,
+				&yaml.Node{Kind: yaml.ScalarNode, Value: name},
+				node,
+			)
+		}
+		root.Content = append(root.Content,
+			&yaml.Node{Kind: yaml.ScalarNode, Value: "slot_groups"},
+			groupsNode,
+		)
+	}
+
 	b, err := yaml.Marshal(root)
 	if err != nil {
 		return nil, err
@@ -111,6 +144,36 @@ func serverNode(s cfg.Server) (*yaml.Node, error) {
 		Required:              s.Required,
 		Source:                s.Source,
 		Description:           s.Description,
+	}
+	b, err := yaml.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var node yaml.Node
+	if err := yaml.Unmarshal(b, &node); err != nil {
+		return nil, err
+	}
+	if len(node.Content) == 0 {
+		return &yaml.Node{Kind: yaml.MappingNode}, nil
+	}
+	return node.Content[0], nil
+}
+
+func slotGroupNode(g cfg.SlotGroup) (*yaml.Node, error) {
+	var defaultsNode *yaml.Node
+	if g.Defaults != nil {
+		node, err := serverNode(*g.Defaults)
+		if err != nil {
+			return nil, err
+		}
+		defaultsNode = node
+	}
+	v := slotGroupYAML{
+		Template:  g.Template,
+		BasePort:  g.BasePort,
+		Count:     g.Count,
+		GroupPort: g.GroupPort,
+		Defaults:  defaultsNode,
 	}
 	b, err := yaml.Marshal(v)
 	if err != nil {
