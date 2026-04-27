@@ -103,6 +103,9 @@ func (s *Stack) Validate() error {
 	// [mcp.servers.*]
 	errs = append(errs, s.validateMCPServers()...)
 
+	// [mcp.slot_groups.*]
+	errs = append(errs, s.validateMCPSlotGroups()...)
+
 	// [plugins.*]
 	errs = append(errs, validatePlugins(s)...)
 
@@ -292,6 +295,166 @@ func (s *Stack) validateMCPServers() ValidationErrors {
 					Path:    path + ".request_timeout",
 					Message: message,
 				})
+			}
+		}
+	}
+
+	return errs
+}
+
+// validateMCPSlotGroups validates [mcp.slot_groups.*] against Vision's
+// SlotGroupConfig contract: required fields, count >= 2, port range,
+// `port` rejected on defaults, and global port + name collision checks
+// across declared servers and other slot groups.
+//
+// Pre-validating template name collisions (`<template>-N` vs declared
+// servers.* keys) lets users see errors at oca apply --dry-run instead of
+// at Vision boot. Mirrors Vision's expand.go collision check.
+func (s *Stack) validateMCPSlotGroups() ValidationErrors {
+	var errs ValidationErrors
+	if len(s.MCP.SlotGroups) == 0 {
+		return errs
+	}
+
+	// Build the set of ports already claimed by [mcp.servers.*]. Reuse the
+	// first server name encountered at each port for clear error messages.
+	serverPorts := make(map[int]string, len(s.MCP.Servers))
+	for name, srv := range s.MCP.Servers {
+		if srv.Port > 0 {
+			if _, taken := serverPorts[srv.Port]; !taken {
+				serverPorts[srv.Port] = "mcp.servers." + name
+			}
+		}
+	}
+
+	// Stable iteration order for deterministic error messages.
+	groupNames := make([]string, 0, len(s.MCP.SlotGroups))
+	for name := range s.MCP.SlotGroups {
+		groupNames = append(groupNames, name)
+	}
+	sort.Strings(groupNames)
+
+	// Track ports claimed by slot groups so cross-group collisions are
+	// surfaced. Each port maps to its origin path (e.g.
+	// "mcp.slot_groups.pw1.base_port" or "mcp.slot_groups.pw1[2]").
+	groupPorts := make(map[int]string)
+
+	for _, name := range groupNames {
+		group := s.MCP.SlotGroups[name]
+		path := fmt.Sprintf("mcp.slot_groups.%s", name)
+
+		// Required fields.
+		if group.Template == "" {
+			errs = append(errs, ValidationError{
+				Path:    path + ".template",
+				Message: "required field missing",
+			})
+		}
+		if group.BasePort == 0 {
+			errs = append(errs, ValidationError{
+				Path:    path + ".base_port",
+				Message: "required field missing",
+			})
+		}
+		if group.GroupPort == 0 {
+			errs = append(errs, ValidationError{
+				Path:    path + ".group_port",
+				Message: "required field missing",
+			})
+		}
+		// count == 0 is "missing"; count == 1 is "below minimum".
+		if group.Count == 0 {
+			errs = append(errs, ValidationError{
+				Path:    path + ".count",
+				Message: "required field missing",
+			})
+		} else if group.Count < 2 {
+			errs = append(errs, ValidationError{
+				Path:    path + ".count",
+				Message: fmt.Sprintf("count %d below minimum (Vision requires count >= 2)", group.Count),
+			})
+		}
+
+		// Port range checks (only when fields populated).
+		if group.GroupPort > 0 && (group.GroupPort < minPort || group.GroupPort > maxPort) {
+			errs = append(errs, ValidationError{
+				Path:    path + ".group_port",
+				Message: fmt.Sprintf("port %d out of range [%d, %d]", group.GroupPort, minPort, maxPort),
+			})
+		}
+		if group.BasePort > 0 && group.Count >= 2 {
+			lastSlotPort := group.BasePort + group.Count - 1
+			if group.BasePort < minPort {
+				errs = append(errs, ValidationError{
+					Path:    path + ".base_port",
+					Message: fmt.Sprintf("port %d out of range [%d, %d]", group.BasePort, minPort, maxPort),
+				})
+			} else if lastSlotPort > maxPort {
+				errs = append(errs, ValidationError{
+					Path:    path + ".base_port",
+					Message: fmt.Sprintf("port %d out of range [%d, %d] (base_port %d + count %d - 1 = %d)", lastSlotPort, minPort, maxPort, group.BasePort, group.Count, lastSlotPort),
+				})
+			}
+		}
+
+		// Defaults.port is forbidden — Vision derives slot ports from base_port.
+		if group.Defaults != nil && group.Defaults.Port > 0 {
+			errs = append(errs, ValidationError{
+				Path:    path + ".defaults.port",
+				Message: "must not be set (Vision derives slot ports from base_port)",
+			})
+		}
+
+		// Port collision: group_port vs declared servers and other groups.
+		if group.GroupPort > 0 {
+			if owner, taken := serverPorts[group.GroupPort]; taken {
+				errs = append(errs, ValidationError{
+					Path:    path + ".group_port",
+					Message: fmt.Sprintf("port %d already used by %s", group.GroupPort, owner),
+				})
+			}
+			if owner, taken := groupPorts[group.GroupPort]; taken {
+				errs = append(errs, ValidationError{
+					Path:    path + ".group_port",
+					Message: fmt.Sprintf("port %d already used by %s", group.GroupPort, owner),
+				})
+			} else {
+				groupPorts[group.GroupPort] = path + ".group_port"
+			}
+		}
+
+		// Port collision: each synthesized slot port vs servers and other groups.
+		// Also reject template-name collisions vs declared servers.
+		if group.BasePort > 0 && group.Count >= 2 {
+			for i := 0; i < group.Count; i++ {
+				slotPort := group.BasePort + i
+				slotPath := fmt.Sprintf("%s[slot %d]", path, i+1)
+
+				if owner, taken := serverPorts[slotPort]; taken {
+					errs = append(errs, ValidationError{
+						Path:    path + ".base_port",
+						Message: fmt.Sprintf("port %d already used by %s", slotPort, owner),
+					})
+				}
+				if owner, taken := groupPorts[slotPort]; taken {
+					errs = append(errs, ValidationError{
+						Path:    path + ".base_port",
+						Message: fmt.Sprintf("port %d already used by %s", slotPort, owner),
+					})
+				} else {
+					groupPorts[slotPort] = slotPath
+				}
+
+				// Template-name collision check.
+				if group.Template != "" {
+					synthName := fmt.Sprintf("%s-%d", group.Template, i+1)
+					if _, taken := s.MCP.Servers[synthName]; taken {
+						errs = append(errs, ValidationError{
+							Path:    path + ".template",
+							Message: fmt.Sprintf("synthesized slot name %q collides with declared mcp.servers.%s (Vision will reject at load)", synthName, synthName),
+						})
+					}
+				}
 			}
 		}
 	}
