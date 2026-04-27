@@ -38,11 +38,11 @@ type visionServerYAML struct {
 }
 
 type slotGroupYAML struct {
-	Template  string          `yaml:"template"`
-	BasePort  int             `yaml:"base_port"`
-	Count     int             `yaml:"count"`
-	GroupPort int             `yaml:"group_port"`
-	Defaults  *yaml.Node      `yaml:"defaults,omitempty"`
+	Template  string     `yaml:"template"`
+	BasePort  int        `yaml:"base_port"`
+	Count     int        `yaml:"count"`
+	GroupPort int        `yaml:"group_port"`
+	Defaults  *yaml.Node `yaml:"defaults,omitempty"`
 }
 
 // RenderVisionServers renders full vision/servers.yaml. daemon-type servers are skipped.
