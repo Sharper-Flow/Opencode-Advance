@@ -46,6 +46,7 @@ func TestRenderSlotGroupFragment(t *testing.T) {
 		BasePort:  6301,
 		Count:     4,
 		GroupPort: 6300,
+		Defaults:  &cfg.Server{Timeout: 12000},
 	}
 	frag := RenderSlotGroupFragment(g)
 	if frag["type"] != "remote" {
@@ -60,5 +61,8 @@ func TestRenderSlotGroupFragment(t *testing.T) {
 	}
 	if frag["oauth"] != false {
 		t.Fatalf("oauth = %#v, want false", frag["oauth"])
+	}
+	if frag["timeout"] != 12000 {
+		t.Fatalf("timeout = %#v, want 12000", frag["timeout"])
 	}
 }

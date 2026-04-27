@@ -31,18 +31,21 @@
     "playwright-auth": {
       "enabled": true,
       "oauth": false,
+      "timeout": 5000,
       "type": "remote",
       "url": "http://localhost:6308/mcp"
     },
     "playwright-headed": {
       "enabled": true,
       "oauth": false,
+      "timeout": 5000,
       "type": "remote",
       "url": "http://localhost:6305/mcp"
     },
     "playwright-headless": {
       "enabled": true,
       "oauth": false,
+      "timeout": 5000,
       "type": "remote",
       "url": "http://localhost:6300/mcp"
     },
