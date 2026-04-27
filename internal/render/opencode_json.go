@@ -23,6 +23,17 @@ func RenderMCPFragment(s cfg.Server) Fragment {
 	}
 }
 
+// RenderSlotGroupFragment renders one opencode.json .mcp entry for a slot
+// group. Agents address the pool through the stable group_port listener.
+func RenderSlotGroupFragment(g cfg.SlotGroup) Fragment {
+	return Fragment{
+		"type":    "remote",
+		"url":     fmt.Sprintf("http://localhost:%d/mcp", g.GroupPort),
+		"enabled": true,
+		"oauth":   false,
+	}
+}
+
 func effectiveTimeoutMS(s cfg.Server) int {
 	if s.Timeout > 0 {
 		return s.Timeout

@@ -39,3 +39,26 @@ func TestRenderMCPFragment_UsesTimeoutPrecedence(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderSlotGroupFragment(t *testing.T) {
+	g := cfg.SlotGroup{
+		Template:  "playwright-headless",
+		BasePort:  6301,
+		Count:     4,
+		GroupPort: 6300,
+	}
+	frag := RenderSlotGroupFragment(g)
+	if frag["type"] != "remote" {
+		t.Fatalf("type = %#v, want remote", frag["type"])
+	}
+	wantURL := "http://localhost:6300/mcp"
+	if frag["url"] != wantURL {
+		t.Fatalf("url = %#v, want %s", frag["url"], wantURL)
+	}
+	if frag["enabled"] != true {
+		t.Fatalf("enabled = %#v, want true", frag["enabled"])
+	}
+	if frag["oauth"] != false {
+		t.Fatalf("oauth = %#v, want false", frag["oauth"])
+	}
+}

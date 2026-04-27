@@ -16,6 +16,9 @@ func PlanMCP(stack *cfg.Stack, paths cfg.Paths, source string) (*Plan, error) {
 	for name, srv := range stack.MCP.Servers {
 		declared[name] = RenderMCPFragment(srv)
 	}
+	for name, group := range stack.MCP.SlotGroups {
+		declared[name] = RenderSlotGroupFragment(group)
+	}
 	opPath := paths.OpencodeJSON()
 	opBefore, err := readIfExists(opPath)
 	if err != nil {
@@ -239,6 +242,9 @@ func composeTargetOps(stack *cfg.Stack, paths cfg.Paths, source string, target T
 		declared := map[string]Fragment{}
 		for name, srv := range stack.MCP.Servers {
 			declared[name] = RenderMCPFragment(srv)
+		}
+		for name, group := range stack.MCP.SlotGroups {
+			declared[name] = RenderSlotGroupFragment(group)
 		}
 		opAfter, err := MergeMCP(currentDoc, declared)
 		if err != nil {
