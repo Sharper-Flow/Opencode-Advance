@@ -28,8 +28,8 @@ description = "MCP daemon — manages lifecycle of all other MCP servers"
 
 [mcp.servers.context7]
 port        = 6276
-command     = "npx"
-args        = ["-y", "@upstash/context7-mcp@latest"]
+command     = "context7-mcp"
+args        = []
 timeout     = 10000
 autostart   = true
 source      = "https://github.com/upstash/context7"
@@ -37,17 +37,17 @@ description = "Library and API documentation lookup"
 
 [mcp.servers.svelte-mcp]
 port        = 6278
-command     = "npx"
-args        = ["-y", "@sveltejs/mcp@latest"]
+command     = "svelte-mcp"
+args        = []
 timeout     = 10000
 autostart   = true
-source      = "https://github.com/sveltejs/mcp"
+source      = "https://github.com/sveltejs/cli"
 description = "Svelte 5 / SvelteKit documentation and autofixer"
 
 [mcp.servers.kagi]
 port        = 6279
 command     = "uvx"
-args        = ["--from", "kagimcp", "kagimcp"]
+args        = ["--python", "3.12", "kagimcp"]
 timeout     = 15000
 autostart   = true
 env_file    = "~/.config/opencode-advance/secrets/kagi.env"   # example only — prefer `{env:KAGI_API_KEY}` in [mcp.servers.kagi.env] for new setups
@@ -56,8 +56,8 @@ description = "Kagi Search API for fetch and summarizer"
 
 [mcp.servers.firecrawl]
 port        = 6281
-command     = "npx"
-args        = ["-y", "@mendableai/firecrawl-mcp@latest"]
+command     = "bash"
+args        = ["-lc", "exec node \"$HOME/dev/firecrawl-slim/index.js\""]   # local slim fork; replace with npx command if not installed
 timeout     = 15000
 autostart   = true
 env_file    = "~/.config/opencode-advance/secrets/firecrawl.env"   # example only — prefer `{env:FIRECRAWL_API_KEY}` in [mcp.servers.firecrawl.env] for new setups
@@ -66,38 +66,28 @@ description = "Web scraping and crawl"
 
 [mcp.servers.lgrep]
 port        = 6285
-command     = "uvx"
-args        = ["--from", "git+https://github.com/Sharper-Flow/lgrep.git", "lgrep"]
+command     = "lgrep"
+args        = []
 timeout     = 5000
 autostart   = true
 source      = "https://github.com/Sharper-Flow/lgrep"
 description = "Semantic local code search + symbol indexing"
 
 [mcp.servers.lgrep.env]
-LGREP_AUTO_WATCH = "true"
+LGREP_AUTO_WATCH = "false"
+LGREP_AUTO_WARM_DISK = "false"
 
-[mcp.servers.playwright]
-port        = 6287
-command     = "npx"
-args        = ["-y", "@playwright/mcp@latest"]
-timeout     = 30000
-autostart   = true
-source      = "https://github.com/microsoft/playwright-mcp"
-description = "Browser automation"
-
-[mcp.servers.grep-app]
-port        = 6288
-command     = "npx"
-args        = ["-y", "@grep-app/mcp@latest"]
-timeout     = 5000
-autostart   = true
-source      = "https://grep.app"
-description = "Cross-repo code example search"
+# Playwright is managed as Vision slot_groups (pools of headless/headed/auth instances).
+# OCA does not render slot_groups — they are hand-managed in vision/servers.yaml.
+# Default pool config for reference:
+#   playwright-headless: base_port 6301, count 4, headless chromium
+#   playwright-headed:   base_port 6306, count 2, headed chromium
+#   playwright-auth:     base_port 6309, count 2, headless + shared auth profile
 
 [mcp.servers.sentry]
 port        = 6289
-command     = "npx"
-args        = ["-y", "@sentry/mcp-server@latest"]
+command     = "sentry-mcp"
+args        = []
 timeout     = 15000
 autostart   = true
 env_file    = "~/.config/opencode-advance/secrets/sentry.env"   # example only — prefer `{env:SENTRY_AUTH_TOKEN}` or provider-native env injection for new setups
@@ -118,6 +108,12 @@ path         = "{checkout}/{subdir}"
 sync         = "{checkout}/scripts/sync-global.sh --fix"
 provides     = ["adv-commands", "adv-agents", "adv-skills", "adv-overlays", "adv-instructions"]
 instructions = ["{checkout}/ADV_INSTRUCTIONS.md"]
+
+[plugins.oca]
+# OCA umbrella plugin — session tracker, future OCA features.
+# local: source resolves relative to the repo root (where oca apply runs).
+source = "local:plugins/oca"
+path   = "dist/index.js"
 
 [plugins.morph-fast-apply]
 source   = "https://github.com/JRedeker/opencode-morph-fast-apply.git"

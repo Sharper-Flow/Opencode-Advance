@@ -66,7 +66,7 @@ Cross-cutting concern missing from design. When `oca apply` runs, what does it l
 - Clean up orphan `*.bak.*.tmp` on start of each apply
 
 ### G10 — Golden file fixture strategy (LOW)
-Plan calls for goldens of "all 9 MCP variants". But each variant is stdio vs http vs with-env vs with-env_file vs with-required — combinatoric. Need explicit fixture list.
+Plan calls for goldens of every declared MCP variant. But each variant is stdio vs http vs with-env vs with-env_file vs with-required — combinatoric. Need explicit fixture list.
 
 **Fix:** Write fixture index:
 - `testdata/minimal.toml` — bare [meta] + 1 stdio server

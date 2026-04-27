@@ -65,7 +65,7 @@ Phase 0 established the branded CLI baseline and learned three durable lessons. 
 - `oca apply --target mcp --dry-run` prints the render plan for the example stack.toml
 - `oca apply --target mcp` writes the MCP fragment to an isolated test `opencode.json` atomically
 - `oca doctor --scope mcp` checks each declared MCP server and reports pass/fail
-- All 9 MCP servers from the user's real stack are represented in tests
+- All declared MCP server variants from the curated stack are represented in tests
 - Isolated test config dir is used throughout (never touches `~/.config/opencode/`)
 
 **Tasks (high-level):**

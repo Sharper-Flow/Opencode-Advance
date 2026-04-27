@@ -35,7 +35,7 @@ Both projects write to `~/.config/opencode/`. The overlap is 19 files (4 agents,
 
 1. **File ownership conflict.** The two-writers-one-directory problem creates silent drift. If the user runs Advance's `sync-global.sh`, then later runs `openchad update`, the Advance-specific agent tool grants are wiped. The reverse is also true in the inverse direction.
 
-2. **Incomplete MCP management.** open-chad installs 4 MCP servers (context7, grep-app, lgrep, firecrawl). The user's actual core stack has 9 (adds svelte-mcp, kagi, playwright, sentry, plus Vision itself). The remaining 5 are hand-wired into `opencode.json` with no tooling support.
+2. **Incomplete MCP management.** open-chad installs 4 MCP servers (context7, grep-app, lgrep, firecrawl). The user's live stack evolved beyond that baseline: Vision, context7, svelte-mcp, kagi, firecrawl, lgrep, sentry, and Playwright slot groups are core; other servers are project/on-demand. Anything outside open-chad's 4-server set was hand-wired into `opencode.json` / `vision/servers.yaml` with no single source of truth.
 
 3. **No provider/agent/permission management.** open-chad does not manage providers (google/openai/openrouter model configs), agent-to-model assignments, bash/directory permission rules, or LSP configs. All of these live in a manually-edited `~/.config/opencode/opencode.json`.
 
@@ -62,7 +62,7 @@ Both projects write to `~/.config/opencode/`. The overlap is 19 files (4 agents,
 
 - **A declarative stack.** One `stack.toml` file that owns every slice of the OpenCode configuration the user cares about. `oca apply` renders it. `oca doctor` verifies it. `oca diff` shows drift. `oca pin` captures reproducibility. Full coverage: MCP servers, plugins, instructions, providers, permissions, watcher, LSP, primary client/session UX, theme, plus the remaining OCA-owned config surfaces in later phases.
 
-- **Tight MCP integration.** All 9 MCP servers managed through one tool. No more hand-editing `opencode.json`. No more drift between `vision/servers.yaml` and what OpenCode actually knows about.
+- **Tight MCP integration.** Core MCP servers managed through one tool. No more hand-editing `opencode.json`. No more drift between `vision/servers.yaml` and what OpenCode actually knows about.
 
 - **Advance as a clean dependency.** The Advance plugin is declared in `stack.toml`, cloned by OCA, built by OCA, and wired by OCA — but its asset sync is delegated to its own `sync-global.sh` script. OCA never duplicates Advance-owned files.
 
@@ -109,7 +109,7 @@ The v1.0 release is ready when all of the following are true:
 
 **Curated v1 baseline (not an exact mirror of the maintainer's live environment):**
 
-- [ ] MCP servers: all relevant servers can be declared with explicit `autostart` / `enabled` semantics; the curated v1 example includes 9 core servers (vision, context7, svelte-mcp, kagi, firecrawl, lgrep, playwright, grep-app, sentry), while additional on-demand servers (arxiv-mcp, pokeedge data/sync ops, etc.) remain modelable in `stack.toml`
+- [ ] MCP servers: all relevant servers can be declared with explicit `autostart` / `enabled` semantics; the curated v1 example includes the current core server set (vision, context7, svelte-mcp, kagi, firecrawl, lgrep, sentry) and documents Playwright slot groups as Vision-managed until OCA supports slot-group rendering; additional on-demand/project servers (sonarqube, arxiv-mcp, time, figma-mcp, xray, pokeedge data/sync ops, etc.) remain modelable in `stack.toml` or hand-managed where they depend on project-local paths
 - [ ] Plugins: advance, morph-fast-apply, vision-opencode, openai-codex-auth, md-table-formatter, anthropic-auth — mix of git checkout and npm sources
 - [ ] Skills: 8 OCA-owned skills (lgrep, mcp-selection, morph, prioritizer, worktree, caveman, caveman-commit, caveman-review) copied from `assets/skills/` to `~/.config/opencode/skills/`; ADV methodology skills remain plugin-owned
 - [ ] Instructions: identity, rules, shell_strategy, test_resource_guardrails, lbp, temp_directory, mcp-tools, lgrep-tools, morph-tools, worktree-guide, caveman, ADV_INSTRUCTIONS (auto-wired via plugin)
