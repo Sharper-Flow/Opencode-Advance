@@ -14,13 +14,6 @@
       "type": "remote",
       "url": "http://localhost:6281/mcp"
     },
-    "grep-app": {
-      "enabled": true,
-      "oauth": false,
-      "timeout": 5000,
-      "type": "remote",
-      "url": "http://localhost:6288/mcp"
-    },
     "kagi": {
       "enabled": true,
       "oauth": false,
@@ -34,13 +27,6 @@
       "timeout": 5000,
       "type": "remote",
       "url": "http://localhost:6285/mcp"
-    },
-    "playwright": {
-      "enabled": true,
-      "oauth": false,
-      "timeout": 30000,
-      "type": "remote",
-      "url": "http://localhost:6287/mcp"
     },
     "sentry": {
       "enabled": true,

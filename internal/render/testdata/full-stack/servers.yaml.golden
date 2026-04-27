@@ -4,10 +4,7 @@
 servers:
     context7:
         port: 6276
-        command: npx
-        args:
-            - -y
-            - '@upstash/context7-mcp@latest'
+        command: context7-mcp
         autostart: true
         request_timeout: 10000ms
         source: https://github.com/upstash/context7
@@ -22,22 +19,12 @@ servers:
         request_timeout: 15000ms
         source: https://github.com/mendableai/firecrawl
         description: Web scraping and crawl
-    grep-app:
-        port: 6288
-        command: npx
-        args:
-            - -y
-            - '@grep-app/mcp@latest'
-        autostart: true
-        request_timeout: 5000ms
-        source: https://grep.app
-        description: Cross-repo code example search
     kagi:
         port: 6279
         command: uvx
         args:
-            - --from
-            - kagimcp
+            - --python
+            - "3.12"
             - kagimcp
         autostart: true
         request_timeout: 15000ms
@@ -45,44 +32,25 @@ servers:
         description: Kagi Search API for fetch and summarizer
     lgrep:
         port: 6285
-        command: uvx
-        args:
-            - --from
-            - git+https://github.com/Sharper-Flow/lgrep.git
-            - lgrep
+        command: lgrep
         env:
-            LGREP_AUTO_WATCH: "true"
+            LGREP_AUTO_WARM_DISK: "false"
+            LGREP_AUTO_WATCH: "false"
         autostart: true
         request_timeout: 5000ms
         source: https://github.com/Sharper-Flow/lgrep
         description: Semantic local code search + symbol indexing
-    playwright:
-        port: 6287
-        command: npx
-        args:
-            - -y
-            - '@playwright/mcp@latest'
-        autostart: true
-        request_timeout: 30000ms
-        source: https://github.com/microsoft/playwright-mcp
-        description: Browser automation
     sentry:
         port: 6289
-        command: npx
-        args:
-            - -y
-            - '@sentry/mcp-server@latest'
+        command: sentry-mcp
         autostart: true
         request_timeout: 15000ms
         source: https://github.com/getsentry/sentry-mcp
         description: Sentry error tracking and root cause analysis
     svelte-mcp:
         port: 6278
-        command: npx
-        args:
-            - -y
-            - '@sveltejs/mcp@latest'
+        command: svelte-mcp
         autostart: true
         request_timeout: 10000ms
-        source: https://github.com/sveltejs/mcp
+        source: https://github.com/sveltejs/cli
         description: Svelte 5 / SvelteKit documentation and autofixer

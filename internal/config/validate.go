@@ -8,10 +8,12 @@ import (
 )
 
 // Port range allocated to Vision MCP servers (mirrors Vision's
-// internal/config.MinPort/MaxPort constants).
+// internal/config.MinPort/MaxPort constants). Bumped to 6325 in v1.1.1
+// to accommodate slot group pools (e.g., Playwright headless+headed+auth
+// pools occupy 6300-6310 in the current curated stack).
 const (
 	minPort = 6275 // Vision daemon (admin MCP) itself lives here
-	maxPort = 6300
+	maxPort = 6325
 )
 
 // validRestartPolicies mirror Vision's enum.

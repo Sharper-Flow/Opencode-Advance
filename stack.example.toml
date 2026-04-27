@@ -56,8 +56,8 @@ description = "Kagi Search API for fetch and summarizer"
 
 [mcp.servers.firecrawl]
 port        = 6281
-command     = "bash"
-args        = ["-lc", "exec node \"$HOME/dev/firecrawl-slim/index.js\""]   # local slim fork; replace with npx command if not installed
+command     = "npx"
+args        = ["-y", "@mendableai/firecrawl-mcp@latest"]   # use a local slim fork by switching to `bash -lc 'exec node ~/path/to/index.js'` if you maintain one
 timeout     = 15000
 autostart   = true
 env_file    = "~/.config/opencode-advance/secrets/firecrawl.env"   # example only — prefer `{env:FIRECRAWL_API_KEY}` in [mcp.servers.firecrawl.env] for new setups
@@ -108,12 +108,6 @@ path         = "{checkout}/{subdir}"
 sync         = "{checkout}/scripts/sync-global.sh --fix"
 provides     = ["adv-commands", "adv-agents", "adv-skills", "adv-overlays", "adv-instructions"]
 instructions = ["{checkout}/ADV_INSTRUCTIONS.md"]
-
-[plugins.oca]
-# OCA umbrella plugin — session tracker, future OCA features.
-# local: source resolves relative to the repo root (where oca apply runs).
-source = "local:plugins/oca"
-path   = "dist/index.js"
 
 [plugins.morph-fast-apply]
 source   = "https://github.com/JRedeker/opencode-morph-fast-apply.git"
