@@ -201,6 +201,11 @@ func fetchServers(ctx context.Context, client *http.Client, url string) (*server
 	return &sr, nil
 }
 
+// slotGroupChecks probes each declared slot group via Vision's GET
+// /v1/slots/{group} endpoint, falling back to a TCP probe of group_port
+// when the endpoint is unreachable. Emits one Check per slot group:
+// pass when slot count matches Count, warn on TCP fallback or count
+// mismatch, warn with upgrade hint when Vision lacks the v1_slots API.
 func slotGroupChecks(ctx context.Context, client *http.Client, base string, stack *cfg.Stack, vr *versionResponse) []Check {
 	checks := []Check{}
 	if len(stack.MCP.SlotGroups) == 0 {
@@ -222,7 +227,7 @@ func slotGroupChecks(ctx context.Context, client *http.Client, base string, stac
 		slots, err := fetchSlots(ctx, client, base+"/v1/slots/"+name)
 		if err != nil {
 			// Fallback to TCP probe of group_port
-			if tcpErr := tcpProbe(group.GroupPort); tcpErr != nil {
+			if tcpErr := tcpProbe(ctx, group.GroupPort); tcpErr != nil {
 				checks = append(checks, Check{
 					Name:    "mcp.slot_groups." + name,
 					Status:  StatusWarn,
@@ -269,11 +274,13 @@ func slotGroupChecks(ctx context.Context, client *http.Client, base string, stac
 	return checks
 }
 
+// slotsResponse is the JSON shape returned by Vision GET /v1/slots/{group}.
 type slotsResponse struct {
 	Group string      `json:"group"`
 	Slots []slotEntry `json:"slots"`
 }
 
+// slotEntry is one synthesized slot inside a slot group as reported by Vision.
 type slotEntry struct {
 	Name  string `json:"name"`
 	State string `json:"state"`
@@ -299,9 +306,13 @@ func fetchSlots(ctx context.Context, client *http.Client, url string) (*slotsRes
 	return &sr, nil
 }
 
-func tcpProbe(port int) error {
+// tcpProbe attempts a TCP connection to localhost:port within a 2-second
+// timeout, honoring ctx cancellation. Returns nil on success. Used as a
+// fallback when Vision's GET /v1/slots/{group} endpoint is unreachable.
+func tcpProbe(ctx context.Context, port int) error {
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
-	conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	d := &net.Dialer{Timeout: 2 * time.Second}
+	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return err
 	}

@@ -520,7 +520,7 @@ Minor fixes, typos, doc updates, and CI tweaks can be committed outside of ADV c
 | 4: Primary client UX + theme                 | 1-1.5 weeks | 5-7 weeks     |
 | 5: Temporal enablement                       | 3-5 days    | 5.5-8 weeks   |
 | 5.5: Vision slot group support               | 2-3 days    | 6-8.5 weeks   |
-| 6: Installer + shell                         | 4-5 days    | 6.5-9 weeks     |
+| 6: Installer + shell                         | 4-5 days    | 6.5-9 weeks   |
 | 7: Migration + doctor                        | 4-5 days    | 7-10 weeks    |
 | 8: Extras + polish                           | 3-5 days    | 7.5-11 weeks  |
 

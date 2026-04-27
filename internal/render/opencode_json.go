@@ -25,6 +25,9 @@ func RenderMCPFragment(s cfg.Server) Fragment {
 
 // RenderSlotGroupFragment renders one opencode.json .mcp entry for a slot
 // group. Agents address the pool through the stable group_port listener.
+// Timeout is sourced from g.Defaults via effectiveTimeoutMS (Defaults.Timeout
+// or Defaults.RequestTimeout duration), falling back to defaultTimeoutMS
+// (5000ms) when no defaults are declared.
 func RenderSlotGroupFragment(g cfg.SlotGroup) Fragment {
 	timeout := defaultTimeoutMS
 	if g.Defaults != nil {

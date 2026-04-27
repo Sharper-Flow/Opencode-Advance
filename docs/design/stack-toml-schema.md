@@ -170,13 +170,34 @@ For each slot group, OCA emits **one** `.mcp.<group-name>` entry:
       "type": "remote",
       "url": "http://localhost:6300/mcp",
       "enabled": true,
-      "oauth": false
+      "oauth": false,
+      "timeout": 5000
     }
   }
 }
 ```
 
 Agents address the pool through the stable `group_port` URL. Vision routes each session to the least-loaded healthy slot.
+
+The `.timeout` field is sourced from `defaults.timeout` (or `defaults.request_timeout` parsed as a duration), falling back to `5000` ms when the slot group has no declared defaults.
+
+### Doctor behavior (`oca doctor --scope mcp`)
+
+For each declared slot group, doctor probes Vision in this order:
+
+1. `GET /v1/slots/{group}` — when reachable, doctor asserts the returned group name matches and the slot count equals `count`.
+2. TCP probe of `group_port` — used as a fallback when the slots endpoint is unreachable. A successful TCP probe still emits `pass` with a "slots endpoint unavailable" note.
+3. When Vision lacks the `v1_slots` API capability, every slot group emits a single `warn` advising a Vision upgrade. Doctor never fails hard for missing slot group capabilities.
+
+### Migration from earlier OCA versions
+
+OCA's MCP port range now extends to `6325` (previously `6300`). Configs already in the `6275-6300` range continue to validate unchanged. Configs that were previously rejected for using ports `6301-6325` now validate without modification. No stack.toml change is required to upgrade.
+
+To migrate hand-managed Playwright entries to declarative slot groups:
+
+1. Remove any per-instance `[mcp.servers.playwright-*]` entries.
+2. Add `[mcp.slot_groups.<name>]` declarations as shown in the example below (one group per browser profile).
+3. Run `oca apply --target mcp` and verify with `oca doctor --scope mcp`.
 
 ### Full Playwright example
 
@@ -212,6 +233,12 @@ command = "npx"
 args    = ["playwright-mcp", "--headless"]
 # user_data_dir for auth profile is per-user — set absolute path in your stack.toml
 ```
+
+| Group                  | `group_port` | `base_port` | `count` | Synthesized slot ports |
+| ---------------------- | ------------ | ----------- | ------- | ---------------------- |
+| `playwright-headless`  | 6300         | 6301        | 4       | 6301-6304              |
+| `playwright-headed`    | 6305         | 6306        | 2       | 6306-6307              |
+| `playwright-auth`      | 6308         | 6309        | 2       | 6309-6310              |
 
 ---
 

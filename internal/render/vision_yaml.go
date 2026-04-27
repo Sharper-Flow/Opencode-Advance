@@ -37,6 +37,10 @@ type visionServerYAML struct {
 	Description           string              `yaml:"description,omitempty"`
 }
 
+// slotGroupYAML is the Vision servers.yaml serialization shape for a slot
+// group declaration. Mirrors Vision's internal/config.SlotGroupConfig
+// field-for-field. OCA never expands per-slot servers — Vision performs
+// expansion at load time.
 type slotGroupYAML struct {
 	Template  string     `yaml:"template"`
 	BasePort  int        `yaml:"base_port"`
@@ -159,6 +163,9 @@ func serverNode(s cfg.Server) (*yaml.Node, error) {
 	return node.Content[0], nil
 }
 
+// slotGroupNode converts a SlotGroup into a yaml.Node suitable for use
+// under a servers.yaml `slot_groups:` mapping. Defaults serialize via
+// serverNode so all ServerConfig fields ride through.
 func slotGroupNode(g cfg.SlotGroup) (*yaml.Node, error) {
 	var defaultsNode *yaml.Node
 	if g.Defaults != nil {
