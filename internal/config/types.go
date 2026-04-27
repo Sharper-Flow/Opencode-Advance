@@ -56,10 +56,48 @@ type Meta struct {
 	Description string `toml:"description,omitempty"`
 }
 
-// MCPSection is the [mcp] table. It currently only carries Servers, but
-// is a table for forward-compat with future MCP-wide settings.
+// MCPSection is the [mcp] table. Carries both regular servers and Vision
+// slot_groups (pools of identical servers behind a single virtual port).
 type MCPSection struct {
-	Servers map[string]Server `toml:"servers"`
+	Servers    map[string]Server    `toml:"servers"`
+	SlotGroups map[string]SlotGroup `toml:"slot_groups,omitempty"`
+}
+
+// SlotGroup mirrors Vision's internal/config.SlotGroupConfig field-for-field.
+// A slot group declares a pool of N identical MCP servers (synthesized at
+// load time as <template>-1 .. <template>-count on contiguous ports starting
+// at base_port) plus a virtual listener at group_port that routes each agent
+// session to the least-loaded healthy slot.
+//
+// OCA renders slot groups into vision/servers.yaml under the top-level
+// slot_groups: key. Vision performs the expansion at load time; OCA does NOT
+// emit the synthesized per-slot servers itself, mirroring Vision's save
+// round-trip contract (see vision/docs/CONFIGURATION.md § Slot Groups).
+//
+// In opencode.json, OCA emits a single .mcp.<group-name> remote entry
+// pointing at http://localhost:<group_port>/mcp so OpenCode addresses the
+// pool through one stable URL.
+type SlotGroup struct {
+	// Template is the prefix for synthesized server names (<template>-1 ..
+	// <template>-count). Must not collide with any [mcp.servers.*] key once
+	// expanded.
+	Template string `toml:"template" yaml:"template"`
+
+	// BasePort is the port of the first synthesized slot. Subsequent slots
+	// occupy base_port+1, base_port+2, ... base_port+count-1.
+	BasePort int `toml:"base_port" yaml:"base_port"`
+
+	// Count is the number of synthesized slots. Vision requires count >= 2.
+	Count int `toml:"count" yaml:"count"`
+
+	// GroupPort is the port of the virtual group listener that agents
+	// connect to. Must not overlap with any slot port or other server.
+	GroupPort int `toml:"group_port" yaml:"group_port"`
+
+	// Defaults are the ServerConfig fields applied to every synthesized
+	// slot. The `port` field on Defaults is rejected by validation because
+	// Vision derives slot ports from BasePort.
+	Defaults *Server `toml:"defaults,omitempty" yaml:"defaults,omitempty"`
 }
 
 // Server mirrors Vision's internal/config.ServerConfig field-for-field
