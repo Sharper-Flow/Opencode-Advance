@@ -19,6 +19,24 @@ func testStack() *cfg.Stack {
 	}}}
 }
 
+func testStackWithSlotGroup() *cfg.Stack {
+	t := true
+	return &cfg.Stack{MCP: cfg.MCPSection{
+		Servers: map[string]cfg.Server{
+			"vision":   {Port: 6275, Type: "daemon", Required: true},
+			"context7": {Port: 6276, Command: "npx", Enabled: &t},
+		},
+		SlotGroups: map[string]cfg.SlotGroup{
+			"playwright-headless": {
+				Template:  "playwright-headless",
+				BasePort:  6301,
+				Count:     4,
+				GroupPort: 6300,
+			},
+		},
+	}}
+}
+
 func TestCheckMCP_VersionAndServerStatus(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -149,5 +167,82 @@ func TestCheckMCP_IncompatibleVersionWarns(t *testing.T) {
 	}
 	if !strings.Contains(checks[0].Hint, "upgrade Vision") {
 		t.Fatalf("expected upgrade hint, got %#v", checks[0])
+	}
+}
+
+func TestCheckMCP_SlotGroupWarnsOnMissingAPI(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/version":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"version":"dev","api":{"v1_servers":true}}`))
+		case "/v1/servers":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"servers":[{"name":"vision","state":"running","port":6275,"required":true},{"name":"context7","state":"running","port":6276}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	checks, err := CheckMCP(context.Background(), testStackWithSlotGroup(), Options{VisionAdminURL: ts.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var slotCheck *Check
+	for i := range checks {
+		if checks[i].Name == "mcp.slot_groups.playwright-headless" {
+			slotCheck = &checks[i]
+			break
+		}
+	}
+	if slotCheck == nil {
+		t.Fatalf("expected slot group check, got %#v", checks)
+	}
+	if slotCheck.Status != StatusWarn {
+		t.Fatalf("expected warn for missing v1_slots API, got %s", slotCheck.Status)
+	}
+	if !strings.Contains(slotCheck.Message, "slot group API") {
+		t.Fatalf("expected slot group API message, got %q", slotCheck.Message)
+	}
+}
+
+func TestCheckMCP_SlotGroupPassesWithAPI(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/version":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"version":"dev","api":{"v1_servers":true,"v1_slots":true}}`))
+		case "/v1/servers":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"servers":[{"name":"vision","state":"running","port":6275,"required":true},{"name":"context7","state":"running","port":6276}]}`))
+		case "/v1/slots/playwright-headless":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"group":"playwright-headless","slots":[{"name":"playwright-headless-1","state":"running"},{"name":"playwright-headless-2","state":"running"},{"name":"playwright-headless-3","state":"running"},{"name":"playwright-headless-4","state":"running"}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ts.Close()
+
+	checks, err := CheckMCP(context.Background(), testStackWithSlotGroup(), Options{VisionAdminURL: ts.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var slotCheck *Check
+	for i := range checks {
+		if checks[i].Name == "mcp.slot_groups.playwright-headless" {
+			slotCheck = &checks[i]
+			break
+		}
+	}
+	if slotCheck == nil {
+		t.Fatalf("expected slot group check, got %#v", checks)
+	}
+	if slotCheck.Status != StatusPass {
+		t.Fatalf("expected pass for healthy slot group, got %s: %s", slotCheck.Status, slotCheck.Message)
+	}
+	if !strings.Contains(slotCheck.Message, "4/4 slots") {
+		t.Fatalf("expected slot count in message, got %q", slotCheck.Message)
 	}
 }

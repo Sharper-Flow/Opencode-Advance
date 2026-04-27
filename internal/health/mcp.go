@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -142,6 +143,7 @@ func CheckMCP(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check, err
 			checks = append(checks, Check{Name: "mcp." + name, Status: StatusWarn, Message: fmt.Sprintf("unknown state %q", ss.State)})
 		}
 	}
+	checks = append(checks, slotGroupChecks(ctx, client, base, stack, vr)...)
 	checks = append(checks, envFileChecks(stack)...)
 	checks = append(checks, commandPathChecks(stack)...)
 
@@ -197,6 +199,114 @@ func fetchServers(ctx context.Context, client *http.Client, url string) (*server
 		return nil, err
 	}
 	return &sr, nil
+}
+
+func slotGroupChecks(ctx context.Context, client *http.Client, base string, stack *cfg.Stack, vr *versionResponse) []Check {
+	checks := []Check{}
+	if len(stack.MCP.SlotGroups) == 0 {
+		return checks
+	}
+	if vr == nil || !vr.API["v1_slots"] {
+		for name := range stack.MCP.SlotGroups {
+			checks = append(checks, Check{
+				Name:    "mcp.slot_groups." + name,
+				Status:  StatusWarn,
+				Message: "Vision lacks slot group API (v1_slots); cannot verify " + name,
+				Hint:    "upgrade Vision to a build that exposes GET /v1/slots/{group}",
+			})
+		}
+		return checks
+	}
+	for name, group := range stack.MCP.SlotGroups {
+		start := time.Now()
+		slots, err := fetchSlots(ctx, client, base+"/v1/slots/"+name)
+		if err != nil {
+			// Fallback to TCP probe of group_port
+			if tcpErr := tcpProbe(group.GroupPort); tcpErr != nil {
+				checks = append(checks, Check{
+					Name:    "mcp.slot_groups." + name,
+					Status:  StatusWarn,
+					Message: fmt.Sprintf("slots endpoint unreachable and TCP probe failed: %v", tcpErr),
+					Hint:    "ensure Vision is running and the slot group is configured",
+					Elapsed: time.Since(start),
+				})
+			} else {
+				checks = append(checks, Check{
+					Name:    "mcp.slot_groups." + name,
+					Status:  StatusPass,
+					Message: fmt.Sprintf("group_port %d listening (slots endpoint unavailable)", group.GroupPort),
+					Elapsed: time.Since(start),
+				})
+			}
+			continue
+		}
+		if slots.Group != name {
+			checks = append(checks, Check{
+				Name:    "mcp.slot_groups." + name,
+				Status:  StatusWarn,
+				Message: fmt.Sprintf("slots endpoint returned wrong group %q", slots.Group),
+				Elapsed: time.Since(start),
+			})
+			continue
+		}
+		got := len(slots.Slots)
+		if got != group.Count {
+			checks = append(checks, Check{
+				Name:    "mcp.slot_groups." + name,
+				Status:  StatusWarn,
+				Message: fmt.Sprintf("slot count mismatch: got %d, want %d", got, group.Count),
+				Elapsed: time.Since(start),
+			})
+			continue
+		}
+		checks = append(checks, Check{
+			Name:    "mcp.slot_groups." + name,
+			Status:  StatusPass,
+			Message: fmt.Sprintf("%d/%d slots healthy", got, group.Count),
+			Elapsed: time.Since(start),
+		})
+	}
+	return checks
+}
+
+type slotsResponse struct {
+	Group string      `json:"group"`
+	Slots []slotEntry `json:"slots"`
+}
+
+type slotEntry struct {
+	Name  string `json:"name"`
+	State string `json:"state"`
+}
+
+func fetchSlots(ctx context.Context, client *http.Client, url string) (*slotsResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status %d", resp.StatusCode)
+	}
+	var sr slotsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
+		return nil, err
+	}
+	return &sr, nil
+}
+
+func tcpProbe(port int) error {
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	if err != nil {
+		return err
+	}
+	conn.Close()
+	return nil
 }
 
 func envFileChecks(stack *cfg.Stack) []Check {
