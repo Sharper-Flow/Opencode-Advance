@@ -47,7 +47,7 @@ func TestReadBlock(t *testing.T) {
 				"# managed content\n" +
 				"# <<< OCA Managed Block <<<\n" +
 				"alias ll='ls -la'\n",
-			want:    "# managed content\n",
+			want:    "# managed content",
 			wantErr: false,
 		},
 		{
@@ -254,7 +254,7 @@ func TestDiffBlock(t *testing.T) {
 			"# <<< OCA Managed Block <<<\n"
 		os.WriteFile(path, []byte(content), 0o644)
 
-		diff, err := DiffBlock(path, "expected content\n")
+		diff, err := DiffBlock(path, "expected content")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -274,7 +274,7 @@ func TestDiffBlock(t *testing.T) {
 			"# <<< OCA Managed Block <<<\n"
 		os.WriteFile(path, []byte(content), 0o644)
 
-		diff, err := DiffBlock(path, "expected content\n")
+		diff, err := DiffBlock(path, "expected content")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -313,7 +313,7 @@ func TestIsEdited(t *testing.T) {
 			"# <<< OCA Managed Block <<<\n"
 		os.WriteFile(path, []byte(content), 0o644)
 
-		edited, err := IsEdited(path, "expected\n")
+		edited, err := IsEdited(path, "expected")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -330,7 +330,7 @@ func TestIsEdited(t *testing.T) {
 			"# <<< OCA Managed Block <<<\n"
 		os.WriteFile(path, []byte(content), 0o644)
 
-		edited, err := IsEdited(path, "expected\n")
+		edited, err := IsEdited(path, "expected")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -406,13 +406,13 @@ func TestRenderShellProfile(t *testing.T) {
 		}
 	})
 
-	t.Run("starts and ends with sentinels", func(t *testing.T) {
+	t.Run("does NOT include sentinels (WriteBlock adds them)", func(t *testing.T) {
 		got := RenderShellProfile("/usr/local/bin/oca")
-		if !strings.HasPrefix(got, SentinelStart+"\n") {
-			t.Errorf("should start with sentinel, got: %q", got[:min(50, len(got))])
+		if strings.Contains(got, SentinelStart) {
+			t.Error("body should not contain start sentinel — WriteBlock adds sentinels")
 		}
-		if !strings.HasSuffix(strings.TrimSpace(got), SentinelEnd) {
-			t.Errorf("should end with sentinel, got: %q", got[max(0, len(got)-50):])
+		if strings.Contains(got, SentinelEnd) {
+			t.Error("body should not contain end sentinel — WriteBlock adds sentinels")
 		}
 	})
 

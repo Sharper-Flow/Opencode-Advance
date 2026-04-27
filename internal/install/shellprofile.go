@@ -19,8 +19,7 @@ const (
 	SentinelEnd = "# <<< OCA Managed Block <<<"
 )
 
-const shellProfileTemplate = `# >>> OCA Managed Block >>>
-# This block is managed by OpenCode Advance (oca).
+const shellProfileTemplate = `# This block is managed by OpenCode Advance (oca).
 # Do not edit manually — changes will be overwritten on next ` + "`oca apply`" + `.
 # To remove: ` + "`oca uninstall`" + ` or delete this block manually.
 
@@ -30,9 +29,7 @@ case ":$PATH:" in
     *":$_oca_bindir:"*) ;;
     *) export PATH="$_oca_bindir:$PATH" ;;
 esac
-unset _oca_bindir
-
-# <<< OCA Managed Block <<<`
+unset _oca_bindir`
 
 // ReadBlock extracts the managed block content (between sentinels) from a file.
 // Returns ("", nil) if file doesn't exist or has no block.
@@ -68,6 +65,9 @@ func extractBlock(content string) (string, error) {
 	}
 
 	blockContent := afterStart[:endIdx]
+
+	// Trim trailing newline before end sentinel for canonical comparison
+	blockContent = strings.TrimRight(blockContent, "\n")
 
 	// Check for a second block
 	afterEnd := afterStart[endIdx+len(SentinelEnd):]
