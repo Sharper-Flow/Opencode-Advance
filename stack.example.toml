@@ -77,12 +77,41 @@ description = "Semantic local code search + symbol indexing"
 LGREP_AUTO_WATCH = "false"
 LGREP_AUTO_WARM_DISK = "false"
 
-# Playwright is managed as Vision slot_groups (pools of headless/headed/auth instances).
-# OCA does not render slot_groups — they are hand-managed in vision/servers.yaml.
-# Default pool config for reference:
-#   playwright-headless: base_port 6301, count 4, headless chromium
-#   playwright-headed:   base_port 6306, count 2, headed chromium
-#   playwright-auth:     base_port 6309, count 2, headless + shared auth profile
+# ─── MCP slot groups (Vision pools) ──────────────────────────────────────────
+# Playwright browsers run as pooled slots behind a single group_port.
+# Vision synthesizes per-slot servers at load time; OCA renders the group
+# declaration into vision/servers.yaml and a single .mcp entry per group.
+
+[mcp.slot_groups.playwright-headless]
+template  = "playwright-headless"
+base_port = 6301
+count     = 4
+group_port = 6300
+
+[mcp.slot_groups.playwright-headless.defaults]
+command = "npx"
+args    = ["playwright-mcp", "--headless"]
+
+[mcp.slot_groups.playwright-headed]
+template  = "playwright-headed"
+base_port = 6306
+count     = 2
+group_port = 6305
+
+[mcp.slot_groups.playwright-headed.defaults]
+command = "npx"
+args    = ["playwright-mcp"]
+
+[mcp.slot_groups.playwright-auth]
+template  = "playwright-auth"
+base_port = 6309
+count     = 2
+group_port = 6308
+
+[mcp.slot_groups.playwright-auth.defaults]
+command = "npx"
+args    = ["playwright-mcp", "--headless"]
+# user_data_dir for auth profile is per-user — set absolute path in your stack.toml
 
 [mcp.servers.sentry]
 port        = 6289

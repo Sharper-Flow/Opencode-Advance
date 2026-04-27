@@ -28,6 +28,24 @@
       "type": "remote",
       "url": "http://localhost:6285/mcp"
     },
+    "playwright-auth": {
+      "enabled": true,
+      "oauth": false,
+      "type": "remote",
+      "url": "http://localhost:6308/mcp"
+    },
+    "playwright-headed": {
+      "enabled": true,
+      "oauth": false,
+      "type": "remote",
+      "url": "http://localhost:6305/mcp"
+    },
+    "playwright-headless": {
+      "enabled": true,
+      "oauth": false,
+      "type": "remote",
+      "url": "http://localhost:6300/mcp"
+    },
     "sentry": {
       "enabled": true,
       "oauth": false,

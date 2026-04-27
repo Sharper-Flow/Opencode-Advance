@@ -54,3 +54,33 @@ servers:
         request_timeout: 10000ms
         source: https://github.com/sveltejs/cli
         description: Svelte 5 / SvelteKit documentation and autofixer
+slot_groups:
+    playwright-auth:
+        template: playwright-auth
+        base_port: 6309
+        count: 2
+        group_port: 6308
+        defaults:
+            command: npx
+            args:
+                - playwright-mcp
+                - --headless
+    playwright-headed:
+        template: playwright-headed
+        base_port: 6306
+        count: 2
+        group_port: 6305
+        defaults:
+            command: npx
+            args:
+                - playwright-mcp
+    playwright-headless:
+        template: playwright-headless
+        base_port: 6301
+        count: 4
+        group_port: 6300
+        defaults:
+            command: npx
+            args:
+                - playwright-mcp
+                - --headless
