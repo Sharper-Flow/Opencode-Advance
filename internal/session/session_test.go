@@ -237,6 +237,11 @@ func TestNoSessionsOutput(t *testing.T) {
 			want:   true,
 		},
 		{
+			name:   "empty_output_exit_one",
+			output: "",
+			want:   true,
+		},
+		{
 			name:   "real_error",
 			output: "permission denied opening /tmp/tmux-1000/oca",
 			want:   false,

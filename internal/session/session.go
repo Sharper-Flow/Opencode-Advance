@@ -167,7 +167,9 @@ func parseSessionList(output string) []Session {
 }
 
 func isNoSessionsOutput(output string) bool {
-	return strings.Contains(output, "no server running") ||
+	output = strings.TrimSpace(output)
+	return output == "" ||
+		strings.Contains(output, "no server running") ||
 		strings.Contains(output, "no sessions") ||
 		strings.Contains(output, "error connecting to")
 }
