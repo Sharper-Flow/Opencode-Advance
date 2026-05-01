@@ -2,7 +2,6 @@ package dashboard
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net"
 	"net/http"
@@ -17,10 +16,11 @@ type Config struct {
 
 // Server is the dashboard HTTP server.
 type Server struct {
-	cfg    Config
-	logger *slog.Logger
-	mux    *http.ServeMux
-	state  *State
+	cfg      Config
+	logger   *slog.Logger
+	mux      *http.ServeMux
+	state    *State
+	registry *subscriberRegistry
 }
 
 // NewServer creates a new dashboard server with all routes registered.
@@ -31,10 +31,11 @@ func NewServer(cfg Config) (*Server, error) {
 	}
 
 	s := &Server{
-		cfg:    cfg,
-		logger: logger,
-		mux:    http.NewServeMux(),
-		state:  NewState(),
+		cfg:      cfg,
+		logger:   logger,
+		mux:      http.NewServeMux(),
+		state:    NewState(),
+		registry: newSubscriberRegistry(),
 	}
 
 	s.registerRoutes()
@@ -84,44 +85,10 @@ func (s *Server) Run(ctx context.Context) error {
 const shutdownTimeout = 5 * time.Second
 
 func (s *Server) registerRoutes() {
-	s.mux.HandleFunc("/", s.handleIndex)
-	s.mux.HandleFunc("/api/changes", s.handleChanges)
-	s.mux.HandleFunc("/api/sessions", s.handleSessions)
-	s.mux.HandleFunc("/api/health", s.handleHealth)
-	s.mux.HandleFunc("/api/events", s.handleEvents)
-}
-
-func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write([]byte("<h1>OCA Dashboard</h1><p>Loading...</p>"))
-}
-
-func (s *Server) handleChanges(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	data := s.state.Snapshot()
-	json.NewEncoder(w).Encode(data.Changes)
-}
-
-func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	data := s.state.Snapshot()
-	json.NewEncoder(w).Encode(data.Sessions)
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	data := s.state.Snapshot()
-	json.NewEncoder(w).Encode(data.Health)
-}
-
-func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Write([]byte(": ping\n\n"))
-	w.(http.Flusher).Flush()
+	s.mux.Handle("GET /", indexHandler(s.state))
+	s.mux.Handle("GET /api/changes", jsonChangesHandler(s.state))
+	s.mux.Handle("GET /api/sessions", jsonSessionsHandler(s.state))
+	s.mux.Handle("GET /api/health", jsonHealthHandler(s.state))
+	s.mux.Handle("GET /api/events", sseHandler(s.state, s.registry))
+	s.mux.Handle("GET /static/", http.StripPrefix("/static/", staticHandler()))
 }
