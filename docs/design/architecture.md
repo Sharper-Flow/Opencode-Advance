@@ -178,7 +178,7 @@ Current shipped commands:
 - `oca version`
 - `oca apply [--target ...]` (targets: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles, temporal)
 - `oca diff`
-- `oca doctor --scope mcp|plugins|skills|temporal`
+- `oca doctor --scope mcp|plugins|skills|temporal|adv-assets`
 - `oca debug plan`
 - `oca debug validate`
 - `oca pin` and `oca update`

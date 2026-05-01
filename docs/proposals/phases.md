@@ -405,13 +405,19 @@ Phase 5 shipped a narrow 4-pillar Temporal enablement. Scope was deliberately cu
 - `cmd/oca/migrate.go` — `oca migrate from-open-chad`, `oca migrate init`
 - `internal/health/advance.go` — ADV state checks
 - `internal/health/cross.go` — cross-component consistency checks
-- Expanded `oca doctor` output with all checks (including Temporal scope from Phase 5)
+- Expanded `oca doctor` output with migration-era checks, building on shipped `mcp`, `plugins`, `skills`, `temporal`, and `adv-assets` scopes
+
+**Already delivered out-of-phase:**
+
+- `oca doctor --scope adv-assets` shipped in archived change `ocadoctorassetdrift` and merged to `trunk`
+- The scope audits plugin-provided asset ownership boundaries (`ORPHANED`, `DUPLICATE-OWNER`, `STALE`) and is read-only
+- Phase 7 should not reimplement asset-ownership drift; it should add migration/ADV/cross-component checks only
 
 **Exit criteria:**
 
 - `oca migrate from-open-chad` successfully reads the maintainer's open-chad state and produces a valid stack.toml
 - The generated stack.toml, when applied, reproduces the user's current state (verified by diff)
-- `oca doctor` reports on: Advance checkout, plugin build state, ADV state directory, Temporal health, cross-component consistency (e.g., agent model references a declared provider)
+- `oca doctor` reports on: Advance checkout, plugin build state, ADV state directory, Temporal health, cross-component consistency (e.g., agent model references a declared provider), and asset-ownership drift via the shipped `adv-assets` scope
 - Migration preserves user customizations (plugin paths, provider models, agent assignments)
 
 **Tasks (high-level):**
@@ -509,6 +515,10 @@ Every phase is developed as one or more ADV changes following the 7-gate workflo
 ### Out-of-phase work
 
 Minor fixes, typos, doc updates, and CI tweaks can be committed outside of ADV changes if they are trivial. Anything that touches Go code, stack.toml schema, or render logic MUST go through an ADV change.
+
+Completed out-of-phase hardening:
+
+- `ocadoctorassetdrift` — shipped `oca doctor --scope adv-assets` for plugin/OCA asset ownership drift. Keep future roadmap work focused on migration/ADV/cross-component checks instead of reimplementing this scope.
 
 ---
 

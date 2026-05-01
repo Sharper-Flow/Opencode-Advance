@@ -2,11 +2,11 @@
 
 ## Summary
 
-OpenCode Advance currently has **completed Phases 0, 1, 2, 3, and 3.5** on `trunk`, with **Phase 4 foundation in progress**.
+OpenCode Advance currently has **completed Phases 0, 1, 2, 3, 3.5, 4, 5, and 5.5** on `trunk`, with **Phase 6 installer/shell work in progress**.
 
-- Implementation status: **Phase 3.5 archived and merged; Phase 4 foundation (session/theme assets, `oca session new/list`) in progress**
-- Repository status: **config rendering ships for MCP, plugins, instructions, providers, permissions, watcher, LSP, skills, commands, formatters, and OpenCode toggles, plus `oca diff`, composed apply, `oca doctor --scope skills`, and Phase 4 foundation session/theme assets**
-- Recommended next action: **complete Phase 4 foundation** (integration tests + docs), then proceed to Phase 4 richness
+- Implementation status: **Phase 5.5 archived and merged; Phase 6 install/uninstall/completion flow in progress**
+- Repository status: **config rendering ships for MCP, plugins, instructions, providers, permissions, watcher, LSP, skills, commands, formatters, OpenCode toggles, Temporal, and MCP slot groups; doctor scopes ship for mcp, plugins, skills, temporal, and adv-assets**
+- Recommended next action: **continue Phase 6 installer/shell profile work**, then proceed to migration + release polish
 
 ## What is done
 
@@ -43,14 +43,19 @@ OpenCode Advance currently has **completed Phases 0, 1, 2, 3, and 3.5** on `trun
 - `oca diff` shipped
 - composed no-target `oca apply` shipped
 - agents explicitly kept out of shipped Phase 3 scope
-- Phase 4 foundation: Obsidian theme assets (JSON + tmux conf), `internal/session` package, `oca session new/list` CLI, `lib/session_lifecycle.sh`, `lib/boot_splash.sh` version+dir extension, managed-block tmux template — in progress
+- Phase 4 primary client UX/theme/session lifecycle shipped (session lifecycle, theme assets, tmux status bar, boot splash, `oca theme`, attach/switch/killall/restart)
+- Phase 5 Temporal enablement shipped
+- Phase 5.5 Vision slot group support shipped
+- `oca doctor --scope adv-assets` shipped as out-of-phase hardening for plugin/OCA asset ownership drift
+- Phase 6 installer/shell profile/completion work is in progress
 
 ## What is not done
 
-- No installer / migration implementation yet
+- No migration implementation yet
 - No release packaging workflow yet
-- Phase 4 richness not done: status bar metrics, LLM fuel gauges, session attach/switch/killall/restart, `oca theme` commands, boot splash animation
-- Phase 4 foundation remaining: integration tests, docs update, spec creation
+- Phase 6 remaining: finish installer hardening, docs, and release-ready validation
+- Phase 7 migration + expanded doctor checks not done
+- Phase 8 extras/polish not done
 
 ## Decision log snapshot
 
@@ -66,4 +71,4 @@ OpenCode Advance currently has **completed Phases 0, 1, 2, 3, and 3.5** on `trun
 
 ## Resume guidance
 
-If you are returning to this repo later, start with `NEXT_STEPS.md`, verify there is no newer active change, and complete or continue the Phase 4 foundation change (`phase4FoundationSessionTheme`).
+If you are returning to this repo later, start with `NEXT_STEPS.md`, verify there is no newer active change, and continue Phase 6 installer/shell work or the next roadmap item in `docs/proposals/phases.md`.

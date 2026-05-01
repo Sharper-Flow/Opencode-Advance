@@ -15,6 +15,7 @@ This document is the source material for the first ADV change in this repository
 - Phase 4 (`phase4FoundationSessionTheme` + `completePhase4SessionLifecycle`) is complete, archived, and merged to `trunk`
 - Phase 5 (`phase5TemporalEnablement`) is complete, archived, and merged to `trunk`
 - Phase 5.5 (`addVisionSlotGroupSupport`) is complete, archived, and merged to `trunk`
+- Out-of-phase hardening (`ocadoctorassetdrift`) is complete, archived, and merged to `trunk`; `oca doctor --scope adv-assets` now covers plugin/OCA asset ownership drift
 - Phase 6 (installer + shell profile) is in progress — install, uninstall, completion, prereq checker, and shell profile management implemented
 - Current recommended next phase: **complete Phase 6, then Phase 7: Migration + Doctor Expansion**
 - This document remains the umbrella roadmap for the full v1.0 effort

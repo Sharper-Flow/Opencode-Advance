@@ -7,13 +7,10 @@ This file is the fastest way to resume work in `~/dev/opencodeadvance` later.
 - Repository scaffold exists and is pushed to `origin/trunk`
 - Brand, wordmark, palette, architecture, schema, and CLI docs are written
 - The compact 3-line pagga wordmark is the canonical form everywhere
-- Phase 0 foundation work is archived and merged to `trunk`
-- Phase 1 parser + MCP apply/doctor/debug work is archived and merged
-- Phase 2 plugin + instruction management is archived and merged
-- Phase 3 providers/permissions/watcher/LSP rendering, composed apply, and `oca diff` are archived and merged
-- Phase 3.5 skills/commands/formatters/OpenCode toggles rendering and `oca doctor --scope skills` are archived and merged
+- Phases 0, 1, 2, 3, 3.5, 4, 5, and 5.5 are archived and merged
+- `oca doctor --scope adv-assets` is shipped as out-of-phase hardening for plugin/OCA asset ownership drift
 - CI and local verification cover Go tests, vet, builds, and race runs for shipped phases
-- **Current ADV focus:** Phase 4 foundation in progress (`phase4FoundationSessionTheme` — 8/11 tasks done)
+- **Current ADV focus:** Phase 6 installer/shell profile/completion work
 
 ## Resume from here
 
@@ -28,23 +25,21 @@ Then:
 
 1. Run `/adv-status`
 2. Confirm there are no new active changes to finish first
-3. Start the next implementation change from the roadmap in `docs/proposals/phases.md`
-4. Complete the active Phase 4 foundation change if not yet archived
+3. Continue Phase 6 work, or start the next implementation change from `docs/proposals/phases.md`
 
 ## Recommended workflow
 
-- Treat `phase0FoundationBrand` as the shipped reference baseline for later phases
-- Treat `phase1StackTomlParserMcpApply`, `phase2PluginInstruction`, and `phase3CoreOpencodeJsonCoverage` as archived shipped references
-- Start the next implementation change for **Phase 4 richness** (after foundation is archived)
+- Treat archived phase changes as shipped references
+- Do not reimplement `adv-assets` in Phase 7; build migration/ADV/cross-component doctor checks on top of existing scopes
 - Keep implementation in separate per-phase changes following `docs/proposals/phases.md`
 - Archive each phase before starting the next one
 
-## Immediate implementation target (Phase 4)
+## Immediate implementation target (Phase 6)
 
-- **Foundation (in progress):** complete integration tests, docs update, and spec for `phase4FoundationSessionTheme`
-- **Richness (next):** status bar metrics, LLM fuel gauges, session attach/switch/killall/restart, boot splash animation, `oca theme` commands
-- keep shipped config rendering behavior stable while layering UX/runtime work on top
-- keep all writes isolated from live user config
+- Finish installer/shell profile hardening and documentation
+- Prepare Phase 7 migration + expanded doctor checks after Phase 6 is release-ready
+- Keep shipped config rendering behavior stable while layering installer/migration work on top
+- Keep all writes isolated from live user config
 
 ## Constraints to keep in mind
 

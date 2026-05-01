@@ -148,6 +148,12 @@ This repository has **Phase 1 + Phase 2 + Phase 3 + Phase 3.5 + Phase 4 + Phase 
 - `oca doctor --scope mcp` slot group health probes
 - `stack.example.toml` Playwright slot group examples
 
+#### Out-of-phase hardening — asset ownership doctor
+
+- `oca doctor --scope adv-assets` audits plugin/OCA asset ownership boundaries
+- reports `ORPHANED`, `DUPLICATE-OWNER`, and `STALE` findings without modifying files
+- docs updated in `docs/design/architecture.md` and `docs/design/cli-surface.md`
+
 #### Phase 6 — installer + shell profile (in progress)
 
 - `oca install [--yes]` — end-to-end first-time setup (prereqs + apply + shell profile injection)
