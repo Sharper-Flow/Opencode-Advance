@@ -255,6 +255,24 @@ Behavior:
 - empty output: `"no OCA sessions"`
 - supports `--output text|json`
 
+### Exact-name session commands
+
+`oca session attach <name>`, `switch <name>`, `kill <name>`, and
+`restart <name>` are exact-name operations on the dedicated OCA tmux socket.
+They intentionally preserve custom names created with `oca session new --name`;
+the socket (`OCA_TMUX_SOCKET`, default `"oca"`) is the containment boundary.
+
+Bulk/safety operations are stricter:
+
+- `oca session list` only shows sessions with the generated `oca-` prefix.
+- `oca session killall` only destroys sessions returned by `list`.
+- `oca session reap` only reaps stale, detached, `oca-` prefixed sessions.
+
+Implementation caveat: `internal/session.GetSessionByName` delegates through
+`List()`, so it is also `oca-` prefix scoped. Exact-name commands can still
+target custom names directly, but custom-name restarts should pass an explicit
+working directory rather than relying on path inference.
+
 ## Shipped in Phase 6 (foundation)
 
 Phase 6 adds the installer, uninstaller, and shell completion. These commands are shipped but Phase 6 is not yet fully complete.

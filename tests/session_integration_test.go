@@ -341,6 +341,52 @@ func TestIntegration_SessionKill(t *testing.T) {
 	}
 }
 
+func TestIntegration_SessionKill_CustomName(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+
+	socket := testSocketFor(t)
+	cleanupITestSocket(t, socket)
+	defer cleanupITestSocket(t, socket)
+
+	bin := buildSessionTestBinary(t)
+	tmpDir := t.TempDir()
+	env := append(os.Environ(),
+		"OCA_TMUX_SOCKET="+socket,
+		"OCA_OPENCODE_CONFIG_DIR="+filepath.Join(tmpDir, "config"),
+		"OCA_CACHE_DIR="+filepath.Join(tmpDir, "cache"),
+		"OCA_ASSETS_ROOT="+filepath.Join(sessionTestRepoRoot(t), "assets"),
+	)
+
+	const customName = "my-custom-kill-session"
+	createCmd := exec.Command(bin, "session", "new", "--name", customName, "--no-splash")
+	createCmd.Dir = tmpDir
+	createCmd.Env = env
+	if out, err := createCmd.CombinedOutput(); err != nil {
+		t.Fatalf("session new custom failed: %v\n%s", err, out)
+	}
+
+	// Custom names do not appear in `oca session list`, but exact-name
+	// commands still target them on the dedicated OCA socket.
+	hasCmd := exec.Command("tmux", "-L", socket, "has-session", "-t", customName)
+	if out, err := hasCmd.CombinedOutput(); err != nil {
+		t.Fatalf("custom tmux session should exist: %v\n%s", err, out)
+	}
+
+	killCmd := exec.Command(bin, "session", "kill", customName)
+	killCmd.Dir = tmpDir
+	killCmd.Env = env
+	if out, err := killCmd.CombinedOutput(); err != nil {
+		t.Fatalf("session kill custom failed: %v\n%s", err, out)
+	}
+
+	hasCmd = exec.Command("tmux", "-L", socket, "has-session", "-t", customName)
+	if err := hasCmd.Run(); err == nil {
+		t.Fatal("custom tmux session still exists after exact-name kill")
+	}
+}
+
 func TestIntegration_SessionKillall(t *testing.T) {
 	if _, err := exec.LookPath("tmux"); err != nil {
 		t.Skip("tmux not installed")

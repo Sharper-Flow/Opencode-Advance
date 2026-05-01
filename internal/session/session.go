@@ -188,15 +188,19 @@ func defaultLookPath(file string) (string, error) {
 	return exec.LookPath(file)
 }
 
-// Attach attaches to an existing tmux session, replacing the current process.
-// This is a client-side operation that execs tmux directly.
+// Attach attaches to an existing tmux session by exact name, replacing the
+// current process. Exact-name operations intentionally do not apply the
+// sessionPrefix filter so custom names created via `oca session new --name`
+// remain addressable on the manager's configured socket.
 func (m *Manager) Attach(ctx context.Context, name string) error {
 	args := []string{"-L", m.socket, "attach", "-t", name}
 	// Use syscall.Exec to replace the current process with tmux
 	return syscall.Exec(m.tmuxPath, append([]string{"tmux"}, args...), os.Environ())
 }
 
-// SwitchClient switches the current tmux client to a different session.
+// SwitchClient switches the current tmux client to a different session by
+// exact name on the manager's configured socket. It preserves custom-name
+// support; bulk/safety operations carry the sessionPrefix filter instead.
 func (m *Manager) SwitchClient(ctx context.Context, name string) error {
 	args := []string{"-L", m.socket, "switch-client", "-t", name}
 	_, err := subprocess.Run(ctx, subprocess.Cmd{
@@ -210,7 +214,9 @@ func (m *Manager) SwitchClient(ctx context.Context, name string) error {
 	return nil
 }
 
-// Kill destroys a tmux session.
+// Kill destroys a tmux session by exact name on the manager's configured
+// socket. It preserves custom-name support; callers that need prefix-scoped
+// bulk deletion should use KillAll or ReapStale.
 func (m *Manager) Kill(ctx context.Context, name string) error {
 	args := []string{"-L", m.socket, "kill-session", "-t", name}
 	_, err := subprocess.Run(ctx, subprocess.Cmd{
@@ -241,7 +247,10 @@ func (m *Manager) KillAll(ctx context.Context) (int, error) {
 	return killed, nil
 }
 
-// Restart kills and recreates a session with the same name and working directory.
+// Restart kills and recreates a session by exact name. Custom-named sessions
+// are allowed, but their current path cannot be inferred through
+// GetSessionByName because that helper is prefix-scoped; pass workingDir when
+// restarting custom names.
 func (m *Manager) Restart(ctx context.Context, name, workingDir, tmuxConfPath string) error {
 	// Get current session info before killing
 	var currentPath string
@@ -398,7 +407,9 @@ func (m *Manager) SetGlobalEnv(ctx context.Context, key, value string) error {
 	return nil
 }
 
-// GetSessionByName finds a single session by exact name.
+// GetSessionByName finds a single prefix-scoped OCA session by exact name.
+// It delegates through List(), so custom names without sessionPrefix are not
+// visible here even though exact-name operations can still target them.
 func (m *Manager) GetSessionByName(ctx context.Context, name string) (*Session, error) {
 	sessions, err := m.List(ctx)
 	if err != nil {
