@@ -1,0 +1,45 @@
+{{define "body"}}
+<header class="dashboard-header">
+  <h1>OCA Operator Dashboard</h1>
+</header>
+
+<div class="health-bar">
+  {{if .Snapshot.Health.TemporalReachable}}
+  <span class="ok">● Temporal</span>
+  {{else}}
+  <span class="warn">● Temporal unreachable</span>
+  {{end}}
+  {{if .Snapshot.Health.WorkerRunning}}
+  <span class="ok">● Worker</span>
+  {{else}}
+  <span class="warn">● Worker down</span>
+  {{end}}
+</div>
+
+{{if not .Snapshot.Warm}}
+<div class="loading">Loading…</div>
+{{else}}
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Title</th>
+      <th>Status</th>
+      <th>Project</th>
+    </tr>
+  </thead>
+  <tbody id="changes-table" data-signals='{"changes": {{.JSONChanges}}}'>
+    {{range .Snapshot.Changes}}
+    <tr>
+      <td>{{.ID}}</td>
+      <td>{{.Title}}</td>
+      <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
+      <td>{{.Project}}</td>
+    </tr>
+    {{else}}
+    <tr><td colspan="4" class="loading">No active changes</td></tr>
+    {{end}}
+  </tbody>
+</table>
+{{end}}
+{{end}}
