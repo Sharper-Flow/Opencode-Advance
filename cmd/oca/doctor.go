@@ -51,10 +51,10 @@ func newDoctorCmd(state *commandState) *cobra.Command {
 				}
 			}
 			if health.HasFailures(checks) {
-				return newCLIError(2, health.Summary(checks))
+				return newCLIError(2, "%s", health.Summary(checks))
 			}
 			if health.HasWarnings(checks) {
-				return newCLIError(1, health.Summary(checks))
+				return newCLIError(1, "%s", health.Summary(checks))
 			}
 			return nil
 		},
