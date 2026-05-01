@@ -462,12 +462,11 @@ Rendered into `opencode.json` `.lsp`. Unknown additional keys per LSP server are
 
 ```toml
 [session]
-prefix               = "oca-"        # tmux session name prefix
-reaper               = true          # kill unattached sessions after timeout
-reaper_timeout_hours = 4
-theme                = "obsidian"    # theme name under assets/themes/
-boot_splash          = true          # show GBA wordmark on session create
-boot_splash_timeout  = 1000          # ms before dropping into the session
+prefix           = "oca-"        # tmux session name prefix
+reaper           = true          # kill unattached sessions after timeout
+reaper_threshold = "4h"         # Go duration string; stale threshold
+theme            = "obsidian"    # theme name under assets/themes/
+boot_splash      = true          # show GBA wordmark on session create
 ```
 
 Design notes for Phase 4 session behavior:
@@ -475,6 +474,7 @@ Design notes for Phase 4 session behavior:
 - OCA sessions are same-host tmux sessions. Re-entry from another device means reconnecting to the same host, not syncing sessions across machines.
 - Existing host access controls (local shell, SSH, Tailscale, OS account permissions) are the access boundary. No separate OCA session-auth config is planned here.
 - Reaper settings must be interpreted with resume safety in mind: a temporarily detached session may still be expected to come back later.
+- `ReapCandidates` and `ReapStale` enforce a 5-minute minimum floor for safety regardless of the configured threshold.
 - Multi-client / mobile-terminal behavior needs an explicit tmux window-size policy so a phone-sized client does not unintentionally degrade a desktop session. If that policy becomes user-tunable later, this section is where the schema should expose it.
 
 ---

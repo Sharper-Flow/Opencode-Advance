@@ -232,6 +232,24 @@ func sessionSocket() string {
 // unset (or config load fails entirely).
 const defaultTheme = "obsidian"
 
+// validThemeName accepts only basename-like theme IDs: letters, digits,
+// underscore, hyphen, and dot. Rejects path separators, "..", and empty.
+func validThemeName(theme string) bool {
+	if theme == "" {
+		return false
+	}
+	if strings.Contains(theme, "..") {
+		return false
+	}
+	for _, r := range theme {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || r == '_' || r == '-' || r == '.') {
+			return false
+		}
+	}
+	return true
+}
+
 // resolveTmuxConf returns the path to the named tmux theme conf asset, or
 // the empty string if no asset can be found. An empty theme name is treated
 // as "use the default" (obsidian). An unknown theme name (no matching file)
@@ -245,6 +263,9 @@ const defaultTheme = "obsidian"
 func resolveTmuxConf(theme string) string {
 	if theme == "" {
 		theme = defaultTheme
+	}
+	if !validThemeName(theme) {
+		return ""
 	}
 	filename := theme + ".tmux.conf"
 
