@@ -702,10 +702,32 @@ type ProviderListSection struct {
 
 // SessionSection is the [session] table. Carries session-level configuration
 // including the watchdog subsystem for automatic hang detection and recovery.
+//
+// Reaper, ReaperThreshold, Theme, and BootSplash drive `oca session new`
+// behavior:
+//   - Reaper: run the stale-session reaper as a fire-and-forget goroutine
+//     after creating a new session. Default true.
+//   - ReaperThreshold: age above which an unattached session is considered
+//     stale. Parsed as a Go duration string ("4h", "30m"). Default 4h.
+//     Floor of 5m enforced inside ReapStale to avoid pathological values.
+//   - Theme: name of the bundled tmux theme passed to `resolveTmuxConf`.
+//     Default "obsidian". Unknown names degrade to no -f flag.
+//   - BootSplash: whether to trigger the boot splash on `session new`.
+//     Default true. CLI `--no-splash` always wins.
 type SessionSection struct {
-	Prefix   string           `toml:"prefix,omitempty"`
-	Watchdog *WatchdogConfig  `toml:"watchdog,omitempty"`
-	Extra    map[string]any   `toml:"-"`
+	Prefix          string          `toml:"prefix,omitempty"`
+	Reaper          bool            `toml:"reaper,omitempty"`
+	ReaperThreshold time.Duration   `toml:"reaper_threshold,omitempty"`
+	Theme           string          `toml:"theme,omitempty"`
+	BootSplash      bool            `toml:"boot_splash,omitempty"`
+	Watchdog        *WatchdogConfig `toml:"watchdog,omitempty"`
+	Extra           map[string]any  `toml:"-"`
+
+	// Presence flags — track which bool fields were explicitly set in TOML
+	// so Resolve() can distinguish "unset, apply default true" from
+	// "explicitly false". Private; not part of the serialized contract.
+	reaperSet     bool
+	bootSplashSet bool
 }
 
 // WatchdogConfig configures automatic hang detection and recovery for
@@ -733,6 +755,36 @@ func (s *SessionSection) UnmarshalTOML(value any) error {
 		case "prefix":
 			if str, ok := v.(string); ok {
 				s.Prefix = str
+			}
+		case "reaper":
+			if b, ok := v.(bool); ok {
+				s.Reaper = b
+				s.reaperSet = true
+			} else {
+				return fmt.Errorf("reaper: expected bool, got %T", v)
+			}
+		case "reaper_threshold":
+			str, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("reaper_threshold: expected string, got %T", v)
+			}
+			d, err := time.ParseDuration(str)
+			if err != nil {
+				return fmt.Errorf("reaper_threshold: %w", err)
+			}
+			s.ReaperThreshold = d
+		case "theme":
+			if str, ok := v.(string); ok {
+				s.Theme = str
+			} else {
+				return fmt.Errorf("theme: expected string, got %T", v)
+			}
+		case "boot_splash":
+			if b, ok := v.(bool); ok {
+				s.BootSplash = b
+				s.bootSplashSet = true
+			} else {
+				return fmt.Errorf("boot_splash: expected bool, got %T", v)
 			}
 		case "watchdog":
 			wd := &WatchdogConfig{}

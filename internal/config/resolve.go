@@ -48,13 +48,34 @@ func (s *Stack) Resolve() {
 		s.Plugins[name] = plugin
 	}
 
-	// Apply session/watchdog defaults.
-	if s.Session != nil && s.Session.Watchdog != nil {
-		if s.Session.Watchdog.IdleTimeout == 0 {
-			s.Session.Watchdog.IdleTimeout = 5 * time.Minute
+	// Apply session defaults (run-time behavior config consumed by `oca session new`).
+	if s.Session != nil {
+		s.Session.applyDefaults()
+	}
+}
+
+// applyDefaults fills zero-value session fields with v1 defaults. Presence
+// flags (reaperSet, bootSplashSet) distinguish "unset" from "explicitly
+// false" so user-set `reaper = false` survives Resolve.
+func (s *SessionSection) applyDefaults() {
+	if !s.reaperSet {
+		s.Reaper = true
+	}
+	if s.ReaperThreshold == 0 {
+		s.ReaperThreshold = 4 * time.Hour
+	}
+	if s.Theme == "" {
+		s.Theme = "obsidian"
+	}
+	if !s.bootSplashSet {
+		s.BootSplash = true
+	}
+	if s.Watchdog != nil {
+		if s.Watchdog.IdleTimeout == 0 {
+			s.Watchdog.IdleTimeout = 5 * time.Minute
 		}
-		if s.Session.Watchdog.MaxBumps == 0 {
-			s.Session.Watchdog.MaxBumps = 3
+		if s.Watchdog.MaxBumps == 0 {
+			s.Watchdog.MaxBumps = 3
 		}
 	}
 }
