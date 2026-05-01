@@ -43,7 +43,14 @@ function sanitizePaneId(paneId) {
   return paneId.replace(/^%/, "");
 }
 
-// src/index.ts
+// src/watchdog.ts
+function readConfig() {
+  return {
+    enabled: process.env.OCA_WATCHDOG_ENABLED === "1",
+    idleTimeoutMs: parseInt(process.env.OCA_WATCHDOG_IDLE_TIMEOUT_MS || "0", 10),
+    maxBumps: parseInt(process.env.OCA_WATCHDOG_MAX_BUMPS || "0", 10)
+  };
+}
 function stateFilePath() {
   const paneId = process.env.TMUX_PANE;
   if (!paneId)
@@ -52,27 +59,170 @@ function stateFilePath() {
   const sanitized = sanitizePaneId(paneId);
   return xdgStateHome("oca", "panes", socket, `${sanitized}.json`);
 }
-var src_default = {
-  sessionCreated: async (session, _output) => {
-    const filePath = stateFilePath();
-    if (!filePath)
-      return;
-    atomicWriteJSON(filePath, {
-      sessionID: session.id,
-      directory: session.directory,
-      ts: Date.now()
-    });
-  },
-  sessionDeleted: async (session, _output) => {
-    const filePath = stateFilePath();
-    if (!filePath)
-      return;
-    const existing = readJSON(filePath);
-    if (existing && existing.sessionID === session.id) {
-      deleteStateFile(filePath);
+function readPaneState(filePath) {
+  return readJSON(filePath);
+}
+function writePaneState(filePath, state) {
+  atomicWriteJSON(filePath, state);
+}
+var trackers = new Map;
+var checkInterval = null;
+function bumpSession(filePath, paneState, config, $shell) {
+  const wd = paneState.watchdog || {
+    enabled: true,
+    bump_count: 0,
+    last_bump_at: 0,
+    last_activity_at: Date.now(),
+    status: "active"
+  };
+  if (wd.bump_count >= config.maxBumps) {
+    wd.status = "exhausted";
+    paneState.watchdog = wd;
+    writePaneState(filePath, paneState);
+    try {
+      $shell`tmux display-message "\u26A0 OCA watchdog exhausted for session ${paneState.sessionID}"`.catch(() => {});
+    } catch {}
+    return;
+  }
+  wd.bump_count++;
+  wd.last_bump_at = Date.now();
+  wd.status = "active";
+  paneState.watchdog = wd;
+  writePaneState(filePath, paneState);
+  try {
+    $shell`oca pane restart-tui --force`.catch(() => {});
+  } catch {}
+}
+function checkHang(config, $shell) {
+  if (!config.enabled || config.idleTimeoutMs <= 0)
+    return;
+  const filePath = stateFilePath();
+  if (!filePath)
+    return;
+  const now = Date.now();
+  for (const [sessionId, tracker] of trackers) {
+    if (tracker.currentStatus !== "busy")
+      continue;
+    const elapsed = now - tracker.lastActivityAt;
+    if (elapsed < config.idleTimeoutMs)
+      continue;
+    const paneState = readPaneState(filePath);
+    if (!paneState || paneState.sessionID !== sessionId)
+      continue;
+    bumpSession(filePath, paneState, config, $shell);
+  }
+}
+function initWatchdog(input) {
+  const config = readConfig();
+  if (!config.enabled)
+    return;
+  checkInterval = setInterval(() => {
+    checkHang(config, input.$);
+  }, 60000);
+  if (checkInterval.unref) {
+    checkInterval.unref();
+  }
+}
+function handleWatchdogEvent(event) {
+  const config = readConfig();
+  if (!config.enabled)
+    return;
+  switch (event.type) {
+    case "session.status": {
+      const { sessionID, status } = event.properties || {};
+      if (!sessionID)
+        break;
+      let tracker = trackers.get(sessionID);
+      if (!tracker) {
+        tracker = { lastActivityAt: Date.now(), currentStatus: "unknown" };
+        trackers.set(sessionID, tracker);
+      }
+      if (status?.type === "busy") {
+        tracker.currentStatus = "busy";
+        tracker.lastActivityAt = Date.now();
+      } else if (status?.type === "idle") {
+        tracker.currentStatus = "idle";
+      }
+      break;
+    }
+    case "message.part.updated": {
+      const now = Date.now();
+      for (const tracker of trackers.values()) {
+        if (tracker.currentStatus === "busy") {
+          tracker.lastActivityAt = now;
+        }
+      }
+      break;
+    }
+    case "session.idle": {
+      const { sessionID } = event.properties || {};
+      if (!sessionID)
+        break;
+      const tracker = trackers.get(sessionID);
+      if (tracker) {
+        tracker.currentStatus = "idle";
+      }
+      break;
+    }
+    case "session.deleted": {
+      const info = event.properties?.info;
+      if (info?.id) {
+        trackers.delete(info.id);
+      }
+      break;
     }
   }
+}
+
+// src/index.ts
+function stateFilePath2(input) {
+  const paneId = process.env.TMUX_PANE;
+  if (!paneId)
+    return null;
+  const socket = parseSocketFromTmux(process.env.TMUX);
+  const sanitized = sanitizePaneId(paneId);
+  return xdgStateHome("oca", "panes", socket, `${sanitized}.json`);
+}
+var plugin = async (input) => {
+  initWatchdog(input);
+  return {
+    async event({ event }) {
+      switch (event.type) {
+        case "session.created": {
+          const info = event.properties?.info;
+          if (!info)
+            break;
+          const filePath = stateFilePath2(null);
+          if (!filePath)
+            break;
+          atomicWriteJSON(filePath, {
+            sessionID: info.id,
+            directory: info.directory,
+            ts: Date.now()
+          });
+          break;
+        }
+        case "session.deleted": {
+          const info = event.properties?.info;
+          if (!info)
+            break;
+          const filePath = stateFilePath2(null);
+          if (!filePath)
+            break;
+          const existing = readJSON(filePath);
+          if (existing && existing.sessionID === info.id) {
+            deleteStateFile(filePath);
+          }
+          break;
+        }
+        default:
+          handleWatchdogEvent(event);
+          break;
+      }
+    }
+  };
 };
+var src_default = plugin;
 export {
   src_default as default
 };

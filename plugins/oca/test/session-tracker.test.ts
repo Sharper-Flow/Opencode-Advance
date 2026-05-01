@@ -115,15 +115,19 @@ describe("session tracker hooks", () => {
     process.env.XDG_STATE_HOME = originalXdg;
   });
 
-  it("sessionCreated writes state file when TMUX_PANE is set", async () => {
+  it("session.created writes state file when TMUX_PANE is set", async () => {
     process.env.TMUX_PANE = "%42";
     process.env.TMUX = "/tmp/tmux-1000/oca,12345";
+    delete process.env.OCA_WATCHDOG_ENABLED;
 
     const mod = await import("../src/index");
-    await mod.default.sessionCreated(
-      { id: "ses_abc", directory: "/home/user/project" } as any,
-      {} as any
-    );
+    const hooks = await mod.default({ $: {} } as any, {} as any);
+    await hooks.event!({
+      event: {
+        type: "session.created",
+        properties: { info: { id: "ses_abc", directory: "/home/user/project" } },
+      },
+    });
 
     const stateFile = path.join(tmpDir, "oca", "panes", "oca", "42.json");
     const got = readJSON(stateFile);
@@ -132,39 +136,69 @@ describe("session tracker hooks", () => {
     expect(typeof got.ts).toBe("number");
   });
 
-  it("sessionCreated no-ops when TMUX_PANE is unset", async () => {
+  it("session.created no-ops when TMUX_PANE is unset", async () => {
     delete process.env.TMUX_PANE;
 
     const mod = await import("../src/index");
-    await mod.default.sessionCreated({ id: "ses_abc" } as any, {} as any);
+    const hooks = await mod.default({ $: {} } as any, {} as any);
+    await hooks.event!({
+      event: {
+        type: "session.created",
+        properties: { info: { id: "ses_abc" } },
+      },
+    });
 
     const stateDir = path.join(tmpDir, "oca", "panes");
     expect(fs.existsSync(stateDir)).toBe(false);
   });
 
-  it("sessionDeleted clears matching state file", async () => {
+  it("session.deleted clears matching state file", async () => {
     process.env.TMUX_PANE = "%42";
     process.env.TMUX = "/tmp/tmux-1000/oca,12345";
+    delete process.env.OCA_WATCHDOG_ENABLED;
 
     const mod = await import("../src/index");
-    await mod.default.sessionCreated({ id: "ses_abc", directory: "/tmp" } as any, {} as any);
+    const hooks = await mod.default({ $: {} } as any, {} as any);
+    await hooks.event!({
+      event: {
+        type: "session.created",
+        properties: { info: { id: "ses_abc", directory: "/tmp" } },
+      },
+    });
 
     const stateFile = path.join(tmpDir, "oca", "panes", "oca", "42.json");
     expect(fs.existsSync(stateFile)).toBe(true);
 
-    await mod.default.sessionDeleted({ id: "ses_abc" } as any, {} as any);
+    await hooks.event!({
+      event: {
+        type: "session.deleted",
+        properties: { info: { id: "ses_abc" } },
+      },
+    });
     expect(fs.existsSync(stateFile)).toBe(false);
   });
 
-  it("sessionDeleted preserves non-matching state file", async () => {
+  it("session.deleted preserves non-matching state file", async () => {
     process.env.TMUX_PANE = "%42";
     process.env.TMUX = "/tmp/tmux-1000/oca,12345";
+    delete process.env.OCA_WATCHDOG_ENABLED;
 
     const mod = await import("../src/index");
-    await mod.default.sessionCreated({ id: "ses_abc", directory: "/tmp" } as any, {} as any);
+    const hooks = await mod.default({ $: {} } as any, {} as any);
+    await hooks.event!({
+      event: {
+        type: "session.created",
+        properties: { info: { id: "ses_abc", directory: "/tmp" } },
+      },
+    });
 
     const stateFile = path.join(tmpDir, "oca", "panes", "oca", "42.json");
-    await mod.default.sessionDeleted({ id: "ses_xyz" } as any, {} as any);
+    await hooks.event!({
+      event: {
+        type: "session.deleted",
+        properties: { info: { id: "ses_xyz" } },
+      },
+    });
     expect(fs.existsSync(stateFile)).toBe(true);
   });
 });
