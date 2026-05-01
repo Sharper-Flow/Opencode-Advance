@@ -320,6 +320,8 @@ Phase 5 shipped a narrow 4-pillar Temporal enablement. Scope was deliberately cu
 
 ## Phase 5.5: Vision Slot Group Support
 
+**Status:** Complete — delivered in archived change `addVisionSlotGroupSupport` and merged to `trunk`.
+
 **Goal:** Add first-class `[mcp.slot_groups.*]` support to `stack.toml` so Playwright pools (and future slot-group use cases) can be declared declaratively and rendered by `oca apply` into both `vision/servers.yaml` and `opencode.json`.
 
 **Estimate:** 2-3 days
@@ -356,6 +358,8 @@ Phase 5 shipped a narrow 4-pillar Temporal enablement. Scope was deliberately cu
 ---
 
 ## Phase 6: Installer + Shell Profile
+
+**Status:** In progress — install, uninstall, completion, prereq checker, and shell profile management are implemented. Remaining: full integration testing on fresh VM.
 
 **Goal:** `oca install` performs end-to-end first-time setup. Shell profile wiring (PATH, completions) is idempotent and reversible. Installer includes Temporal prerequisite checks and optional dev-server setup (leveraging Phase 5).
 
@@ -536,24 +540,47 @@ If any phase blows its estimate by more than 2x, halt and re-plan. Do not push t
 
 ---
 
-## Post-v1: Temporal Dashboard (research complete, not yet scoped)
+## Post-v1: Operator Dashboard (research complete, not yet scoped)
 
-A web dashboard for ADV change lifecycle monitoring and control, consuming Temporal's workflow state. Research spike completed 2026-04-23; findings documented in [`../notes/2026-04-23-temporal-dashboard-research.md`](../notes/2026-04-23-temporal-dashboard-research.md).
+A web dashboard providing a unified operator view across all OCA-managed work: ADV changes from every project, active OCA tmux sessions, and Temporal/worker health — all in one filterable, sortable table. Consumes Temporal's workflow state for changes and OCA's session manager for sessions. Research spike for the Temporal slice completed 2026-04-23; findings documented in [`../notes/2026-04-23-temporal-dashboard-research.md`](../notes/2026-04-23-temporal-dashboard-research.md).
 
-**Prerequisite:** Phase 5 (Temporal Enablement) must ship first.
+**Prerequisites:** Phase 5 (Temporal Enablement) and Phase 4 (Session Lifecycle) must ship first.
 
-**Desired capabilities:**
+**Unified table — first-class capability:**
+
+A single filterable + sortable table that combines, for the host:
+
+- All open ADV changes across every project (project, change-id, gate, task progress, blockers, last activity, owner agent, retry/doom-loop state, age)
+- All active OCA sessions (session name, project root, attached client, current change, ADV gate, idle time, started-at)
+- Filters: project, status, gate, has-blocker, recency band (hot/warm/stale), attached/detached, doom-loop only
+- Sorts: any column, with sensible defaults (most-recent-activity, then stalest-first toggle)
+- Row drill-in: open the change view, attach the session, or jump to the Temporal workflow
+
+**Per-row controls:**
+
+- Approve gate, retry task, cancel change, sign off acceptance/archive
+- Attach session, kill session, restart session
+- Manage agenda items inline
+
+**Other capabilities:**
+
 - Change progress at a glance (gates, tasks, blockers)
-- Multi-change orchestration view
+- Multi-change orchestration view (cross-project)
 - Agent activity and cost tracking (retries, time invested, doom-loop state)
-- Temporal operational health (server, worker, namespace)
-- Full control surface (approve gates, retry tasks, cancel changes, manage agenda)
+- Temporal operational health (server, worker, namespace, workflow health)
 
-**Key research findings:**
+**Key research findings (Temporal slice):**
+
 - Temporal Web has no plugin system — custom domain views require a separate frontend
 - Browser → Temporal Server direct is not possible (no gRPC-Web, no CORS); requires a proxy
 - Viable paths: ui-server sidecar (low effort, bundled with dev server), custom Node proxy, or OCA-embedded Go proxy (best UX, most effort)
 - Advance exposes 5 change queries + 11 updates, 5 project queries + 4 updates — sufficient for a full control surface
 - Search attributes enable filtered workflow listing across all changes
 
-**Phase placement TBD** — depends on Phase 6.5 completion and user demand. Likely v1.1+ scope.
+**Open research questions (session slice):**
+
+- Source of truth for session state — `tmux list-sessions` + OCA session manager metadata, or a new daemon-side cache
+- Cross-host scope — host-local only for v1.x, or surface remote OCA hosts via SSH/Tailscale aggregation
+- Session ↔ change correlation — derive from tmux session env (`OCA_REPO_ROOT`, active change-id) rather than a new registry
+
+**Phase placement TBD** — depends on Phase 5 + Phase 4 maturity and user demand. Likely v1.1+ scope.

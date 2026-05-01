@@ -2,18 +2,24 @@
 
 This document is the canonical high-level architecture reference for the code that is **actually implemented today**.
 
-Current implemented scope on this branch is **Phase 1, Phase 2, Phase 3, Phase 3.5 rendering, and Phase 4 foundation (session/theme assets)**:
+Current implemented scope on this branch is **Phase 1, Phase 2, Phase 3, Phase 3.5, Phase 4, Phase 5, Phase 5.5, and Phase 6 (in progress)**:
 
-- `stack.toml` parsing for `[meta]`, `[mcp]`, `[plugins]`, `[instructions]`, `[providers]`, `[permissions]`, `[watcher]`, `[lsp]`, `[skills]`, `[commands]`, `[formatters]`, `[opencode]`, plus deferred future sections
-- `oca apply --target mcp|plugins|instructions|providers|permissions|watcher|lsp|skills|commands|formatters|toggles`
+- `stack.toml` parsing for `[meta]`, `[mcp]`, `[plugins]`, `[instructions]`, `[providers]`, `[permissions]`, `[watcher]`, `[lsp]`, `[skills]`, `[commands]`, `[formatters]`, `[opencode]`, `[temporal]`, plus deferred future sections
+- `oca apply --target mcp|plugins|instructions|providers|permissions|watcher|lsp|skills|commands|formatters|toggles|temporal`
 - `oca apply` with no `--target` for composed all-target apply
 - `oca diff`
-- `oca doctor --scope mcp`, `oca doctor --scope plugins`, and `oca doctor --scope skills`
+- `oca doctor --scope mcp`, `oca doctor --scope plugins`, `oca doctor --scope skills`, and `oca doctor --scope temporal`
 - `oca debug plan` and `oca debug validate`
 - `oca pin` and `oca update`
-- `oca session new [--name <name>] [--no-splash]` and `oca session list` (Phase 4 foundation)
+- `oca session new/list/attach/switch/kill/killall/restart/reap` (Phase 4)
+- `oca theme list/apply` (Phase 4)
+- `oca install [--yes]` and `oca uninstall` (Phase 6, in progress)
+- `oca completion <shell>` (Phase 6, in progress)
+- MCP slot group rendering for `[mcp.slot_groups.*]` (Phase 5.5)
+- Temporal config rendering and health checks (Phase 5)
 - plugin lifecycle: git clone/pull, build, pin, sync-global.sh delegation
 - Obsidian theme assets (JSON + tmux conf) and managed-block tmux template
+- Shell profile managed-block injection via `internal/install` (Phase 6)
 
 Future phases are tracked in [`../proposals/phases.md`](../proposals/phases.md).
 
@@ -141,23 +147,40 @@ Phase 4 foundation. Manages OCA tmux sessions on a dedicated socket.
 - `Create(ctx, name, workingDir, tmuxConfPath)` runs `tmux -L <socket> [-f <conf>] new-session -d -s <name> -c <dir>` via `subprocess.Run`
 - `List(ctx)` parses `tmux -L <socket> list-sessions -F '#{session_name}\t#{session_attached}'`, filters by `oca-` prefix
 - `NextSessionName(ctx, repoSlug)` scans existing sessions, finds next sequential `oca-<slug>-<n>`
+- `Attach`, `SwitchClient`, `Kill`, `KillAll`, `Restart`, `GetSessionByName`, `SetGlobalEnv` for full session lifecycle
 - Pre-validates working dir exists before tmux call
 - All external commands through `internal/subprocess`
 - `OCA_TMUX_SOCKET` env override (default: `"oca"`)
+
+### 4.5. Install (`internal/install/`)
+
+Phase 6 (in progress). End-to-end first-time setup and teardown.
+
+- `PrereqChecker` verifies git, tmux (≥3.4), OpenCode, vision, and optional Temporal CLI presence
+- `ShellProfile` manages idempotent managed-block injection into `~/.zshrc` and `~/.bashrc`:
+  - adds PATH and shell completion wiring between OCA delimiters
+  - removes only the managed block without touching user-owned content
+  - handles multiple profile files and detects shell type
+- `Install` and `Uninstall` flow orchestration: runs prereqs → apply → profile injection (or removal)
+- `templates/shell_profile.block.gotmpl` for the managed block content
+- Integration tests cover install → uninstall → install round-trips
 
 ### 5. CLI (`cmd/oca/`)
 
 Current shipped commands:
 
 - `oca version`
-- `oca apply [--target ...]` (targets: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles)
+- `oca apply [--target ...]` (targets: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles, temporal)
 - `oca diff`
-- `oca doctor --scope mcp|plugins|skills`
+- `oca doctor --scope mcp|plugins|skills|temporal`
 - `oca debug plan`
 - `oca debug validate`
 - `oca pin` and `oca update`
-- `oca session new [--name <name>] [--no-splash]`
+- `oca session new/list/attach/switch/kill/killall/restart/reap`
 - `oca session list` (aliases: `ls`)
+- `oca theme list/apply`
+- `oca install [--yes]` and `oca uninstall`
+- `oca completion <shell>`
 
 Shared shipped flags:
 
@@ -168,10 +191,9 @@ Shared shipped flags:
 
 Not implemented yet:
 
-- `install`, `uninstall`
 - migration commands beyond scaffolding
-- `oca session attach`, `oca session switch`, `oca session killall`, `oca session restart`
-- `oca theme` command group
+- `oca theme` extended subcommands beyond list/apply
+- `oca add` / `oca remove` interactive flows
 
 ## Data flow: `oca apply --target mcp`
 
@@ -253,11 +275,10 @@ Pluggable health checks with a `ResetForTesting()` contract so within-package te
 The following remain planned, not shipped:
 
 - agent rendering
-- session attach/switch/killall/restart
-- `oca theme` command group
-- status bar richness (metrics, LLM fuel gauges, ADV state)
+- `oca add` / `oca remove` interactive flows
 - migration from open-chad
-- Temporal infrastructure management (Phase 6.5 — Advance now ships Temporal as its primary state backend; OCA needs to manage the CLI, dev server, and env vars)
+- status bar richness (metrics, LLM fuel gauges, ADV state) — status bar exists but metrics integration is ongoing
+- Temporal dev-server supervision (Phase 6.5 — Advance now ships Temporal as its primary state backend; OCA needs to manage the CLI, dev server, and env vars)
 
 Advance's Temporal dependency is **current**, not future. Advance runs two durable workflows (`changeWorkflow`, `projectWorkflow`) via Temporal with file-backed fallback. OCA's Phase 6.5 will manage the Temporal infra (CLI detection, dev-server supervision, env-file rendering, health checks) that Advance needs to function.
 

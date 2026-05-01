@@ -10,7 +10,7 @@
 
 **A declarative, reproducible OpenCode environment and workflow platform.**
 
-_Status: Phases 1, 2, 3, and 3.5 are implemented on `trunk`. Phase 4 foundation (session/theme assets, `oca session new/list`) is in progress. First stable release remains v1.0._
+_Status: Phases 1, 2, 3, 3.5, 4, 5, and 5.5 are implemented on `trunk`. Phase 6 (installer + shell profile) is in progress. First stable release remains v1.0._
 
 </div>
 
@@ -61,7 +61,7 @@ You cannot run OpenCode Advance without Advance — Advance is a required depend
 
 ## Current status
 
-This repository has **Phase 1 + Phase 2 + Phase 3 + Phase 3.5 implementations** in place.
+This repository has **Phase 1 + Phase 2 + Phase 3 + Phase 3.5 + Phase 4 + Phase 5 + Phase 5.5** implementations in place. **Phase 6 (installer + shell profile)** is in progress.
 
 ### Done
 
@@ -124,12 +124,45 @@ This repository has **Phase 1 + Phase 2 + Phase 3 + Phase 3.5 implementations** 
 - integration tests for composed apply and per-target parity
 - Phase 3.5 spec + docs refresh shipped
 
+#### Phase 4 — primary client UX + theme
+
+- `oca session new/list/attach/switch/kill/killall/restart/reap` command group
+- `oca theme list/apply` command group
+- Obsidian tmux theme with 2-row status bar (session + git + ADV state + host + clock; window list + LLM gauges + date)
+- Boot splash with indigo pulse animation
+- Session lifecycle with dedicated OCA tmux socket, auto-naming, and stale session reaper
+- 11 CLI integration tests for session commands
+
+#### Phase 5 — Temporal enablement
+
+- typed `[temporal]` section in `stack.toml` (enabled, address, namespace, allow_remote, dev_server, env_vars)
+- `oca apply --target temporal` renders `$OCA_CACHE_DIR/temporal.env` with `ADV_TEMPORAL_*` values
+- `oca doctor --scope temporal` with reachability and namespace checks
+- Status bar Temporal state integration
+
+#### Phase 5.5 — Vision slot group support
+
+- typed `[mcp.slot_groups.*]` in `stack.toml` for Playwright pools and future slot-group use cases
+- Slot group rendering into `vision/servers.yaml` and `opencode.json`
+- Port collision detection across servers, group ports, and synthesized slot ports
+- `oca doctor --scope mcp` slot group health probes
+- `stack.example.toml` Playwright slot group examples
+
+#### Phase 6 — installer + shell profile (in progress)
+
+- `oca install [--yes]` — end-to-end first-time setup (prereqs + apply + shell profile injection)
+- `oca uninstall` — removes managed blocks from shell profiles
+- `oca completion <shell>` — shell completion script generation (bash, zsh, fish)
+- `internal/install/` package with prerequisite checker and shell profile managed-block injection
+- `templates/shell_profile.block.gotmpl` for managed block content
+- Integration tests for install/uninstall/completion round-trips
+
 ### Not done yet
 
-- installer / migration / client-session lifecycle logic
+- `oca migrate from-open-chad` migration flow
+- interactive `oca add` / `oca remove` flows
 - release packaging / distribution workflow
-- `oca install`, `oca migrate`, and interactive `oca add` / `oca remove` flows
-- Phase 4 richness: status bar metrics, LLM fuel gauges, session attach/switch/killall/restart, `oca theme` commands, boot splash animation
+- Phase 8: Discord Rich Presence rewrite, release pipeline, final README, polish pass
 
 ### Resume here
 
@@ -161,8 +194,12 @@ These commands describe the intended v1.0 UX. Some are already shipped; others r
 | `oca diff`                   | Show drift between `stack.toml` and rendered state             |
 | `oca pin`                    | Capture current plugin refs / SHAs for reproducibility         |
 | `oca update`                 | Update dependencies and re-apply                               |
-| `oca migrate from-open-chad` | Import current open-chad-managed environment into `stack.toml` |
+| `oca install`                | End-to-end first-time setup (prereqs + apply + shell profile)  |
+| `oca uninstall`              | Remove OCA-managed blocks from shell profiles                  |
+| `oca completion <shell>`     | Generate shell completion scripts (bash, zsh, fish)            |
 | `oca session`                | Primary client/session lifecycle management                    |
+| `oca theme`                  | Theme management (list, apply)                                 |
+| `oca migrate from-open-chad` | Import current open-chad-managed environment into `stack.toml` |
 | `oca debug`                  | Explain plans, validation, and rendered output                 |
 
 ## Development model
@@ -173,7 +210,7 @@ Recommended flow:
 
 1. run `/adv-status` first and finish any already-active implementation change
 2. use `phase0FoundationBrand` as the archived reference baseline for future work
-3. start the next phase change from `docs/proposals/phases.md` (currently Phase 4: primary client UX + theme)
+3. start the next phase change from `docs/proposals/phases.md` (currently Phase 6: installer + shell profile — in progress; Phase 7 next)
 4. archive each phase before starting the next one
 
 In other words:
@@ -197,17 +234,18 @@ The intent is that all development and testing happen in a disposable sandbox un
 ## Repository layout
 
 ```text
-cmd/oca/                 Go CLI entry point (apply, doctor, diff, pin, update, session, debug)
+cmd/oca/                 Go CLI entry point (apply, doctor, diff, pin, update, session, theme, install, uninstall, completion, debug)
 internal/config/         stack.toml parser + validation
 internal/render/         programmatic rendering + merge logic
-internal/health/         MCP / plugin / skills health checks
+internal/health/         MCP / plugin / skills / temporal health checks
 internal/subprocess/     generic command runner with timeout/signal/exit classification
 internal/plugin/         git clone/pull, build, pin, npm handler
 internal/sync/           Advance sync-global.sh invocation
-internal/session/        tmux session lifecycle (create/list/next-name)
+internal/session/        tmux session lifecycle (create/list/attach/switch/kill/restart/reap)
+internal/install/        prerequisite checks, shell profile management, install/uninstall orchestration
 internal/migrate/        open-chad import path
 assets/                  agent / instruction / skill / theme assets
-templates/               Go templates (tmux managed-block wrapper)
+templates/               Go templates (tmux managed-block, shell profile managed-block)
 lib/                     shell/client UX helpers (palette, wordmark, boot splash, session lifecycle)
 tests/                   integration and shell-level tests
 docs/design/             architecture, schema, brand, CLI, theme
@@ -270,7 +308,7 @@ Then:
 
 1. `/adv-status` — check for any active changes to complete first
 2. Use `phase0FoundationBrand` as the shipped Phase 0 reference point
-3. Start the next phase change from `docs/proposals/phases.md` (currently Phase 4 richness — foundation in progress)
+3. Start the next phase change from `docs/proposals/phases.md` (currently Phase 6 in progress — Phase 7 next)
 4. Use `NEXT_STEPS.md` for the exact resume sequence and current state
 
 ## Contributing

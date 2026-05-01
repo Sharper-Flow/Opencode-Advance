@@ -1,8 +1,8 @@
 # `oca` CLI Surface
 
-This document separates the **implemented Phase 1 + Phase 2 + Phase 3 + Phase 3.5 CLI** from the broader **planned v1.0 command surface**.
+This document separates the **implemented CLI** from the broader **planned v1.0 command surface**.
 
-Phase 1 shipped `oca version`, `oca apply --target mcp`, `oca doctor --scope mcp`, and `oca debug`. Phase 2 extended the surface with plugin/instructions targets on `apply`, added new `oca pin` and `oca update` commands, and extended `oca doctor` with a `plugins` scope and a `--network` flag.
+Phase 1 shipped `oca version`, `oca apply --target mcp`, `oca doctor --scope mcp`, and `oca debug`. Phase 2 extended the surface with plugin/instructions targets on `apply`, added new `oca pin` and `oca update` commands, and extended `oca doctor` with a `plugins` scope and a `--network` flag. Phases 3–3.5 extended apply/diff/doctor. Phase 4 shipped session lifecycle. Phase 5 shipped temporal config. Phase 5.5 shipped slot groups. Phase 6 (in progress) ships `oca install`, `oca uninstall`, and `oca completion`.
 
 ## Shipped in Phase 1
 
@@ -255,12 +255,55 @@ Behavior:
 - empty output: `"no OCA sessions"`
 - supports `--output text|json`
 
+## Shipped in Phase 6 (foundation)
+
+Phase 6 adds the installer, uninstaller, and shell completion. These commands are shipped but Phase 6 is not yet fully complete.
+
+### `oca install [--yes]`
+
+Run end-to-end first-time setup: prerequisite checks, `oca apply`, shell profile managed-block injection.
+
+Flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--yes` | skip interactive confirmations |
+| `--config <path>` | path to `stack.toml` |
+
+Behavior:
+
+- runs `internal/install.PrereqChecker` to verify git, tmux, OpenCode, vision, and (optionally) Temporal CLI
+- runs `oca apply` with all targets
+- injects a managed block into `~/.zshrc` / `~/.bashrc` with PATH and completion wiring via `internal/install.ShellProfile`
+- idempotent: re-running completes any interrupted steps
+- exit codes: `0` success, `1` failure, `2` prereq missing
+
+### `oca uninstall`
+
+Remove all OCA-managed blocks from shell profiles.
+
+Behavior:
+
+- scans `~/.zshrc` and `~/.bashrc` for the OCA managed block delimiters
+- removes the block without touching user-owned content
+- reports what was removed
+- exit codes: `0` success, `1` failure
+
+### `oca completion <shell>`
+
+Generate shell completion scripts.
+
+Arguments: `bash`, `zsh`, or `fish`
+
+Behavior:
+
+- prints a completion script to stdout suitable for `source` or direct file write
+- integrated into `oca install` shell profile wiring
+
 ## Planned later-phase commands
 
 The following are still design targets, not shipped:
 
-- `oca install`
-- `oca uninstall`
 - `oca migrate ...`
 - `oca add ...`
 - `oca remove ...`

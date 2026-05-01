@@ -4,16 +4,23 @@ Reference for inspecting running opencode(advance) instances in tmux. Basis for 
 
 ## Session Structure
 
-Each opencode(advance) instance creates one tmux session with one window and one pane.
+Each opencode(advance) instance creates one tmux session with one window and one pane. Sessions live on a dedicated named socket (`-L oca`) — separate from the user's default tmux server, so OCA's session lifecycle never affects unrelated tmux sessions.
 
-**Naming convention:** `oc-{unix_epoch}-{parent_pid}`
+**Naming convention (Phase 4+):** `oca-<repo-slug>-<n>`
 
 | Component | Source | Example |
 |-----------|--------|---------|
-| `unix_epoch` | Session creation time | `1777005213` |
-| `parent_pid` | PID of the spawning process | `1034886` |
+| `oca-` | Fixed namespace prefix (`internal/session/session.go:25`) | `oca-` |
+| `repo-slug` | Working directory's repo basename | `opencodeadvance` |
+| `n` | Next available integer per repo slug | `0`, `1`, `2`, ... |
+
+Full example: `oca-opencodeadvance-0`, `oca-pokeedge-2`.
+
+> **Historical note:** earlier development snapshots in this repo (and the open-chad sibling) used `oc-{unix_epoch}-{parent_pid}` naming. Those samples below predate the Phase 4 session manager and are kept only for archival comparison — current implementation produces the `oca-<slug>-<n>` form above.
 
 ## Reconnaissance Commands
+
+All commands target the OCA-managed socket via `-L oca`. Drop the `-L oca` flag only when you intentionally want to inspect the user's default tmux server.
 
 ### 1. List running OpenCode processes
 
@@ -23,7 +30,7 @@ ps -o pid,ppid,lstart,tty,args -C opencode 2>&1
 
 Maps PID to PTY. Cross-reference `pid` with tmux `pane_pid` to link processes to sessions.
 
-Sample output:
+Sample output (open-chad era — historical):
 
 ```
 PID    PPID                  STARTED TT       COMMAND
@@ -39,37 +46,36 @@ PID    PPID                  STARTED TT       COMMAND
 ### 2. List tmux sessions
 
 ```bash
-tmux list-sessions 2>&1
+tmux -L oca list-sessions 2>&1
 ```
 
-Filter by `oc-` prefix to isolate OpenCode sessions. All sessions show `attached` since each instance owns its session.
+Filter by `oca-` prefix to isolate OCA sessions. All sessions typically show `attached` since each instance owns its session.
 
-Sample output:
+Sample output (illustrative, current naming):
 
 ```
-oc-1777005213-1034886: 1 windows (created Fri Apr 24 00:33:33 2026) (attached)
-oc-1777006125-1175361: 1 windows (created Fri Apr 24 00:48:45 2026) (attached)
-oc-1777006292-1192953: 1 windows (created Fri Apr 24 00:51:32 2026) (attached)
-oc-1777034218-2973568: 1 windows (created Fri Apr 24 08:36:58 2026) (attached)
-oc-1777036963-3217992: 1 windows (created Fri Apr 24 09:22:43 2026) (attached)
+oca-opencodeadvance-0: 1 windows (created Fri May 01 09:14:02 2026) (attached)
+oca-pokeedge-0: 1 windows (created Fri May 01 09:36:11 2026) (attached)
+oca-pokeedge-1: 1 windows (created Fri May 01 10:02:48 2026) (attached)
+oca-advance-0: 1 windows (created Fri May 01 10:10:36 2026) (attached)
 ```
 
 ### 3. Map panes to sessions and commands
 
 ```bash
-tmux list-panes -a -F '#{session_name} #{window_name} #{pane_pid} #{pane_current_command}' 2>&1
+tmux -L oca list-panes -a -F '#{session_name} #{window_name} #{pane_pid} #{pane_current_command}' 2>&1
 ```
 
 Primary query — full session/agent/change mapping in one pass.
 
 | Format field | Meaning |
 |---|---|
-| `session_name` | Instance identity (`oc-{epoch}-{ppid}`) |
+| `session_name` | Instance identity (`oca-<slug>-<n>`) |
 | `window_name` | Agent emoji + name + active change title |
 | `pane_pid` | OpenCode process PID (matches `ps` output) |
 | `pane_current_command` | Should be `opencode` |
 
-Sample output:
+Sample output (open-chad era naming — historical, kept for emoji-status reference):
 
 ```
 oc-1777005213-1034886 🟥 PW 1035244 opencode
@@ -107,17 +113,17 @@ These reconnaissance primitives support planned remote management features.
 
 | Portal feature | Recon command | Notes |
 |---|---|---|
-| Session list | `tmux list-sessions` | Parse `oc-` prefix |
-| Session detail | `tmux list-panes -a -F '...'` | Window name = agent + change |
+| Session list | `tmux -L oca list-sessions` | Parse `oca-` prefix |
+| Session detail | `tmux -L oca list-panes -a -F '...'` | Window name = agent + change |
 | Process health | `ps -o pid,lstart,tty,args -C opencode` | Cross-ref pane PID |
-| Live output stream | `tmux capture-pane -t {session} -p` | Poll or pipe to WebSocket |
-| Session kill | `tmux kill-session -t {session}` | Portal action |
+| Live output stream | `tmux -L oca capture-pane -t {session} -p` | Poll or pipe to WebSocket |
+| Session kill | `tmux -L oca kill-session -t {session}` | Portal action; `oca session kill` is the supported wrapper |
 
 ### SSH + Tailscaled
 
 ```bash
 tailscale ssh user@host
-tmux attach -t oc-1777005213-1034886
+tmux -L oca attach -t oca-opencodeadvance-0
 ```
 
 Portal can proxy the PTY stream instead of requiring direct tmux attach.
@@ -128,8 +134,8 @@ Portal can proxy the PTY stream instead of requiring direct tmux attach.
 {
   "sessions": [
     {
-      "id": "oc-1777005213-1034886",
-      "created": "2026-04-24T00:33:33Z",
+      "id": "oca-opencodeadvance-0",
+      "created": "2026-05-01T09:14:02Z",
       "pid": 1035244,
       "agent": "PW",
       "change": null,
@@ -137,8 +143,8 @@ Portal can proxy the PTY stream instead of requiring direct tmux attach.
       "attached": true
     },
     {
-      "id": "oc-1777039837-3620387",
-      "created": "2026-04-24T10:10:36Z",
+      "id": "oca-advance-0",
+      "created": "2026-05-01T10:10:36Z",
       "pid": 3620686,
       "agent": "Advance",
       "change": "Complete Temporal Only Migration",
@@ -177,12 +183,14 @@ Optimized startup and cleanup of opencode(advance) sessions is a planned feature
 
 ```bash
 # Find orphan sessions (tmux session exists but no opencode process)
-tmux list-panes -a -F '#{session_name} #{pane_pid}' \
-  | grep '^oc-' \
+tmux -L oca list-panes -a -F '#{session_name} #{pane_pid}' \
+  | grep '^oca-' \
   | while read sess pid; do
       ps -p "$pid" -o pid= >/dev/null 2>&1 || echo "ORPHAN: $sess (pid $pid gone)"
     done
 ```
+
+`oca session reap` (`internal/session/session.go`) is the supported wrapper — it filters by the `oca-` prefix on the OCA socket and uses `#{session_activity}` rather than name parsing.
 
 ### Portal Implications
 
@@ -213,5 +221,6 @@ Preferred prose styling: **opencode(advance)**.
 ## Notes
 
 - All sessions show `(attached)` because each opencode(advance) instance owns its tmux session — this is expected, not a bug.
-- The `oc-` prefix is the filter boundary for distinguishing opencode(advance) sessions from user-created tmux sessions.
+- The `oca-` prefix on the named `-L oca` socket is the filter boundary for distinguishing OCA-managed sessions from user-created tmux sessions on the default socket.
 - Pane PID and `ps` PID are the same value — direct cross-reference, no indirection needed.
+- See `docs/design/tmux-server-safety.md` for blast-radius rules — never `kill` a tmux server PID directly; always go through `tmux -L oca kill-session` or `oca session kill`.

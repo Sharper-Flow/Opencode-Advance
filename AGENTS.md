@@ -42,11 +42,12 @@ opencodeadvance/
 ├── internal/                           # Internal Go packages
 │   ├── config/                         # stack.toml parser + schema validation
 │   ├── render/                         # Programmatic rendering + JSON merge logic
-│   ├── health/                         # MCP/plugin/skills health checks
+│   ├── health/                         # MCP/plugin/skills/temporal health checks
 │   ├── subprocess/                     # Generic command runner with timeout/signal/exit classification
 │   ├── plugin/                         # Git clone/pull, build, pin, npm handler
 │   ├── sync/                           # Advance sync-global.sh invocation
-│   ├── session/                        # Tmux session lifecycle (create/list/next-name)
+│   ├── session/                        # Tmux session lifecycle (create/list/attach/switch/kill/restart/reap)
+│   ├── install/                        # Prerequisite checks, shell profile management, install/uninstall orchestration
 │   └── migrate/                        # open-chad → opencode-advance importer
 │
 ├── assets/                             # Static files, copied as-is to ~/.config/opencode/
@@ -61,7 +62,8 @@ opencodeadvance/
 ├── templates/                          # Go text/template files rendered by oca apply
 │   ├── opencode.json.gotmpl            # Merged into ~/.config/opencode/opencode.json
 │   ├── vision-servers.yaml.gotmpl      # Rendered to ~/.config/vision/servers.yaml
-│   └── tmux.conf.block.gotmpl          # Block injected into ~/.tmux.conf
+│   ├── tmux.conf.block.gotmpl          # Block injected into ~/.tmux.conf
+│   └── shell_profile.block.gotmpl      # Block injected into ~/.zshrc / ~/.bashrc
 │
 ├── bin/                                # Shell-level entry points (post-install)
 │   ├── oca                             # Thin wrapper calling the Go binary
