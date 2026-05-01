@@ -3,6 +3,7 @@ package migrate
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"strings"
 	"text/template"
 	"time"
@@ -253,5 +254,5 @@ func stringArray(ss []string) string {
 }
 
 func writeFile(path string, data []byte) error {
-	return nil // placeholder — will use render.WriteAtomic in real impl
+	return os.WriteFile(path, data, 0644)
 }
