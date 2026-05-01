@@ -19,11 +19,11 @@ var runDetect = subprocess.Run
 
 // prereqDef defines a single prerequisite check.
 type prereqDef struct {
-	name     string         // check name (e.g., "prerequisites.git")
-	binary   string         // binary name to detect
-	args     []string       // args for version detection
-	required bool           // true = StatusFail on missing/old, false = StatusWarn
-	minMajor int            // minimum major version (0 = no version check)
+	name     string                    // check name (e.g., "prerequisites.git")
+	binary   string                    // binary name to detect
+	args     []string                  // args for version detection
+	required bool                      // true = StatusFail on missing/old, false = StatusWarn
+	minMajor int                       // minimum major version (0 = no version check)
 	parseFn  func(string) (int, error) // custom version parser (nil = use default)
 }
 

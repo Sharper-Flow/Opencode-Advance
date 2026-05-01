@@ -368,12 +368,11 @@ agent       = "build"
 # ─── Session / UX ────────────────────────────────────────────────────────────
 
 [session]
-prefix               = "oca-"
-reaper               = true
-reaper_timeout_hours = 4
-theme                = "obsidian"
-boot_splash          = true
-boot_splash_timeout  = 1000
+prefix           = "oca-"
+reaper           = true     # auto-run stale-session reaper on `oca session new`
+reaper_threshold = "4h"     # age above which an unattached oca-* session is reaped
+theme            = "obsidian"
+boot_splash      = true     # show boot splash on `oca session new`
 
 # [session.watchdog] configures automatic hang detection and recovery.
 # The OCA plugin tracks session events; when an agent is busy with no

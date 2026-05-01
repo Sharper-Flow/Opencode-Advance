@@ -171,6 +171,99 @@ idle_timeout = "0s"
 	})
 }
 
+// TestSessionSection_TypedFields verifies that the new typed fields
+// (Reaper, ReaperThreshold, Theme, BootSplash) parse correctly from
+// the [session] table.
+func TestSessionSection_TypedFields(t *testing.T) {
+	toml := `
+[meta]
+version = "1.0.0"
+
+[session]
+prefix           = "oca-"
+reaper           = true
+reaper_threshold = "2h"
+theme            = "obsidian"
+boot_splash      = false
+`
+	stack, err := cfg.Parse([]byte(toml))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	if stack.Session == nil {
+		t.Fatal("Session section nil")
+	}
+
+	// Typed access — must NOT come through the Extra map.
+	if !stack.Session.Reaper {
+		t.Error("Reaper = false, want true")
+	}
+	if stack.Session.ReaperThreshold != 2*time.Hour {
+		t.Errorf("ReaperThreshold = %v, want 2h", stack.Session.ReaperThreshold)
+	}
+	if stack.Session.Theme != "obsidian" {
+		t.Errorf("Theme = %q, want obsidian", stack.Session.Theme)
+	}
+	if stack.Session.BootSplash {
+		t.Error("BootSplash = true, want false (explicit override)")
+	}
+
+	// Extra map must NOT contain any of the now-typed keys.
+	for _, k := range []string{"reaper", "reaper_threshold", "theme", "boot_splash"} {
+		if _, ok := stack.Session.Extra[k]; ok {
+			t.Errorf("Extra map still contains typed key %q — UnmarshalTOML did not consume it", k)
+		}
+	}
+}
+
+// TestSessionSection_TypedFieldDefaults verifies Resolve() applies defaults
+// for all four new fields when the [session] table is present but minimal.
+func TestSessionSection_TypedFieldDefaults(t *testing.T) {
+	toml := `
+[meta]
+version = "1.0.0"
+
+[session]
+prefix = "oca-"
+`
+	stack, err := loadFromBytes([]byte(toml))
+	if err != nil {
+		t.Fatalf("loadFromBytes failed: %v", err)
+	}
+	if stack.Session == nil {
+		t.Fatal("Session section nil")
+	}
+	if !stack.Session.Reaper {
+		t.Error("Reaper default = false, want true")
+	}
+	if stack.Session.ReaperThreshold != 4*time.Hour {
+		t.Errorf("ReaperThreshold default = %v, want 4h", stack.Session.ReaperThreshold)
+	}
+	if stack.Session.Theme != "obsidian" {
+		t.Errorf("Theme default = %q, want obsidian", stack.Session.Theme)
+	}
+	if !stack.Session.BootSplash {
+		t.Error("BootSplash default = false, want true")
+	}
+}
+
+// TestSessionSection_InvalidReaperThreshold verifies that a malformed
+// duration string surfaces a parse error rather than being silently
+// ignored or coerced (matches IdleTimeout precedent).
+func TestSessionSection_InvalidReaperThreshold(t *testing.T) {
+	toml := `
+[meta]
+version = "1.0.0"
+
+[session]
+reaper_threshold = "not-a-duration"
+`
+	_, err := cfg.Parse([]byte(toml))
+	if err == nil {
+		t.Fatal("expected parse error for invalid reaper_threshold")
+	}
+}
+
 // TestSessionSection_AbsentSection verifies that [session] is optional and
 // results in nil Session with no errors.
 func TestSessionSection_AbsentSection(t *testing.T) {

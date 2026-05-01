@@ -7,15 +7,15 @@ type Fragment map[string]any
 
 // TargetOp is one planned file operation.
 type TargetOp struct {
-	Name       string
-	Path       string
-	Op         string // merge | write | noop
-	Before     []byte
-	After      []byte
-	Mode       os.FileMode
-	BackupPath string
+	Name           string
+	Path           string
+	Op             string // merge | write | noop
+	Before         []byte
+	After          []byte
+	Mode           os.FileMode
+	BackupPath     string
 	SuppressBackup bool
-	Reason     string
+	Reason         string
 }
 
 // Plan is the deterministic render plan for one apply run.

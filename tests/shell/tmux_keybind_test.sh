@@ -34,4 +34,12 @@ if ! grep -q "send-keys.*r" "$TMUX_CONF"; then
 fi
 echo "PASS: fallback send-keys found"
 
+# 5. Window option: remain-on-exit off (prevents dead-pane accumulation when
+#    opencode crashes or is killed; AC1 of sessionSafetyHardeningConfig).
+if ! grep -qE '^[[:space:]]*setw[[:space:]]+-g[[:space:]]+remain-on-exit[[:space:]]+off' "$TMUX_CONF"; then
+    echo "FAIL: 'setw -g remain-on-exit off' not found in obsidian.tmux.conf"
+    exit 1
+fi
+echo "PASS: setw -g remain-on-exit off found"
+
 echo "=== all tests passed ==="

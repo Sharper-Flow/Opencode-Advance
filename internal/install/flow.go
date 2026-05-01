@@ -11,10 +11,10 @@ import (
 
 // Package-level function variables for testability.
 var (
-	userHomeDir   = os.UserHomeDir
-	osExecutable  = os.Executable
-	checkPrereqs  = CheckPrerequisites
-	evalSymlinks  = filepath.EvalSymlinks
+	userHomeDir  = os.UserHomeDir
+	osExecutable = os.Executable
+	checkPrereqs = CheckPrerequisites
+	evalSymlinks = filepath.EvalSymlinks
 )
 
 // InstallOptions holds options for the install operation.

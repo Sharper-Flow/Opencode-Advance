@@ -275,6 +275,111 @@ func (m *Manager) Restart(ctx context.Context, name, workingDir, tmuxConfPath st
 	return nil
 }
 
+// ReapCandidate is a stale OCA session that would be reaped at the current
+// threshold: the session name and how long it has been idle.
+type ReapCandidate struct {
+	Name string
+	Age  time.Duration
+}
+
+// reapMinThreshold is the floor enforced by ReapCandidates / ReapStale to
+// prevent fire-and-forget callers from accidentally nuking fresh sessions
+// because of a mis-typed config or zero-value duration bug.
+const reapMinThreshold = 5 * time.Minute
+
+// ReapCandidates returns the OCA sessions that are stale at the given
+// threshold but does not kill them. Used by `oca session reap --dry-run`
+// for previews and by ReapStale internally for the actual reap pass.
+//
+// Behavior:
+//   - threshold has a floor of 5 minutes; smaller values are clamped up.
+//   - Returns (nil, nil) when the tmux server has no sessions or is not
+//     running on the manager's socket.
+//   - Sessions without the "oca-" prefix are never returned.
+//   - Attached sessions are never returned.
+//   - Activity is read from tmux's #{session_activity} (Unix epoch seconds).
+func (m *Manager) ReapCandidates(ctx context.Context, threshold time.Duration) ([]ReapCandidate, error) {
+	if threshold < reapMinThreshold {
+		threshold = reapMinThreshold
+	}
+
+	res, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    m.tmuxPath,
+		Args:    []string{"-L", m.socket, "list-sessions", "-F", "#{session_activity}\t#{session_attached}\t#{session_name}"},
+		Timeout: sessionTimeout,
+	})
+	if err != nil {
+		output := string(res.Output)
+		if strings.Contains(output, "no server running") ||
+			strings.Contains(output, "no sessions") ||
+			strings.Contains(output, "error connecting to") {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("tmux list-sessions failed: %w", err)
+	}
+
+	now := time.Now().Unix()
+	thresholdSec := int64(threshold / time.Second)
+	var candidates []ReapCandidate
+
+	for _, line := range strings.Split(string(res.Output), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "\t", 3)
+		if len(parts) != 3 {
+			continue
+		}
+		activityUnix, parseErr := strconv.ParseInt(parts[0], 10, 64)
+		if parseErr != nil {
+			// Defensive: malformed activity timestamp → skip rather than
+			// fail the whole reap pass.
+			continue
+		}
+		attached := parts[1] == "1"
+		name := parts[2]
+
+		if !strings.HasPrefix(name, sessionPrefix) {
+			continue
+		}
+		if attached {
+			continue
+		}
+		age := now - activityUnix
+		if age <= thresholdSec {
+			continue
+		}
+		candidates = append(candidates, ReapCandidate{
+			Name: name,
+			Age:  time.Duration(age) * time.Second,
+		})
+	}
+	return candidates, nil
+}
+
+// ReapStale kills OCA-managed tmux sessions that have had no activity for
+// longer than threshold and are not currently attached. Returns the names
+// of reaped sessions. Same filter / floor / "no sessions" semantics as
+// ReapCandidates — see that doc for details.
+//
+// Used by `oca session reap` (without --dry-run) and by the auto-reap
+// goroutine triggered from `oca session new` when [session].reaper = true.
+func (m *Manager) ReapStale(ctx context.Context, threshold time.Duration) ([]string, error) {
+	candidates, err := m.ReapCandidates(ctx, threshold)
+	if err != nil {
+		return nil, err
+	}
+	var reaped []string
+	for _, c := range candidates {
+		if err := m.Kill(ctx, c.Name); err != nil {
+			return reaped, fmt.Errorf("kill stale session %q: %w", c.Name, err)
+		}
+		reaped = append(reaped, c.Name)
+	}
+	return reaped, nil
+}
+
 // SetGlobalEnv sets a global environment variable in the tmux server.
 // This is used to inject runtime values (like OCA_REPO_ROOT) that are
 // referenced by tmux conf #() format expansions.

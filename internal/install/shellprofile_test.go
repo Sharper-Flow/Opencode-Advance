@@ -35,7 +35,7 @@ func TestReadBlock(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "no block present",
+			name:    "no block present",
 			content: "export PATH=/usr/bin:$PATH\nalias ll='ls -la'\n",
 			want:    "",
 			wantErr: false,

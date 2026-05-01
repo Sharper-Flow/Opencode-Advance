@@ -10,11 +10,11 @@ import (
 )
 
 type watchdogStatus struct {
-	SessionID     string `json:"sessionID"`
-	Status        string `json:"status"`
-	BumpCount     int    `json:"bump_count"`
-	LastBumpAt    int64  `json:"last_bump_at"`
-	LastActivityAt int64 `json:"last_activity_at"`
+	SessionID      string `json:"sessionID"`
+	Status         string `json:"status"`
+	BumpCount      int    `json:"bump_count"`
+	LastBumpAt     int64  `json:"last_bump_at"`
+	LastActivityAt int64  `json:"last_activity_at"`
 }
 
 type paneWatchdogState struct {
@@ -22,11 +22,11 @@ type paneWatchdogState struct {
 	Directory string `json:"directory"`
 	Ts        int64  `json:"ts"`
 	Watchdog  *struct {
-		Enabled      bool   `json:"enabled"`
-		BumpCount    int    `json:"bump_count"`
-		LastBumpAt   int64  `json:"last_bump_at"`
-		LastActivityAt int64 `json:"last_activity_at"`
-		Status       string `json:"status"`
+		Enabled        bool   `json:"enabled"`
+		BumpCount      int    `json:"bump_count"`
+		LastBumpAt     int64  `json:"last_bump_at"`
+		LastActivityAt int64  `json:"last_activity_at"`
+		Status         string `json:"status"`
 	} `json:"watchdog"`
 }
 

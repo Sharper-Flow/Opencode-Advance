@@ -453,16 +453,16 @@ Phase 5 shipped a narrow 4-pillar Temporal enablement. Scope was deliberately cu
 
 **Tasks (high-level):**
 
-- tk-phase7-01: Port Discord Rich Presence integration from open-chad
-- tk-phase7-02: Rewrite all taglines (data-driven TOML file)
-- tk-phase7-03: Implement `oca discord enable/disable/status`
-- tk-phase7-04: Set up goreleaser config
-- tk-phase7-05: Write `.github/workflows/release.yml`
-- tk-phase7-06: Test release pipeline with a pre-release tag (v1.0.0-rc1)
-- tk-phase7-07: Write final README
-- tk-phase7-08: Write INSTALL.md
-- tk-phase7-09: Generate CHANGELOG.md
-- tk-phase7-10: Final polish pass: inconsistencies, typos, dead links
+- tk-phase8-01: Port Discord Rich Presence integration from open-chad
+- tk-phase8-02: Rewrite all taglines (data-driven TOML file)
+- tk-phase8-03: Implement `oca discord enable/disable/status`
+- tk-phase8-04: Set up goreleaser config
+- tk-phase8-05: Write `.github/workflows/release.yml`
+- tk-phase8-06: Test release pipeline with a pre-release tag (v1.0.0-rc1)
+- tk-phase8-07: Write final README
+- tk-phase8-08: Write INSTALL.md
+- tk-phase8-09: Generate CHANGELOG.md
+- tk-phase8-10: Final polish pass: inconsistencies, typos, dead links
 
 ---
 

@@ -225,9 +225,9 @@ Advance now uses **Temporal as its primary state backend**. Key implications for
 
 ---
 
-## CI/Release (Phase 1+)
+## CI/Release
 
-To be populated in `.github/workflows/`:
+`.github/workflows/`:
 
-- `ci.yml` — on every PR and push to trunk: `go test ./...`, `go vet ./...`, `gofmt -d .`
-- `release.yml` — on version tags (`v*`): goreleaser builds cross-platform binaries, publishes to GitHub Releases
+- `ci.yml` — shipped: on every PR and push to trunk runs `go test ./...`, `go vet ./...`, `gofmt -d .`
+- `release.yml` — Phase 8 (not yet shipped): on version tags (`v*`) goreleaser will build cross-platform binaries and publish to GitHub Releases

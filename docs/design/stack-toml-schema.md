@@ -2,7 +2,7 @@
 
 This document is the canonical reference for the `stack.toml` schema. A complete working example lives at [`stack.example.toml`](../../stack.example.toml).
 
-> Status note: `[meta]`, `[mcp]`, `[plugins.*]`, and `[instructions]` are typed and actively rendered as of Phase 2. `[providers.*]`, `[permissions]`, `[watcher]`, and `[lsp.*]` are typed and actively rendered in Phase 3. `[skills]`, `[formatters.*]`, `[commands.*]`, and `[opencode]` are typed and actively rendered in Phase 3.5. `[temporal]` is typed and actively rendered in Phase 5 (writes `$OCA_CACHE_DIR/temporal.env` with `ADV_TEMPORAL_*` values). `[mcp.slot_groups.*]` is typed and actively rendered in Phase 5.5. `[agents]`, `[session]`, and `[discord]` remain deferred unless otherwise noted.
+> Status note: `[meta]`, `[mcp]`, `[plugins.*]`, and `[instructions]` are typed and actively rendered as of Phase 2. `[providers.*]`, `[permissions]`, `[watcher]`, and `[lsp.*]` are typed and actively rendered in Phase 3. `[skills]`, `[formatters.*]`, `[commands.*]`, and `[opencode]` are typed and actively rendered in Phase 3.5. `[temporal]` is typed and actively rendered in Phase 5 (env file written via `oca apply --target temporal`; doctor checks via `oca doctor --scope temporal`). `[mcp.slot_groups.*]` is typed and actively rendered in Phase 5.5. `[session]` is typed (Phase 4 + Phase 6 hardening) — see `[session]` section. `[agents]` and `[discord]` remain deferred unless otherwise noted.
 
 ## Top-level tables
 
@@ -336,20 +336,25 @@ If rendering fails, sync MUST NOT run. If sync fails, rendered files remain on d
 
 ## `[temporal]`
 
-Reserved for Phase 6.5 Temporal inheritance.
+Phase 5 Temporal enablement. Manages the Advance plugin's Temporal client config via a rendered env file.
 
 ```toml
 [temporal]
-# reserved — implemented in a later phase (see docs/proposals/phases.md § Phase 6.5)
-# enabled = true
+enabled     = true
+address     = "127.0.0.1:7233"
+namespace   = "default"
+allow_remote = false
 ```
 
-Current behavior:
+Current behavior (Phase 5):
 
-- parser accepts the section shape
-- validation emits advisory messaging only
-- `oca apply --target temporal` and `oca doctor --scope temporal` return a reserved-for-later error
-- `adv-temporal` provides category is pre-allocated so ownership boundaries stay stable when Phase 6.5 lands
+- parser accepts and validates the full section shape (typed `TemporalSection`, `TemporalDevServer`, `TemporalEnvVar`)
+- `oca apply --target temporal` writes `$OCA_CACHE_DIR/temporal.env` atomically with all declared `ADV_TEMPORAL_*` values when `enabled = true`; no-op (with friendly message) when disabled
+- `oca doctor --scope temporal` checks reachability and namespace existence
+- Status bar shows Temporal reachability when `[temporal].enabled = true`
+- `adv-temporal` provides category preserves ownership boundaries for the Advance plugin's own Temporal artifacts
+
+> Out of scope for Phase 5: dev-server supervision (`temporal server start-dev` PID management), `oca temporal {status,start,stop,restart,logs}` subcommands, `temporal_bundle` wiring. These are deferred to Phase 6.5.
 
 ---
 
@@ -457,12 +462,11 @@ Rendered into `opencode.json` `.lsp`. Unknown additional keys per LSP server are
 
 ```toml
 [session]
-prefix               = "oca-"        # tmux session name prefix
-reaper               = true          # kill unattached sessions after timeout
-reaper_timeout_hours = 4
-theme                = "obsidian"    # theme name under assets/themes/
-boot_splash          = true          # show GBA wordmark on session create
-boot_splash_timeout  = 1000          # ms before dropping into the session
+prefix           = "oca-"        # tmux session name prefix
+reaper           = true          # kill unattached sessions after timeout
+reaper_threshold = "4h"         # Go duration string; stale threshold
+theme            = "obsidian"    # theme name under assets/themes/
+boot_splash      = true          # show GBA wordmark on session create
 ```
 
 Design notes for Phase 4 session behavior:
@@ -470,6 +474,7 @@ Design notes for Phase 4 session behavior:
 - OCA sessions are same-host tmux sessions. Re-entry from another device means reconnecting to the same host, not syncing sessions across machines.
 - Existing host access controls (local shell, SSH, Tailscale, OS account permissions) are the access boundary. No separate OCA session-auth config is planned here.
 - Reaper settings must be interpreted with resume safety in mind: a temporarily detached session may still be expected to come back later.
+- `ReapCandidates` and `ReapStale` enforce a 5-minute minimum floor for safety regardless of the configured threshold.
 - Multi-client / mobile-terminal behavior needs an explicit tmux window-size policy so a phone-sized client does not unintentionally degrade a desktop session. If that policy becomes user-tunable later, this section is where the schema should expose it.
 
 ---

@@ -19,9 +19,9 @@ const buildTimeout = 5 * 60 * time.Second // 5 minutes
 //
 // Environment (per jc-pnpm1 resolution):
 //   - CI=true, DEBIAN_FRONTEND=noninteractive, npm_config_yes=true
-//   are merged onto the inherited process environment.
+//     are merged onto the inherited process environment.
 //   - --frozen-lockfile is the caller's responsibility in the build
-//   command string itself.
+//     command string itself.
 //
 // On failure, the captured combined output is included in the error
 // message for remediation per AC29.
@@ -31,9 +31,9 @@ func RunBuild(ctx context.Context, p config.Plugin) error {
 	}
 
 	buildEnv := map[string]string{
-		"CI":                "true",
-		"DEBIAN_FRONTEND":   "noninteractive",
-		"npm_config_yes":    "true",
+		"CI":              "true",
+		"DEBIAN_FRONTEND": "noninteractive",
+		"npm_config_yes":  "true",
 	}
 
 	for i, cmd := range p.Build {

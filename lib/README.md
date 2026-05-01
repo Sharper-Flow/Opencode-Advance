@@ -10,7 +10,7 @@ This directory holds bash scripts that handle integration with tmux, the shell, 
 | `wordmark.sh`                | Wordmark rendering functions (full / compact / short)        | 0     |
 | `boot_splash.sh`             | Boot splash with wordmark reveal + version line              | 0 / 4 |
 | `session_lifecycle.sh`       | tmux session creation / list primitives (shell counterpart to `internal/session/`) | 4     |
-| `status_bar.sh`              | Tmux status bar renderer (planned, Phase 4 richness)        | 4     |
+| `status_bar.sh`              | Tmux status bar renderer (row 0: session/git/ADV state/host/clock; row 1: window list/LLM gauges/date) | 4     |
 | `obsidian.tmux.conf`         | *(moved to `assets/themes/` — referenced by `resolveTmuxConf()` at runtime)* | 4     |
 | `discord/setup.sh`           | Discord Rich Presence wizard (enable/disable/status)         | 8     |
 | `discord/update.sh`          | Rate-limited Discord presence updater                        | 8     |
@@ -29,4 +29,4 @@ The Go CLI (`cmd/oca/`) handles everything else — parsing, validation, renderi
 
 ## Status
 
-Populated through Phases 0 and 4 foundation. Current files: `palette.sh`, `wordmark.sh`, `boot_splash.sh`, `session_lifecycle.sh`. Phase 4 richness will add `status_bar.sh`. Discord scripts are Phase 8.
+Populated through Phases 0 and 4. Current files: `palette.sh`, `wordmark.sh`, `boot_splash.sh`, `session_lifecycle.sh`, `status_bar.sh`, `adv_status.sh`, `llm_gauge.sh`. Discord scripts are Phase 8.

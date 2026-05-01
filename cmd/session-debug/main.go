@@ -1,3 +1,13 @@
+// Command session-debug is a development-only diagnostic utility for
+// inspecting raw `tmux list-sessions` output and the subprocess wrapper's
+// classification of it (ExitClass, ExitCode, output bytes). It is NOT
+// part of the installed `oca` CLI surface — it lives outside cmd/oca/
+// on purpose so it cannot be invoked through the user-facing entry point.
+//
+// Build with `go run ./cmd/session-debug` while debugging session manager
+// issues. Add new prints freely; remove temporary scratch code before
+// committing if it is purely throwaway. The file is intentionally short
+// and stays that way.
 package main
 
 import (

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -77,8 +76,20 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 				}
 			}
 
-			// Resolve tmux conf path
-			tmuxConf := resolveTmuxConf()
+			// Load stack config once — drives theme, watchdog, reaper, and
+			// boot-splash decisions below. Failures are non-fatal: each
+			// consumer falls back to v1 defaults so `oca session new` still
+			// works in fresh environments before stack.toml exists.
+			stack, stackErr := loadStack(state)
+
+			// Resolve tmux conf from configured theme (default "obsidian"
+			// on missing config or unset theme; empty conf path on unknown
+			// theme = graceful degrade per design KD4).
+			theme := defaultTheme
+			if stackErr == nil && stack.Session != nil && stack.Session.Theme != "" {
+				theme = stack.Session.Theme
+			}
+			tmuxConf := resolveTmuxConf(theme)
 
 			err = mgr.Create(ctx, sessionName, workingDir, tmuxConf)
 			if err != nil {
@@ -97,15 +108,42 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 
 			// Inject watchdog config into tmux global env so the OCA
 			// plugin can read it at startup. Non-fatal on error.
-			stack, stackErr := loadStack(state)
 			if stackErr == nil && stack.Session != nil && stack.Session.Watchdog != nil {
 				if err := mgr.ApplyWatchdogEnv(ctx, stack.Session.Watchdog); err != nil {
 					fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to set watchdog env: %v\n", err)
 				}
 			}
 
-			// Trigger boot splash unless --no-splash
-			if !noSplash {
+			// Auto-reap stale sessions in the background. Default ON; controlled
+			// by [session].reaper. Fire-and-forget — must not block session
+			// creation. Uses context.Background() with its own timeout so the
+			// 15s cobra ctx cancelling on RunE return does not cancel the
+			// reap mid-flight.
+			autoReap := true
+			reapThreshold := 4 * time.Hour
+			if stackErr == nil && stack.Session != nil {
+				autoReap = stack.Session.Reaper
+				if stack.Session.ReaperThreshold > 0 {
+					reapThreshold = stack.Session.ReaperThreshold
+				}
+			}
+			if autoReap {
+				go func(threshold time.Duration) {
+					bgCtx, bgCancel := context.WithTimeout(context.Background(), 30*time.Second)
+					defer bgCancel()
+					if _, err := mgr.ReapStale(bgCtx, threshold); err != nil {
+						fmt.Fprintf(os.Stderr, "warning: auto-reap: %v\n", err)
+					}
+				}(reapThreshold)
+			}
+
+			// Trigger boot splash. Default ON; controlled by [session].boot_splash.
+			// CLI --no-splash always wins, even when config says true.
+			bootSplash := true
+			if stackErr == nil && stack.Session != nil {
+				bootSplash = stack.Session.BootSplash
+			}
+			if bootSplash && !noSplash {
 				triggerSplash(ctx, socket, sessionName, state)
 			}
 
@@ -135,9 +173,9 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 
 func newSessionListCmd(state *commandState) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List OCA tmux sessions",
-		Long:  "List all OCA-managed tmux sessions on the current socket.",
+		Use:     "list",
+		Short:   "List OCA tmux sessions",
+		Long:    "List all OCA-managed tmux sessions on the current socket.",
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := validateOutputMode(state.output); err != nil {
@@ -190,35 +228,68 @@ func sessionSocket() string {
 	return "oca"
 }
 
-// resolveTmuxConf returns the path to the Obsidian tmux conf asset.
-// Returns empty string if not found (session created without theming).
-func resolveTmuxConf() string {
-	// Check OCA_ASSETS_ROOT first (for testing)
+// defaultTheme is the v1 default theme name. Used when [session].theme is
+// unset (or config load fails entirely).
+const defaultTheme = "obsidian"
+
+// validThemeName accepts only basename-like theme IDs: letters, digits,
+// underscore, hyphen, and dot. Rejects path separators, "..", and empty.
+func validThemeName(theme string) bool {
+	if theme == "" {
+		return false
+	}
+	if strings.Contains(theme, "..") {
+		return false
+	}
+	for _, r := range theme {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || r == '_' || r == '-' || r == '.') {
+			return false
+		}
+	}
+	return true
+}
+
+// resolveTmuxConf returns the path to the named tmux theme conf asset, or
+// the empty string if no asset can be found. An empty theme name is treated
+// as "use the default" (obsidian). An unknown theme name (no matching file)
+// degrades to "" so Manager.Create runs without a -f flag rather than
+// failing — matches the design's invalid-theme contract (KD4).
+//
+// Lookup order matches resolveTmuxConf's pre-Phase 6 behavior:
+//  1. $OCA_ASSETS_ROOT/themes/<theme>.tmux.conf (test override)
+//  2. <executable-dir>/../assets/themes/<theme>.tmux.conf (installed)
+//  3. assets/themes/<theme>.tmux.conf (development checkout, relative to cwd)
+func resolveTmuxConf(theme string) string {
+	if theme == "" {
+		theme = defaultTheme
+	}
+	if !validThemeName(theme) {
+		return ""
+	}
+	filename := theme + ".tmux.conf"
+
+	// 1. OCA_ASSETS_ROOT (test/dev override)
 	if root := os.Getenv("OCA_ASSETS_ROOT"); root != "" {
-		p := filepath.Join(root, "themes", "obsidian.tmux.conf")
+		p := filepath.Join(root, "themes", filename)
 		if _, err := os.Stat(p); err == nil {
 			return p
 		}
 	}
 
-	// Try relative to executable
-	exe, err := os.Executable()
-	if err == nil {
-		p := filepath.Join(filepath.Dir(exe), "..", "assets", "themes", "obsidian.tmux.conf")
+	// 2. Relative to the running executable (installed binary).
+	if exe, err := os.Executable(); err == nil {
+		p := filepath.Join(filepath.Dir(exe), "..", "assets", "themes", filename)
 		if _, err := os.Stat(p); err == nil {
 			return p
 		}
 	}
 
-	// Try relative to repo root (for development)
-	candidates := []string{
-		"assets/themes/obsidian.tmux.conf",
-	}
-	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
-			abs, _ := filepath.Abs(c)
-			return abs
-		}
+	// 3. Relative to cwd (development checkout).
+	dev := filepath.Join("assets", "themes", filename)
+	if _, err := os.Stat(dev); err == nil {
+		abs, _ := filepath.Abs(dev)
+		return abs
 	}
 
 	return ""
@@ -388,7 +459,13 @@ func newSessionRestartCmd(state *commandState) *cobra.Command {
 			if err != nil {
 				return newCLIError(1, "get working directory: %v", err)
 			}
-			tmuxConf := resolveTmuxConf()
+			// Resolve theme from config (default "obsidian"). Same fallback
+			// rules as `oca session new` — config load failure → default.
+			theme := defaultTheme
+			if stack, stackErr := loadStack(state); stackErr == nil && stack.Session != nil && stack.Session.Theme != "" {
+				theme = stack.Session.Theme
+			}
+			tmuxConf := resolveTmuxConf(theme)
 			if err := mgr.Restart(ctx, args[0], workingDir, tmuxConf); err != nil {
 				return newCLIError(1, "restart session: %v", err)
 			}
@@ -413,7 +490,8 @@ func newSessionReapCmd(state *commandState) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reap",
 		Short: "Reap stale OCA tmux sessions",
-		Long:  "Kill OCA-managed tmux sessions with no activity for the specified duration.",
+		Long: "Kill OCA-managed tmux sessions with no activity for the specified duration. " +
+			"Threshold has a 5-minute floor enforced by session.Manager.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := validateOutputMode(state.output); err != nil {
 				return err
@@ -425,84 +503,61 @@ func newSessionReapCmd(state *commandState) *cobra.Command {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
-			res, err := subprocess.Run(ctx, subprocess.Cmd{
-				Name:    "tmux",
-				Args:    []string{"-L", socket, "list-sessions", "-F", "#{session_activity}\t#{session_attached}\t#{session_name}"},
-				Timeout: 10 * time.Second,
-			})
+
+			candidates, err := mgr.ReapCandidates(ctx, ageThreshold)
 			if err != nil {
-				output := string(res.Output)
-				if strings.Contains(output, "no server running") ||
-					strings.Contains(output, "no sessions") ||
-					strings.Contains(output, "error connecting to") {
-					if state.output == "json" {
-						return printJSON(cmd.OutOrStdout(), map[string]any{"reaped": 0, "skipped": 0})
-					}
-					fmt.Fprintln(cmd.OutOrStdout(), "no sessions to reap")
-					return nil
-				}
 				return newCLIError(1, "list sessions: %v", err)
 			}
-			now := time.Now().Unix()
-			minAge := int64(5 * time.Minute / time.Second)
-			threshold := int64(ageThreshold / time.Second)
-			if threshold < minAge {
-				threshold = minAge
+
+			if dryRun {
+				return printReapResult(cmd, state, candidates, true)
 			}
-			var reaped []string
-			var skipped []string
-			for _, line := range strings.Split(string(res.Output), "\n") {
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
+
+			// Production path — actually kill them.
+			var reaped []session.ReapCandidate
+			for _, c := range candidates {
+				if err := mgr.Kill(ctx, c.Name); err != nil {
+					return newCLIError(1, "kill %s: %v", c.Name, err)
 				}
-				parts := strings.SplitN(line, "\t", 3)
-				if len(parts) != 3 {
-					continue
-				}
-				activityUnix, _ := strconv.ParseInt(parts[0], 10, 64)
-				attached := parts[1] == "1"
-				name := parts[2]
-				if !strings.HasPrefix(name, "oca-") {
-					continue
-				}
-				if attached {
-					skipped = append(skipped, fmt.Sprintf("%s (attached)", name))
-					continue
-				}
-				age := now - activityUnix
-				if age > threshold {
-					if dryRun {
-						reaped = append(reaped, fmt.Sprintf("[DRY] %s (idle %s)", name, formatDuration(time.Duration(age)*time.Second)))
-					} else {
-						if err := mgr.Kill(ctx, name); err != nil {
-							return newCLIError(1, "kill %s: %v", name, err)
-						}
-						reaped = append(reaped, fmt.Sprintf("%s (idle %s)", name, formatDuration(time.Duration(age)*time.Second)))
-					}
-				} else {
-					skipped = append(skipped, fmt.Sprintf("%s (recent)", name))
-				}
+				reaped = append(reaped, c)
 			}
-			if state.output == "json" {
-				return printJSON(cmd.OutOrStdout(), map[string]any{
-					"reaped":  reaped,
-					"skipped": skipped,
-					"dry_run": dryRun,
-				})
-			}
-			for _, r := range reaped {
-				fmt.Fprintln(cmd.OutOrStdout(), r)
-			}
-			if len(reaped) == 0 && len(skipped) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "no sessions to reap")
-			}
-			return nil
+			return printReapResult(cmd, state, reaped, false)
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be reaped without killing")
-	cmd.Flags().DurationVar(&ageThreshold, "age", 30*time.Minute, "Minimum age to consider stale")
+	cmd.Flags().DurationVar(&ageThreshold, "age", 30*time.Minute, "Minimum age to consider stale (5m floor enforced)")
 	return cmd
+}
+
+// printReapResult renders the reap output for both dry-run and production
+// paths. For dry-run, names are prefixed with "[DRY]".
+func printReapResult(cmd *cobra.Command, state *commandState, candidates []session.ReapCandidate, dryRun bool) error {
+	if state.output == "json" {
+		names := make([]string, 0, len(candidates))
+		for _, c := range candidates {
+			label := c.Name
+			if dryRun {
+				label = "[DRY] " + label
+			}
+			names = append(names, fmt.Sprintf("%s (idle %s)", label, formatDuration(c.Age)))
+		}
+		return printJSON(cmd.OutOrStdout(), map[string]any{
+			"reaped":  names,
+			"dry_run": dryRun,
+		})
+	}
+	if len(candidates) == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "no sessions to reap")
+		return nil
+	}
+	for _, c := range candidates {
+		prefix := ""
+		if dryRun {
+			prefix = "[DRY] "
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "%s%s (idle %s)\n", prefix, c.Name, formatDuration(c.Age))
+	}
+	return nil
 }
 
 func formatDuration(d time.Duration) string {

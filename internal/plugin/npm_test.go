@@ -24,9 +24,9 @@ func TestValidateNPMSource_ValidPatterns(t *testing.T) {
 
 func TestValidateNPMSource_InvalidPatterns(t *testing.T) {
 	cases := []string{
-		"",                // empty
-		"npm:",           // empty after prefix
-		"npm:@",          // just scope, no package
+		"",                               // empty
+		"npm:",                           // empty after prefix
+		"npm:@",                          // just scope, no package
 		"https://github.com/foo/bar.git", // not npm
 	}
 	for _, tc := range cases {

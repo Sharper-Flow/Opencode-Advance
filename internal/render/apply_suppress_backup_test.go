@@ -59,11 +59,11 @@ func TestApply_WithoutSuppressBackupKeepsNormalBakBehavior(t *testing.T) {
 	plan := &Plan{
 		LockPath: lockPath,
 		Targets: []TargetOp{{
-			Name:   "opencode.json",
-			Path:   path,
-			Op:     "merge",
-			After:  []byte("new"),
-			Mode:   0o644,
+			Name:  "opencode.json",
+			Path:  path,
+			Op:    "merge",
+			After: []byte("new"),
+			Mode:  0o644,
 		}},
 	}
 
