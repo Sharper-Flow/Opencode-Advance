@@ -186,10 +186,11 @@ func TestList_Empty(t *testing.T) {
 
 // TestList_FreshSocket verifies that List() handles all three tmux
 // "no sessions" output variants correctly:
-//   1. "no server running on <socket>" (server started but no sessions)
-//   2. "no sessions"                    (alternate phrasing)
-//   3. "error connecting to <socket> (No such file or directory)"
-//      (socket file doesn't exist — this is the common case for a fresh socket)
+//  1. "no server running on <socket>" (server started but no sessions)
+//  2. "no sessions"                    (alternate phrasing)
+//  3. "error connecting to <socket> (No such file or directory)"
+//     (socket file doesn't exist — this is the common case for a fresh socket)
+//
 // Regression test for a bug where the third variant was not handled.
 func TestList_FreshSocket(t *testing.T) {
 	testTmuxAvailable(t)
@@ -532,5 +533,107 @@ func TestSetGlobalEnv(t *testing.T) {
 	got := strings.TrimSpace(string(res.Output))
 	if got != "OCA_TEST_VAR=hello-world" {
 		t.Errorf("env = %q, want %q", got, "OCA_TEST_VAR=hello-world")
+	}
+}
+
+// TestReapStale_NoServer verifies ReapStale returns (nil, nil) when no tmux
+// server is running (one of the three "no sessions" error variants).
+func TestReapStale_NoServer(t *testing.T) {
+	testTmuxAvailable(t)
+	socket := fmt.Sprintf("ocatest-reap-noserver-%d", os.Getpid())
+	t.Cleanup(func() { cleanupSocket(t, socket) })
+
+	m, err := NewManager(socket)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	reaped, err := m.ReapStale(ctx, 4*time.Hour)
+	if err != nil {
+		t.Fatalf("ReapStale on empty socket: unexpected err: %v", err)
+	}
+	if len(reaped) != 0 {
+		t.Errorf("reaped = %v, want empty", reaped)
+	}
+}
+
+// TestReapStale_FloorEnforced verifies the 5-minute minimum threshold floor:
+// a tiny threshold (1ns) does not reap freshly-created sessions because the
+// floor pushes the effective threshold to 5m.
+func TestReapStale_FloorEnforced(t *testing.T) {
+	testTmuxAvailable(t)
+	socket := fmt.Sprintf("ocatest-reap-floor-%d", os.Getpid())
+	cleanupSocket(t, socket)
+	t.Cleanup(func() { cleanupSocket(t, socket) })
+
+	m, err := NewManager(socket)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	tmpDir := t.TempDir()
+	// Create an oca- session, leave it detached.
+	if err := m.Create(ctx, "oca-floor-0", tmpDir, ""); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// 1ns threshold would reap everything except for the 5m floor.
+	reaped, err := m.ReapStale(ctx, 1*time.Nanosecond)
+	if err != nil {
+		t.Fatalf("ReapStale: %v", err)
+	}
+	if len(reaped) != 0 {
+		t.Errorf("reaped = %v, want empty (5m floor should protect fresh sessions)", reaped)
+	}
+
+	// Verify the session is still alive.
+	s, err := m.GetSessionByName(ctx, "oca-floor-0")
+	if err != nil {
+		t.Fatalf("GetSessionByName: %v", err)
+	}
+	if s == nil {
+		t.Error("session was reaped despite 5m floor; floor not enforced")
+	}
+}
+
+// TestReapStale_NonOcaPrefixSkipped verifies sessions without the oca- prefix
+// are never reaped, even if they would otherwise be old enough.
+func TestReapStale_NonOcaPrefixSkipped(t *testing.T) {
+	testTmuxAvailable(t)
+	socket := fmt.Sprintf("ocatest-reap-prefix-%d", os.Getpid())
+	cleanupSocket(t, socket)
+	t.Cleanup(func() { cleanupSocket(t, socket) })
+
+	m, err := NewManager(socket)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Create a non-oca-prefix session directly via tmux.
+	tmpDir := t.TempDir()
+	res, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    m.tmuxPath,
+		Args:    []string{"-L", socket, "new-session", "-d", "-s", "user-other", "-c", tmpDir},
+		Timeout: 5 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("new-session: %v (output: %s)", err, res.Output)
+	}
+
+	// Even with no floor concern (4h threshold), the prefix filter must skip it.
+	reaped, err := m.ReapStale(ctx, 4*time.Hour)
+	if err != nil {
+		t.Fatalf("ReapStale: %v", err)
+	}
+	for _, name := range reaped {
+		if name == "user-other" {
+			t.Error("ReapStale killed non-oca-prefix session 'user-other' — prefix filter broken")
+		}
 	}
 }

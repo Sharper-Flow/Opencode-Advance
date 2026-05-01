@@ -11,11 +11,11 @@ import (
 // variable values are correctly constructed from WatchdogConfig.
 func TestWatchdogEnvConstruction(t *testing.T) {
 	tests := []struct {
-		name           string
-		wd             cfg.WatchdogConfig
-		wantEnabled    string
-		wantTimeoutMs  string
-		wantMaxBumps   string
+		name          string
+		wd            cfg.WatchdogConfig
+		wantEnabled   string
+		wantTimeoutMs string
+		wantMaxBumps  string
 	}{
 		{
 			name:          "defaults",

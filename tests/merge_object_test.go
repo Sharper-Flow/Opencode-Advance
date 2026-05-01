@@ -72,7 +72,7 @@ func TestMergeObject_NestedDeep(t *testing.T) {
 	declared := map[string]any{
 		"lsp": map[string]any{
 			"pyright": map[string]any{
-				"command": []string{"pyright", "lsp"},
+				"command":    []string{"pyright", "lsp"},
 				"extensions": []string{".py"},
 			},
 		},

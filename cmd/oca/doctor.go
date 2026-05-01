@@ -30,7 +30,7 @@ func newDoctorCmd(state *commandState) *cobra.Command {
 			defer cancel()
 			paths := cfg.ResolvePaths()
 			opts := health.Options{
-				Timeout:         timeout,
+				Timeout:          timeout,
 				SkillsAssetsRoot: render.AssetsSkillsRoot(),
 				SkillsTargetDir:  paths.OpencodeSkillsDir(),
 			}

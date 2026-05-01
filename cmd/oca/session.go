@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -104,6 +103,29 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 				}
 			}
 
+			// Auto-reap stale sessions in the background. Default ON; controlled
+			// by [session].reaper. Fire-and-forget — must not block session
+			// creation. Uses context.Background() with its own timeout so the
+			// 15s cobra ctx cancelling on RunE return does not cancel the
+			// reap mid-flight.
+			autoReap := true
+			reapThreshold := 4 * time.Hour
+			if stackErr == nil && stack.Session != nil {
+				autoReap = stack.Session.Reaper
+				if stack.Session.ReaperThreshold > 0 {
+					reapThreshold = stack.Session.ReaperThreshold
+				}
+			}
+			if autoReap {
+				go func(threshold time.Duration) {
+					bgCtx, bgCancel := context.WithTimeout(context.Background(), 30*time.Second)
+					defer bgCancel()
+					if _, err := mgr.ReapStale(bgCtx, threshold); err != nil {
+						fmt.Fprintf(os.Stderr, "warning: auto-reap: %v\n", err)
+					}
+				}(reapThreshold)
+			}
+
 			// Trigger boot splash unless --no-splash
 			if !noSplash {
 				triggerSplash(ctx, socket, sessionName, state)
@@ -135,9 +157,9 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 
 func newSessionListCmd(state *commandState) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List OCA tmux sessions",
-		Long:  "List all OCA-managed tmux sessions on the current socket.",
+		Use:     "list",
+		Short:   "List OCA tmux sessions",
+		Long:    "List all OCA-managed tmux sessions on the current socket.",
 		Aliases: []string{"ls"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := validateOutputMode(state.output); err != nil {
@@ -413,7 +435,8 @@ func newSessionReapCmd(state *commandState) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reap",
 		Short: "Reap stale OCA tmux sessions",
-		Long:  "Kill OCA-managed tmux sessions with no activity for the specified duration.",
+		Long: "Kill OCA-managed tmux sessions with no activity for the specified duration. " +
+			"Threshold has a 5-minute floor enforced by session.Manager.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := validateOutputMode(state.output); err != nil {
 				return err
@@ -425,84 +448,61 @@ func newSessionReapCmd(state *commandState) *cobra.Command {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
-			res, err := subprocess.Run(ctx, subprocess.Cmd{
-				Name:    "tmux",
-				Args:    []string{"-L", socket, "list-sessions", "-F", "#{session_activity}\t#{session_attached}\t#{session_name}"},
-				Timeout: 10 * time.Second,
-			})
+
+			candidates, err := mgr.ReapCandidates(ctx, ageThreshold)
 			if err != nil {
-				output := string(res.Output)
-				if strings.Contains(output, "no server running") ||
-					strings.Contains(output, "no sessions") ||
-					strings.Contains(output, "error connecting to") {
-					if state.output == "json" {
-						return printJSON(cmd.OutOrStdout(), map[string]any{"reaped": 0, "skipped": 0})
-					}
-					fmt.Fprintln(cmd.OutOrStdout(), "no sessions to reap")
-					return nil
-				}
 				return newCLIError(1, "list sessions: %v", err)
 			}
-			now := time.Now().Unix()
-			minAge := int64(5 * time.Minute / time.Second)
-			threshold := int64(ageThreshold / time.Second)
-			if threshold < minAge {
-				threshold = minAge
+
+			if dryRun {
+				return printReapResult(cmd, state, candidates, true)
 			}
-			var reaped []string
-			var skipped []string
-			for _, line := range strings.Split(string(res.Output), "\n") {
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
+
+			// Production path — actually kill them.
+			var reaped []session.ReapCandidate
+			for _, c := range candidates {
+				if err := mgr.Kill(ctx, c.Name); err != nil {
+					return newCLIError(1, "kill %s: %v", c.Name, err)
 				}
-				parts := strings.SplitN(line, "\t", 3)
-				if len(parts) != 3 {
-					continue
-				}
-				activityUnix, _ := strconv.ParseInt(parts[0], 10, 64)
-				attached := parts[1] == "1"
-				name := parts[2]
-				if !strings.HasPrefix(name, "oca-") {
-					continue
-				}
-				if attached {
-					skipped = append(skipped, fmt.Sprintf("%s (attached)", name))
-					continue
-				}
-				age := now - activityUnix
-				if age > threshold {
-					if dryRun {
-						reaped = append(reaped, fmt.Sprintf("[DRY] %s (idle %s)", name, formatDuration(time.Duration(age)*time.Second)))
-					} else {
-						if err := mgr.Kill(ctx, name); err != nil {
-							return newCLIError(1, "kill %s: %v", name, err)
-						}
-						reaped = append(reaped, fmt.Sprintf("%s (idle %s)", name, formatDuration(time.Duration(age)*time.Second)))
-					}
-				} else {
-					skipped = append(skipped, fmt.Sprintf("%s (recent)", name))
-				}
+				reaped = append(reaped, c)
 			}
-			if state.output == "json" {
-				return printJSON(cmd.OutOrStdout(), map[string]any{
-					"reaped":  reaped,
-					"skipped": skipped,
-					"dry_run": dryRun,
-				})
-			}
-			for _, r := range reaped {
-				fmt.Fprintln(cmd.OutOrStdout(), r)
-			}
-			if len(reaped) == 0 && len(skipped) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "no sessions to reap")
-			}
-			return nil
+			return printReapResult(cmd, state, reaped, false)
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be reaped without killing")
-	cmd.Flags().DurationVar(&ageThreshold, "age", 30*time.Minute, "Minimum age to consider stale")
+	cmd.Flags().DurationVar(&ageThreshold, "age", 30*time.Minute, "Minimum age to consider stale (5m floor enforced)")
 	return cmd
+}
+
+// printReapResult renders the reap output for both dry-run and production
+// paths. For dry-run, names are prefixed with "[DRY]".
+func printReapResult(cmd *cobra.Command, state *commandState, candidates []session.ReapCandidate, dryRun bool) error {
+	if state.output == "json" {
+		names := make([]string, 0, len(candidates))
+		for _, c := range candidates {
+			label := c.Name
+			if dryRun {
+				label = "[DRY] " + label
+			}
+			names = append(names, fmt.Sprintf("%s (idle %s)", label, formatDuration(c.Age)))
+		}
+		return printJSON(cmd.OutOrStdout(), map[string]any{
+			"reaped":  names,
+			"dry_run": dryRun,
+		})
+	}
+	if len(candidates) == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "no sessions to reap")
+		return nil
+	}
+	for _, c := range candidates {
+		prefix := ""
+		if dryRun {
+			prefix = "[DRY] "
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "%s%s (idle %s)\n", prefix, c.Name, formatDuration(c.Age))
+	}
+	return nil
 }
 
 func formatDuration(d time.Duration) string {
