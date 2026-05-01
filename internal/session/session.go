@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
 	"github.com/Sharper-Flow/Opencode-Advance/internal/subprocess"
 )
 
@@ -302,4 +303,42 @@ func (m *Manager) GetSessionByName(ctx context.Context, name string) (*Session, 
 		}
 	}
 	return nil, nil
+}
+
+// ApplyWatchdogEnv sets tmux global environment variables for the watchdog
+// configuration so the OCA plugin can read them at startup. Only sets vars
+// when a non-nil WatchdogConfig is provided; otherwise no-ops.
+func (m *Manager) ApplyWatchdogEnv(ctx context.Context, wd *cfg.WatchdogConfig) error {
+	if wd == nil {
+		return nil
+	}
+	for key, value := range watchdogEnvVars(wd) {
+		if err := m.SetGlobalEnv(ctx, key, value); err != nil {
+			return fmt.Errorf("watchdog env %s: %w", key, err)
+		}
+	}
+	return nil
+}
+
+// watchdogEnvVars constructs the watchdog environment variable map from a
+// WatchdogConfig. Returns a map of env var names to string values suitable
+// for tmux setenv -g.
+func watchdogEnvVars(wd *cfg.WatchdogConfig) map[string]string {
+	if wd == nil {
+		return nil
+	}
+	enabled := "0"
+	if wd.Enabled {
+		enabled = "1"
+	}
+	timeoutMs := "0"
+	if wd.IdleTimeout > 0 {
+		timeoutMs = strconv.FormatInt(wd.IdleTimeout.Milliseconds(), 10)
+	}
+	maxBumps := strconv.Itoa(wd.MaxBumps)
+	return map[string]string{
+		"OCA_WATCHDOG_ENABLED":         enabled,
+		"OCA_WATCHDOG_IDLE_TIMEOUT_MS": timeoutMs,
+		"OCA_WATCHDOG_MAX_BUMPS":       maxBumps,
+	}
 }

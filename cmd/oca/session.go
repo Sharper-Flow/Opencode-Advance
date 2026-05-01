@@ -95,6 +95,15 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 				}
 			}
 
+			// Inject watchdog config into tmux global env so the OCA
+			// plugin can read it at startup. Non-fatal on error.
+			stack, stackErr := loadStack(state)
+			if stackErr == nil && stack.Session != nil && stack.Session.Watchdog != nil {
+				if err := mgr.ApplyWatchdogEnv(ctx, stack.Session.Watchdog); err != nil {
+					fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to set watchdog env: %v\n", err)
+				}
+			}
+
 			// Trigger boot splash unless --no-splash
 			if !noSplash {
 				triggerSplash(ctx, socket, sessionName, state)
