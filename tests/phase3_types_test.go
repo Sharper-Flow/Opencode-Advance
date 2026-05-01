@@ -365,7 +365,7 @@ model = "openai/gpt-5"
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	remaining := []string{"agents", "session", "discord"}
+	remaining := []string{"agents", "discord"}
 	for _, section := range remaining {
 		if _, ok := stack.DeferredSections[section]; !ok {
 			t.Errorf("%s should remain in DeferredSections", section)

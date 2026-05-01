@@ -231,6 +231,13 @@ func Parse(data []byte) (*Stack, error) {
 			}
 			stack.OpenCode = oc
 
+		case "session":
+			ss := &SessionSection{}
+			if err := decodeInto(v, ss); err != nil {
+				return nil, &ParseError{Err: fmt.Errorf("[session]: %w", err)}
+			}
+			stack.Session = ss
+
 		default:
 			// Known-but-unimplemented OR truly unknown — defer the
 			// classification to Validate so all errors can be aggregated

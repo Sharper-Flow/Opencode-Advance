@@ -375,6 +375,18 @@ theme                = "obsidian"
 boot_splash          = true
 boot_splash_timeout  = 1000
 
+# [session.watchdog] configures automatic hang detection and recovery.
+# The OCA plugin tracks session events; when an agent is busy with no
+# progress for idle_timeout, it spawns `oca pane restart-tui --force`.
+# After max_bumps attempts, the watchdog stops and logs exhaustion.
+#
+# Default: disabled (opt-in for v1). Enable when you're comfortable
+# with the timeout defaults.
+[session.watchdog]
+enabled      = false              # opt-in; set true to enable
+idle_timeout = "5m"               # busy + no message activity → bump
+max_bumps    = 3                  # bumps before giving up
+
 # ─── Discord ─────────────────────────────────────────────────────────────────
 
 [discord]

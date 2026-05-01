@@ -130,6 +130,9 @@ func (s *Stack) Validate() error {
 	errs = append(errs, validateCommands(s)...)
 	errs = append(errs, validateOpenCode(s)...)
 
+	// [session] — promoted from deferred
+	errs = append(errs, validateSession(s)...)
+
 	// [temporal] — Phase 5
 	errs = append(errs, validateTemporal(s)...)
 
@@ -935,4 +938,33 @@ func knownSectionNames() []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// validateSession checks [session.watchdog] constraints.
+func validateSession(s *Stack) ValidationErrors {
+	var errs ValidationErrors
+	if s.Session == nil || s.Session.Watchdog == nil {
+		return errs
+	}
+	wd := s.Session.Watchdog
+	if wd.MaxBumps < 0 {
+		errs = append(errs, ValidationError{
+			Path:    "session.watchdog.max_bumps",
+			Message: "must be >= 0",
+		})
+	}
+	if wd.IdleTimeout > 0 && wd.IdleTimeout < time.Second {
+		errs = append(errs, ValidationError{
+			Path:    "session.watchdog.idle_timeout",
+			Message: "must be >= 1s",
+		})
+	}
+	// Zero idle_timeout is only valid when watchdog is disabled.
+	if wd.IdleTimeout == 0 && wd.Enabled {
+		errs = append(errs, ValidationError{
+			Path:    "session.watchdog.idle_timeout",
+			Message: "must be > 0 when watchdog is enabled",
+		})
+	}
+	return errs
 }

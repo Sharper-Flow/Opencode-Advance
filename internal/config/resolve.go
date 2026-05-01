@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // envVarPattern matches ${VAR} and ${VAR:-default}. Mirrors Vision's
@@ -45,6 +46,16 @@ func (s *Stack) Resolve() {
 			continue
 		}
 		s.Plugins[name] = plugin
+	}
+
+	// Apply session/watchdog defaults.
+	if s.Session != nil && s.Session.Watchdog != nil {
+		if s.Session.Watchdog.IdleTimeout == 0 {
+			s.Session.Watchdog.IdleTimeout = 5 * time.Minute
+		}
+		if s.Session.Watchdog.MaxBumps == 0 {
+			s.Session.Watchdog.MaxBumps = 3
+		}
 	}
 }
 

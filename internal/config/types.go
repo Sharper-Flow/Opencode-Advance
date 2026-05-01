@@ -12,7 +12,10 @@
 // See docs/design/phase1-mcp-apply.md for the full type design.
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // Stack is the in-memory representation of a validated stack.toml file.
 // Fields are populated by Parse, with validation run by Validate and
@@ -37,6 +40,9 @@ type Stack struct {
 	Formatters FormattersSection `toml:"formatters"`
 	Commands   CommandsSection   `toml:"commands"`
 	OpenCode   OpenCodeSection   `toml:"opencode"`
+
+	// Session typed section (promoted from deferred)
+	Session *SessionSection `toml:"session,omitempty"`
 
 	// DeferredSections holds known-but-unimplemented top-level sections
 	// verbatim so that a complete stack.toml (including future-phase
@@ -688,6 +694,93 @@ type CompactionSection struct {
 // [opencode.enabled_providers] — each has a `list` field.
 type ProviderListSection struct {
 	List []string `toml:"list,omitempty"`
+}
+
+// ---------------------------------------------------------------------------
+// Session section (promoted from deferred)
+// ---------------------------------------------------------------------------
+
+// SessionSection is the [session] table. Carries session-level configuration
+// including the watchdog subsystem for automatic hang detection and recovery.
+type SessionSection struct {
+	Prefix   string           `toml:"prefix,omitempty"`
+	Watchdog *WatchdogConfig  `toml:"watchdog,omitempty"`
+	Extra    map[string]any   `toml:"-"`
+}
+
+// WatchdogConfig configures automatic hang detection and recovery for
+// OpenCode agent sessions. The plugin detects hangs by tracking session
+// events; the CLI handles recovery via oca pane restart-tui.
+//
+// Default is opt-in (enabled = false) for v1.
+type WatchdogConfig struct {
+	Enabled     bool          `toml:"enabled"`
+	IdleTimeout time.Duration `toml:"idle_timeout,omitempty"`
+	MaxBumps    int           `toml:"max_bumps,omitempty"`
+}
+
+// UnmarshalTOML implements custom decoding for SessionSection to capture
+// extra unknown fields and parse the watchdog subsection.
+func (s *SessionSection) UnmarshalTOML(value any) error {
+	m, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("expected table for session, got %T", value)
+	}
+
+	extra := make(map[string]any)
+	for k, v := range m {
+		switch k {
+		case "prefix":
+			if str, ok := v.(string); ok {
+				s.Prefix = str
+			}
+		case "watchdog":
+			wd := &WatchdogConfig{}
+			if err := decodeInto(v, wd); err != nil {
+				return fmt.Errorf("watchdog: %w", err)
+			}
+			s.Watchdog = wd
+		default:
+			extra[k] = v
+		}
+	}
+	if len(extra) > 0 {
+		s.Extra = extra
+	}
+	return nil
+}
+
+// UnmarshalTOML implements custom decoding for WatchdogConfig to parse
+// idle_timeout as a Go duration string (e.g. "5m", "30s").
+func (w *WatchdogConfig) UnmarshalTOML(value any) error {
+	m, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("expected table for watchdog, got %T", value)
+	}
+
+	for k, v := range m {
+		switch k {
+		case "enabled":
+			if b, ok := v.(bool); ok {
+				w.Enabled = b
+			}
+		case "idle_timeout":
+			s, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("idle_timeout: expected string, got %T", v)
+			}
+			d, err := time.ParseDuration(s)
+			if err != nil {
+				return fmt.Errorf("idle_timeout: %w", err)
+			}
+			w.IdleTimeout = d
+		case "max_bumps":
+			if n, ok := tomlInt(v); ok {
+				w.MaxBumps = n
+			}
+		}
+	}
+	return nil
 }
 
 // decodeStringMap converts a raw TOML value to map[string]string.
