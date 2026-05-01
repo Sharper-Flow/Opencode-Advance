@@ -99,9 +99,7 @@ func (m *Manager) List(ctx context.Context) ([]Session, error) {
 		//   3. "error connecting to <socket> (No such file or directory)"
 		//       — socket file doesn't exist yet (fresh socket, never started)
 		output := string(res.Output)
-		if strings.Contains(output, "no server running") ||
-			strings.Contains(output, "no sessions") ||
-			strings.Contains(output, "error connecting to") {
+		if isNoSessionsOutput(output) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("tmux list-sessions failed: %w", err)
@@ -166,6 +164,12 @@ func parseSessionList(output string) []Session {
 		sessions = append(sessions, Session{Name: name, Attached: attached, Path: path})
 	}
 	return sessions
+}
+
+func isNoSessionsOutput(output string) bool {
+	return strings.Contains(output, "no server running") ||
+		strings.Contains(output, "no sessions") ||
+		strings.Contains(output, "error connecting to")
 }
 
 // findTmux locates the tmux binary on PATH.
@@ -310,9 +314,7 @@ func (m *Manager) ReapCandidates(ctx context.Context, threshold time.Duration) (
 	})
 	if err != nil {
 		output := string(res.Output)
-		if strings.Contains(output, "no server running") ||
-			strings.Contains(output, "no sessions") ||
-			strings.Contains(output, "error connecting to") {
+		if isNoSessionsOutput(output) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("tmux list-sessions failed: %w", err)

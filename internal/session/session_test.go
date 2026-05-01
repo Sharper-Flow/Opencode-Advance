@@ -215,6 +215,43 @@ func TestList_FreshSocket(t *testing.T) {
 	}
 }
 
+func TestNoSessionsOutput(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   bool
+	}{
+		{
+			name:   "no_server_running",
+			output: "no server running on /tmp/tmux-1000/oca",
+			want:   true,
+		},
+		{
+			name:   "no_sessions",
+			output: "no sessions",
+			want:   true,
+		},
+		{
+			name:   "error_connecting",
+			output: "error connecting to /tmp/tmux-1000/oca (No such file or directory)",
+			want:   true,
+		},
+		{
+			name:   "real_error",
+			output: "permission denied opening /tmp/tmux-1000/oca",
+			want:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isNoSessionsOutput(tt.output); got != tt.want {
+				t.Errorf("isNoSessionsOutput(%q) = %v, want %v", tt.output, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCreate_WithConf(t *testing.T) {
 	testTmuxAvailable(t)
 	cleanupSocket(t, testSocket)
