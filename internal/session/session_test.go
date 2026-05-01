@@ -534,6 +534,40 @@ func TestRestart(t *testing.T) {
 	}
 }
 
+func TestRestart_CustomNameRequiresWorkingDir(t *testing.T) {
+	testTmuxAvailable(t)
+	socket := fmt.Sprintf("ocatest-restart-custom-%d", os.Getpid())
+	cleanupSocket(t, socket)
+	t.Cleanup(func() { cleanupSocket(t, socket) })
+
+	m, err := NewManager(socket)
+	if err != nil {
+		t.Fatalf("NewManager() error: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	const customName = "custom-restart-test"
+	if err := m.Create(ctx, customName, tmpDir, ""); err != nil {
+		t.Fatalf("Create(custom) error: %v", err)
+	}
+
+	if err := m.Restart(ctx, customName, "", ""); err == nil {
+		t.Fatal("Restart(custom, empty workingDir) error = nil, want error")
+	}
+
+	res, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    m.tmuxPath,
+		Args:    []string{"-L", socket, "has-session", "-t", customName},
+		Timeout: 5 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("custom session should remain after rejected restart: %v (output: %s)", err, res.Output)
+	}
+}
+
 func TestSetGlobalEnv(t *testing.T) {
 	testTmuxAvailable(t)
 	socket := fmt.Sprintf("ocatest-setenv-%d", os.Getpid())

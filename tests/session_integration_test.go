@@ -583,9 +583,3 @@ func TestIntegration_SessionNew_SetsRepoRoot(t *testing.T) {
 		t.Errorf("OCA_REPO_ROOT should contain %q, got: %q", repoRoot, output)
 	}
 }
-
-// Ensure the integration test binary is not stale.
-func waitBrief() {
-	// Give tmux servers time to clean up
-	time.Sleep(10 * time.Millisecond)
-}

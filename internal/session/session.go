@@ -32,7 +32,7 @@ var sessionNamePattern = regexp.MustCompile(`^oca-([a-zA-Z0-9_-]+)-(\d+)$`)
 type Session struct {
 	Name     string
 	Attached bool
-	Path     string // NEW: working directory of the session
+	Path     string // working directory of the session
 }
 
 // Manager manages OCA tmux sessions on a specific socket.
@@ -262,6 +262,9 @@ func (m *Manager) Restart(ctx context.Context, name, workingDir, tmuxConfPath st
 	if workingDir == "" && currentPath != "" {
 		workingDir = currentPath
 	}
+	if workingDir == "" {
+		return fmt.Errorf("working directory is required to restart custom or unlisted session %q", name)
+	}
 
 	// Kill
 	if err := m.Kill(ctx, name); err != nil {
@@ -270,15 +273,20 @@ func (m *Manager) Restart(ctx context.Context, name, workingDir, tmuxConfPath st
 
 	// Verify dead (poll with 100ms sleep, max 2s timeout)
 	deadline := time.Now().Add(2 * time.Second)
+	dead := false
 	for time.Now().Before(deadline) {
 		s, err := m.GetSessionByName(ctx, name)
 		if err != nil {
 			return fmt.Errorf("verify session dead: %w", err)
 		}
 		if s == nil {
+			dead = true
 			break // Session is gone
 		}
 		time.Sleep(100 * time.Millisecond)
+	}
+	if !dead {
+		return fmt.Errorf("session %q did not stop within 2s", name)
 	}
 
 	// Create
