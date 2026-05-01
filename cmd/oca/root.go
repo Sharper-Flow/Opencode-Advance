@@ -94,6 +94,7 @@ func newRootCmd(opts commandOptions) *cobra.Command {
 	cmd.AddCommand(newUninstallCmd(state))
 	cmd.AddCommand(newCompletionCmd(state))
 	cmd.AddCommand(newDashboardCmd(state))
+	cmd.AddCommand(newMigrateCmd(state))
 
 	return cmd
 }
