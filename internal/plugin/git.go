@@ -183,7 +183,7 @@ type execCmd interface {
 // used by production code and test helpers. They are wrapped by package-level
 // function variables so integration tests can call them without import cycles.
 var (
-	execLookPathStd     = exec.LookPath
+	execLookPathStd       = exec.LookPath
 	defaultExecCmdContext = func(ctx context.Context, name string, args ...string) execCmd {
 		return exec.CommandContext(ctx, name, args...)
 	}

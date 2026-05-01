@@ -75,8 +75,8 @@ func TestPlanSkills_OrdersFromConfig(t *testing.T) {
 
 	// Only request morph and prioritizer
 	stack := &cfg.Stack{
-		Meta: cfg.Meta{Version: "1.0.0"},
-		MCP:  cfg.MCPSection{Servers: map[string]cfg.Server{"a": {Port: 6276, Command: "echo"}}},
+		Meta:   cfg.Meta{Version: "1.0.0"},
+		MCP:    cfg.MCPSection{Servers: map[string]cfg.Server{"a": {Port: 6276, Command: "echo"}}},
 		Skills: cfg.SkillsSection{Order: []string{"morph", "prioritizer"}},
 	}
 	paths := cfg.Paths{OpencodeConfigDir: filepath.Join(tmp, "config")}

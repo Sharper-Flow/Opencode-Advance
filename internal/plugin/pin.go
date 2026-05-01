@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Sharper-Flow/Opencode-Advance/internal/config"
 	"github.com/BurntSushi/toml"
+	"github.com/Sharper-Flow/Opencode-Advance/internal/config"
 )
 
 // CapturePin returns the current HEAD SHA of a git-sourced plugin's checkout.
