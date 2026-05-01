@@ -169,12 +169,13 @@ func emitBody(state *OpenChadState) string {
 		for name, prov := range state.Providers {
 			parts = append(parts, fmt.Sprintf("[providers.%s]", name))
 			for _, m := range prov.Models {
-				parts = append(parts, fmt.Sprintf("[providers.%s.models.%s]", name, m.Name))
-				if m.Limit != nil {
-					if m.Limit.Tokens != nil {
-						parts = append(parts, fmt.Sprintf("context = %d", *m.Limit.Tokens))
-					}
+			parts = append(parts, fmt.Sprintf("[providers.%s.models.%s]", name, m.Name))
+			parts = append(parts, fmt.Sprintf("name = %q", m.Name))
+			if m.Limit != nil {
+				if m.Limit.Tokens != nil {
+					parts = append(parts, fmt.Sprintf("context = %d", *m.Limit.Tokens))
 				}
+			}
 				if len(m.Modalities) > 0 {
 					parts = append(parts, fmt.Sprintf("inputs = %s", stringArray(m.Modalities)))
 				}
