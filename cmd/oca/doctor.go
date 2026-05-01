@@ -38,7 +38,7 @@ func newDoctorCmd(state *commandState) *cobra.Command {
 			checks, err := health.Run(scope, ctx, stack, opts)
 			if err != nil {
 				if err == health.ErrUnknownScope {
-					return newCLIError(2, "unknown scope %q; supported: mcp, plugins, skills, temporal, adv-assets", scope)
+					return newCLIError(2, "unknown scope %q; supported: mcp, plugins, skills, temporal, adv-assets, adv-plugin, cross", scope)
 				}
 				return newCLIError(3, "doctor %s: %w", scope, err)
 			}
@@ -60,10 +60,10 @@ func newDoctorCmd(state *commandState) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&scope, "scope", "mcp", "Scope to check (supported: mcp, plugins, skills, temporal, adv-assets)")
+	cmd.Flags().StringVar(&scope, "scope", "mcp", "Scope to check (supported: mcp, plugins, skills, temporal, adv-assets, adv-plugin, cross)")
 	cmd.Flags().DurationVar(&timeout, "timeout", 5*time.Second, "HTTP timeout for doctor checks")
 	_ = cmd.RegisterFlagCompletionFunc("scope", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"mcp", "plugins", "skills", "temporal", "adv-assets"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"mcp", "plugins", "skills", "temporal", "adv-assets", "adv-plugin", "cross"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
 }
