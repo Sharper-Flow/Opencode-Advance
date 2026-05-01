@@ -76,8 +76,20 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 				}
 			}
 
-			// Resolve tmux conf path
-			tmuxConf := resolveTmuxConf()
+			// Load stack config once — drives theme, watchdog, reaper, and
+			// boot-splash decisions below. Failures are non-fatal: each
+			// consumer falls back to v1 defaults so `oca session new` still
+			// works in fresh environments before stack.toml exists.
+			stack, stackErr := loadStack(state)
+
+			// Resolve tmux conf from configured theme (default "obsidian"
+			// on missing config or unset theme; empty conf path on unknown
+			// theme = graceful degrade per design KD4).
+			theme := defaultTheme
+			if stackErr == nil && stack.Session != nil && stack.Session.Theme != "" {
+				theme = stack.Session.Theme
+			}
+			tmuxConf := resolveTmuxConf(theme)
 
 			err = mgr.Create(ctx, sessionName, workingDir, tmuxConf)
 			if err != nil {
@@ -96,7 +108,6 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 
 			// Inject watchdog config into tmux global env so the OCA
 			// plugin can read it at startup. Non-fatal on error.
-			stack, stackErr := loadStack(state)
 			if stackErr == nil && stack.Session != nil && stack.Session.Watchdog != nil {
 				if err := mgr.ApplyWatchdogEnv(ctx, stack.Session.Watchdog); err != nil {
 					fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to set watchdog env: %v\n", err)
@@ -126,8 +137,13 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 				}(reapThreshold)
 			}
 
-			// Trigger boot splash unless --no-splash
-			if !noSplash {
+			// Trigger boot splash. Default ON; controlled by [session].boot_splash.
+			// CLI --no-splash always wins, even when config says true.
+			bootSplash := true
+			if stackErr == nil && stack.Session != nil {
+				bootSplash = stack.Session.BootSplash
+			}
+			if bootSplash && !noSplash {
 				triggerSplash(ctx, socket, sessionName, state)
 			}
 
@@ -212,35 +228,47 @@ func sessionSocket() string {
 	return "oca"
 }
 
-// resolveTmuxConf returns the path to the Obsidian tmux conf asset.
-// Returns empty string if not found (session created without theming).
-func resolveTmuxConf() string {
-	// Check OCA_ASSETS_ROOT first (for testing)
+// defaultTheme is the v1 default theme name. Used when [session].theme is
+// unset (or config load fails entirely).
+const defaultTheme = "obsidian"
+
+// resolveTmuxConf returns the path to the named tmux theme conf asset, or
+// the empty string if no asset can be found. An empty theme name is treated
+// as "use the default" (obsidian). An unknown theme name (no matching file)
+// degrades to "" so Manager.Create runs without a -f flag rather than
+// failing — matches the design's invalid-theme contract (KD4).
+//
+// Lookup order matches resolveTmuxConf's pre-Phase 6 behavior:
+//  1. $OCA_ASSETS_ROOT/themes/<theme>.tmux.conf (test override)
+//  2. <executable-dir>/../assets/themes/<theme>.tmux.conf (installed)
+//  3. assets/themes/<theme>.tmux.conf (development checkout, relative to cwd)
+func resolveTmuxConf(theme string) string {
+	if theme == "" {
+		theme = defaultTheme
+	}
+	filename := theme + ".tmux.conf"
+
+	// 1. OCA_ASSETS_ROOT (test/dev override)
 	if root := os.Getenv("OCA_ASSETS_ROOT"); root != "" {
-		p := filepath.Join(root, "themes", "obsidian.tmux.conf")
+		p := filepath.Join(root, "themes", filename)
 		if _, err := os.Stat(p); err == nil {
 			return p
 		}
 	}
 
-	// Try relative to executable
-	exe, err := os.Executable()
-	if err == nil {
-		p := filepath.Join(filepath.Dir(exe), "..", "assets", "themes", "obsidian.tmux.conf")
+	// 2. Relative to the running executable (installed binary).
+	if exe, err := os.Executable(); err == nil {
+		p := filepath.Join(filepath.Dir(exe), "..", "assets", "themes", filename)
 		if _, err := os.Stat(p); err == nil {
 			return p
 		}
 	}
 
-	// Try relative to repo root (for development)
-	candidates := []string{
-		"assets/themes/obsidian.tmux.conf",
-	}
-	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
-			abs, _ := filepath.Abs(c)
-			return abs
-		}
+	// 3. Relative to cwd (development checkout).
+	dev := filepath.Join("assets", "themes", filename)
+	if _, err := os.Stat(dev); err == nil {
+		abs, _ := filepath.Abs(dev)
+		return abs
 	}
 
 	return ""
@@ -410,7 +438,13 @@ func newSessionRestartCmd(state *commandState) *cobra.Command {
 			if err != nil {
 				return newCLIError(1, "get working directory: %v", err)
 			}
-			tmuxConf := resolveTmuxConf()
+			// Resolve theme from config (default "obsidian"). Same fallback
+			// rules as `oca session new` — config load failure → default.
+			theme := defaultTheme
+			if stack, stackErr := loadStack(state); stackErr == nil && stack.Session != nil && stack.Session.Theme != "" {
+				theme = stack.Session.Theme
+			}
+			tmuxConf := resolveTmuxConf(theme)
 			if err := mgr.Restart(ctx, args[0], workingDir, tmuxConf); err != nil {
 				return newCLIError(1, "restart session: %v", err)
 			}
