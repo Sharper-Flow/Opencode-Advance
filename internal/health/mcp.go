@@ -25,6 +25,7 @@ type Options struct {
 	HTTPClient       *http.Client
 	SkillsAssetsRoot string // Root of OCA-owned skill source directories
 	SkillsTargetDir  string // Target directory where skills are deployed
+	ConfigDir        string // Root OpenCode config directory (e.g. ~/.config/opencode)
 }
 
 type versionResponse struct {
