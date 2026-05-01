@@ -1,6 +1,10 @@
 package dashboard
 
-import "sync"
+import (
+	"context"
+	"sync"
+	"time"
+)
 
 // ChangeRow represents a single ADV change in the dashboard.
 type ChangeRow struct {
@@ -83,4 +87,35 @@ func (s *State) Version() uint64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.version
+}
+
+// Poller is the interface for background data sources that populate the state.
+type Poller interface {
+	// Poll executes one data-fetch cycle and updates the state.
+	Poll(ctx context.Context, s *State) error
+}
+
+// RunPollers starts all pollers at the given interval, running them concurrently
+// per cycle. Blocks until ctx is cancelled.
+func RunPollers(ctx context.Context, s *State, pollers []Poller, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			var wg sync.WaitGroup
+			for _, p := range pollers {
+				wg.Add(1)
+				go func(p Poller) {
+					defer wg.Done()
+					_ = p.Poll(ctx, s) // errors logged by individual pollers
+				}(p)
+			}
+			wg.Wait()
+			s.SetWarm(true)
+		}
+	}
 }
