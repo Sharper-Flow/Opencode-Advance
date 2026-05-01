@@ -2,6 +2,7 @@ package health
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
@@ -232,5 +233,110 @@ func TestCheckAdvAssets_ConfigDirMissing(t *testing.T) {
 		if c.Status == StatusFail {
 			t.Errorf("missing config dir should not fail, got: %+v", c)
 		}
+	}
+}
+
+// TestCheckAdvAssets_Integration tests the full flow via health.Run registry
+// and verifies JSON serialization of Check results.
+func TestCheckAdvAssets_Integration(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Create fixture directories
+	commandsDir := filepath.Join(tmp, "commands")
+	instrDir := filepath.Join(tmp, "instructions")
+	if err := os.MkdirAll(commandsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(instrDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create orphan file in commands/
+	if err := os.WriteFile(filepath.Join(commandsDir, "old-plugin.md"), []byte("old"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Create plugin-managed file (should NOT be orphaned)
+	if err := os.WriteFile(filepath.Join(commandsDir, "adv-foo.md"), []byte("adv"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Create stale provider instruction
+	if err := os.WriteFile(filepath.Join(instrDir, "adv-stale-provider.md"), []byte("stale"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Create valid provider instruction
+	if err := os.WriteFile(filepath.Join(instrDir, "adv-real-provider.md"), []byte("real"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	stack := &cfg.Stack{
+		Plugins: cfg.PluginsSection{
+			"advance": {
+				Source:   "https://example.com/adv.git",
+				Provides: []cfg.ProvidesCategory{cfg.ProvidesCommands, cfg.ProvidesInstructions},
+			},
+			"other": {
+				Source:   "https://example.com/other.git",
+				Provides: []cfg.ProvidesCategory{cfg.ProvidesCommands},
+			},
+		},
+		Providers: cfg.ProvidersSection{
+			"real-provider": {},
+		},
+	}
+
+	opts := Options{ConfigDir: tmp}
+
+	// Test via registry (health.Run)
+	checks, err := Run("adv-assets", context.Background(), stack, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify we find: duplicate-owner (commands), orphaned (old-plugin.md), stale (stale-provider)
+	var hasDup, hasOrphan, hasStale bool
+	for _, c := range checks {
+		if c.Name == "adv-assets.adv-commands.duplicate-owner" && c.Status == StatusFail {
+			hasDup = true
+		}
+		if c.Name == "adv-assets.adv-commands.orphaned" && c.Status == StatusWarn {
+			hasOrphan = true
+		}
+		if c.Name == "adv-assets.stale.stale-provider" && c.Status == StatusWarn {
+			hasStale = true
+		}
+	}
+	if !hasDup {
+		t.Error("expected duplicate-owner finding for adv-commands")
+	}
+	if !hasOrphan {
+		t.Error("expected orphaned finding for old-plugin.md")
+	}
+	if !hasStale {
+		t.Error("expected stale finding for stale-provider")
+	}
+
+	// Verify JSON serialization
+	data, err := json.Marshal(checks)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse back and verify structure
+	var parsed []map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, m := range parsed {
+		if _, ok := m["name"]; !ok {
+			t.Error("JSON check missing 'name' field")
+		}
+		if _, ok := m["status"]; !ok {
+			t.Error("JSON check missing 'status' field")
+		}
+		if _, ok := m["message"]; !ok {
+			t.Error("JSON check missing 'message' field")
+		}
+		// hint is optional (omitempty)
 	}
 }
