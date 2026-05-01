@@ -8,7 +8,7 @@ Current implemented scope on this branch is **Phase 1, Phase 2, Phase 3, Phase 3
 - `oca apply --target mcp|plugins|instructions|providers|permissions|watcher|lsp|skills|commands|formatters|toggles|temporal`
 - `oca apply` with no `--target` for composed all-target apply
 - `oca diff`
-- `oca doctor --scope mcp`, `oca doctor --scope plugins`, `oca doctor --scope skills`, and `oca doctor --scope temporal`
+- `oca doctor --scope mcp`, `oca doctor --scope plugins`, `oca doctor --scope skills`, `oca doctor --scope temporal`, and `oca doctor --scope adv-assets`
 - `oca debug plan` and `oca debug validate`
 - `oca pin` and `oca update`
 - `oca session new/list/attach/switch/kill/killall/restart/reap` (Phase 4)
@@ -131,6 +131,12 @@ Phase 1 health started with MCP-only. Phase 3.5 added skills health.
   - declared skills present in target dir
   - extra OCA-owned skill dirs in target produce warnings
   - Advance-owned `adv-*` dirs in target are ignored
+- `CheckAdvAssets` audits plugin-provided asset ownership boundaries:
+  - ownership is derived from `stack.Plugins[*].Provides` at runtime
+  - duplicate owners for the same `provides` category fail
+  - non-`adv-*` files in plugin-owned category dirs warn as ORPHANED
+  - stale `adv-{provider}.md` instruction files warn when `{provider}` is absent from `[providers]`
+  - the check is read-only and never deletes deployed files
 
 Current defaults:
 

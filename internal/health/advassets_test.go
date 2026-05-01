@@ -139,7 +139,7 @@ func TestCheckAdvAssets_Orphaned(t *testing.T) {
 
 	var found bool
 	for _, c := range checks {
-		if c.Status == StatusWarn && c.Name == "adv-assets.adv-commands.orphaned" {
+		if c.Status == StatusWarn && c.Name == "adv-assets.adv-commands.orphaned.orphan.md" {
 			found = true
 		}
 	}
@@ -298,7 +298,7 @@ func TestCheckAdvAssets_Integration(t *testing.T) {
 		if c.Name == "adv-assets.adv-commands.duplicate-owner" && c.Status == StatusFail {
 			hasDup = true
 		}
-		if c.Name == "adv-assets.adv-commands.orphaned" && c.Status == StatusWarn {
+		if c.Name == "adv-assets.adv-commands.orphaned.old-plugin.md" && c.Status == StatusWarn {
 			hasOrphan = true
 		}
 		if c.Name == "adv-assets.stale.stale-provider" && c.Status == StatusWarn {

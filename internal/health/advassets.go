@@ -60,7 +60,7 @@ func CheckAdvAssets(ctx context.Context, stack *cfg.Stack, opts Options) ([]Chec
 	})
 
 	for _, cat := range categories {
-		owners := ownershipMap[cat]
+		owners := whichProvides(stack.Plugins, cat)
 		dir, hasDir := categoryTargetDir(cat, configDir)
 		if !hasDir {
 			continue
@@ -93,7 +93,7 @@ func CheckAdvAssets(ctx context.Context, stack *cfg.Stack, opts Options) ([]Chec
 			}
 			// This file is NOT plugin-managed → orphaned
 			checks = append(checks, Check{
-				Name:    fmt.Sprintf("adv-assets.%s.orphaned", cat),
+				Name:    fmt.Sprintf("adv-assets.%s.orphaned.%s", cat, name),
 				Status:  StatusWarn,
 				Message: fmt.Sprintf("file %q in %s/ has no owner (no plugin manages non-adv-* files in this category)", name, filepath.Base(dir)),
 				Hint:    "this may be a user-owned file or a leftover from an uninstalled plugin",
@@ -154,6 +154,7 @@ func whichProvides(plugins cfg.PluginsSection, category cfg.ProvidesCategory) []
 			}
 		}
 	}
+	sort.Strings(names)
 	return names
 }
 

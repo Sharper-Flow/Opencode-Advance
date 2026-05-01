@@ -134,7 +134,8 @@ Behavior:
 | --- | --- |
 | `--scope plugins` | run plugin health checks (checkout presence, git clean state, build artifacts) |
 | `--scope mcp` | existing MCP health surface |
-| `--scope temporal` | reserved, returns "reserved for Phase 6.5" |
+| `--scope temporal` | Temporal health checks |
+| `--scope adv-assets` | audit plugin-provided asset ownership boundaries (ORPHANED, DUPLICATE-OWNER, STALE) |
 | `--network` | additionally probe plugin remotes with `git ls-remote` (local-only by default per judgment call `jc-doctor1`) |
 
 ### New env overrides
@@ -177,6 +178,20 @@ Behavior:
 - exit `1` when drift is present
 - exit `2` for invalid config or invalid target
 - exit `3` for runtime planning failures
+
+### `oca doctor --scope adv-assets`
+
+Read-only asset ownership audit across deployed OpenCode config directories.
+
+Findings:
+
+| Class | Meaning | Status |
+| --- | --- | --- |
+| `ORPHANED` | Non-`adv-*` file exists inside a plugin-owned asset category directory | warn |
+| `DUPLICATE-OWNER` | Two or more plugins declare the same `provides` category | fail |
+| `STALE` | `adv-{provider}.md` exists but `{provider}` is not configured in `[providers]` | warn |
+
+The scope uses `stack.toml` plugin `provides` declarations as the ownership source of truth and never deletes files.
 
 ## Phase 3.5 additions
 
