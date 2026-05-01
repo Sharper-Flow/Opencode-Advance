@@ -1,0 +1,559 @@
+// Package migrate reads legacy configuration and produces valid stack.toml.
+package migrate
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+// ReaderConfig controls where ReadOpenChadState looks for source data.
+type ReaderConfig struct {
+	OpenChadRepo     string // path to open-chad checkout (e.g. ~/dev/open-chad)
+	OpenCodeConfigDir string // path to opencode config (e.g. ~/.config/opencode)
+	VisionConfigDir   string // path to vision config (e.g. ~/.config/vision)
+	OcPluginsDir      string // path to plugin checkouts (e.g. ~/dev/oc-plugins)
+}
+
+// DefaultReaderConfig returns sensible defaults based on the environment.
+func DefaultReaderConfig() ReaderConfig {
+	home, _ := os.UserHomeDir()
+	return ReaderConfig{
+		OpenChadRepo:      filepath.Join(home, "dev", "open-chad"),
+		OpenCodeConfigDir: filepath.Join(home, ".config", "opencode"),
+		VisionConfigDir:   filepath.Join(home, ".config", "vision"),
+		OcPluginsDir:      filepath.Join(home, "dev", "oc-plugins"),
+	}
+}
+
+// OpenChadState is the intermediate representation of all discovered open-chad
+// configuration before emission to stack.toml.
+type OpenChadState struct {
+	MCPServers     map[string]MCPServerState
+	SlotGroups     map[string]SlotGroupState
+	Plugins        []PluginState
+	Instructions   []string
+	Providers      map[string]ProviderState
+	Permissions    *PermissionsState
+	Watcher        *WatcherState
+	LSP            map[string]LSPEntryState
+	Skills         []string
+	Formatters     map[string]FormatterState
+	Commands       map[string]CommandState
+	OpenCode       *OpenCodeState
+	Session        *SessionState
+	Discord        *DiscordState
+	Warnings       []string
+	SkippedSources []string
+}
+
+type MCPServerState struct {
+	Type      string
+	URL       string
+	Port      int
+	Command   string
+	Args      []string
+	Env       map[string]string
+	EnvFile   string
+	Autostart bool
+	Required  bool
+	Source    string
+	Timeout   int
+}
+
+type SlotGroupState struct {
+	Servers   []string
+	GroupPort int
+	Template  string
+	MinSlots  int
+	MaxSlots  int
+}
+
+type PluginState struct {
+	Name     string
+	Source   string
+	Ref      string
+	Checkout string
+	Build    []string
+	Provides []string
+}
+
+type ProviderState struct {
+	Name   string
+	Models []ModelState
+}
+
+type ModelState struct {
+	Name       string
+	Limit      *LimitState
+	Modalities []string
+}
+
+type LimitState struct {
+	Tokens   *int
+	TPM      *int
+	RPM      *int
+	Image    *int
+	Audio    *int
+}
+
+type PermissionsState struct {
+	Default     string
+	DoomLoop    string
+	ExternalDir string
+	Bash        string
+}
+
+type WatcherState struct {
+	Ignore []string
+}
+
+type LSPEntryState struct {
+	Command string
+	Args    []string
+}
+
+type FormatterState struct {
+	Command string
+	Args    []string
+}
+
+type CommandState struct {
+	Script  string
+	Args    []string
+	Env     map[string]string
+	Timeout int
+}
+
+type DiscordState struct {
+	Enabled  bool
+	ClientID string
+}
+
+type SessionState struct {
+	Prefix string
+	Theme  string
+}
+
+type OpenCodeState struct {
+	Theme             string
+	DefaultAgent      string
+	Share             *bool
+	Snapshot          *bool
+	Autoupdate        any // string or bool
+	Compaction        *bool
+	DisabledProviders []string
+	EnabledProviders  []string
+}
+
+// ReadOpenChadState discovers and reads open-chad managed state from the
+// filesystem. Each source is optional — missing sources produce warnings.
+func ReadOpenChadState(cfg ReaderConfig) (*OpenChadState, error) {
+	state := &OpenChadState{
+		MCPServers:   make(map[string]MCPServerState),
+		SlotGroups:   make(map[string]SlotGroupState),
+		Providers:    make(map[string]ProviderState),
+		LSP:          make(map[string]LSPEntryState),
+		Formatters:   make(map[string]FormatterState),
+		Commands:     make(map[string]CommandState),
+		Warnings:     []string{},
+		SkippedSources: []string{},
+	}
+
+	// 1. Read opencode.json (live OpenCode config)
+	opencodePath := filepath.Join(cfg.OpenCodeConfigDir, "opencode.json")
+	if _, err := os.Stat(opencodePath); err == nil {
+		if err := readOpenCodeJSON(opencodePath, state); err != nil {
+			state.Warnings = append(state.Warnings, fmt.Sprintf("opencode.json: %v", err))
+		}
+	} else {
+		state.SkippedSources = append(state.SkippedSources, "opencode.json (not found)")
+	}
+
+	// 2. Read vision/servers.yaml
+	visionPath := filepath.Join(cfg.VisionConfigDir, "servers.yaml")
+	if _, err := os.Stat(visionPath); err == nil {
+		if err := readVisionServers(visionPath, state); err != nil {
+			state.Warnings = append(state.Warnings, fmt.Sprintf("vision/servers.yaml: %v", err))
+		}
+	} else {
+		state.SkippedSources = append(state.SkippedSources, "vision/servers.yaml (not found)")
+	}
+
+	// 3. Discover plugins from oc-plugins directory
+	if _, err := os.Stat(cfg.OcPluginsDir); err == nil {
+		if err := discoverPlugins(cfg.OcPluginsDir, state); err != nil {
+			state.Warnings = append(state.Warnings, fmt.Sprintf("plugin discovery: %v", err))
+		}
+	} else {
+		state.SkippedSources = append(state.SkippedSources, "oc-plugins dir (not found)")
+	}
+
+	// 4. Read open-chad.json (discord config)
+	openchadJSON := filepath.Join(cfg.OpenCodeConfigDir, "open-chad.json")
+	if _, err := os.Stat(openchadJSON); err == nil {
+		if err := readOpenChadJSON(openchadJSON, state); err != nil {
+			state.Warnings = append(state.Warnings, fmt.Sprintf("open-chad.json: %v", err))
+		}
+	}
+
+	// 5. Read bundled instructions from open-chad repo
+	instructionsDir := filepath.Join(cfg.OpenChadRepo, "config", "opencode", "instructions")
+	if _, err := os.Stat(instructionsDir); err == nil {
+		if err := readInstructions(instructionsDir, state); err != nil {
+			state.Warnings = append(state.Warnings, fmt.Sprintf("instructions: %v", err))
+		}
+	}
+
+	// 6. Read bundled skills from open-chad repo
+	skillsDir := filepath.Join(cfg.OpenChadRepo, "config", "opencode", "skills")
+	if _, err := os.Stat(skillsDir); err == nil {
+		if err := readSkills(skillsDir, state); err != nil {
+			state.Warnings = append(state.Warnings, fmt.Sprintf("skills: %v", err))
+		}
+	}
+
+	return state, nil
+}
+
+// readOpenCodeJSON parses the live opencode.json for MCP servers, plugins,
+// providers, permissions, instructions, and theme.
+func readOpenCodeJSON(path string, state *OpenChadState) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	// MCP servers
+	if mcpRaw, ok := raw["mcp"].(map[string]any); ok {
+		for name, srvRaw := range mcpRaw {
+			srv, ok := srvRaw.(map[string]any)
+			if !ok {
+				continue
+			}
+			var mcs MCPServerState
+			if t, ok := srv["type"].(string); ok {
+				mcs.Type = t
+			}
+			if u, ok := srv["url"].(string); ok {
+				mcs.URL = u
+			}
+			if e, ok := srv["enabled"].(bool); ok {
+				mcs.Autostart = e
+			}
+			state.MCPServers[name] = mcs
+		}
+	}
+
+	// Plugins (array of paths)
+	if pluginsRaw, ok := raw["plugin"].([]any); ok {
+		for _, pRaw := range pluginsRaw {
+			path, ok := pRaw.(string)
+			if !ok {
+				continue
+			}
+			// Skip npm packages (no checkout)
+			if strings.HasPrefix(path, "@") {
+				continue
+			}
+			name := filepath.Base(path)
+			state.Plugins = append(state.Plugins, PluginState{
+				Name:     name,
+				Checkout: path,
+			})
+		}
+	}
+
+	// Instructions
+	if instrRaw, ok := raw["instructions"].([]any); ok {
+		for _, iRaw := range instrRaw {
+			if path, ok := iRaw.(string); ok {
+				state.Instructions = append(state.Instructions, path)
+			}
+		}
+	}
+
+	// Theme
+	if theme, ok := raw["theme"].(string); ok {
+		if state.OpenCode == nil {
+			state.OpenCode = &OpenCodeState{}
+		}
+		state.OpenCode.Theme = theme
+	}
+
+	// Providers (complex nested structure)
+	if provRaw, ok := raw["provider"].([]any); ok {
+		for _, pRaw := range provRaw {
+			p, ok := pRaw.(map[string]any)
+			if !ok {
+				continue
+			}
+			name, _ := p["name"].(string)
+			if name == "" {
+				continue
+			}
+			var ps ProviderState
+			ps.Name = name
+			if modelsRaw, ok := p["models"].([]any); ok {
+				for _, mRaw := range modelsRaw {
+					m, ok := mRaw.(map[string]any)
+					if !ok {
+						continue
+					}
+					ms := ModelState{Name: fmt.Sprint(m["name"])}
+					if limRaw, ok := m["limit"].(map[string]any); ok {
+						var ls LimitState
+						if v, ok := limRaw["tokens"].(float64); ok {
+							ti := int(v)
+							ls.Tokens = &ti
+						}
+						ms.Limit = &ls
+					}
+					if modsRaw, ok := m["modalities"].([]any); ok {
+						for _, modRaw := range modsRaw {
+							if mod, ok := modRaw.(string); ok {
+								ms.Modalities = append(ms.Modalities, mod)
+							}
+						}
+					}
+					ps.Models = append(ps.Models, ms)
+				}
+			}
+			state.Providers[name] = ps
+		}
+	}
+
+	return nil
+}
+
+// readVisionServers parses vision/servers.yaml and enriches MCP server state
+// with command/args/port details.
+func readVisionServers(path string, state *OpenChadState) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var doc struct {
+		Servers map[string]struct {
+			Port      int      `yaml:"port"`
+			Command   string   `yaml:"command"`
+			Args      []string `yaml:"args"`
+			Autostart bool     `yaml:"autostart"`
+			Source    string   `yaml:"source"`
+			Timeout   int      `yaml:"timeout"`
+		} `yaml:"servers"`
+		SlotGroups map[string]struct {
+			Servers   []string `yaml:"servers"`
+			GroupPort int      `yaml:"group_port"`
+			Template  string   `yaml:"template"`
+			MinSlots  int      `yaml:"min_slots"`
+			MaxSlots  int      `yaml:"max_slots"`
+		} `yaml:"slot_groups"`
+	}
+
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return err
+	}
+
+	for name, srv := range doc.Servers {
+		mcs := state.MCPServers[name]
+		mcs.Port = srv.Port
+		mcs.Command = srv.Command
+		mcs.Args = srv.Args
+		mcs.Autostart = srv.Autostart
+		mcs.Source = srv.Source
+		mcs.Timeout = srv.Timeout
+		state.MCPServers[name] = mcs
+	}
+
+	for name, sg := range doc.SlotGroups {
+		state.SlotGroups[name] = SlotGroupState{
+			Servers:   sg.Servers,
+			GroupPort: sg.GroupPort,
+			Template:  sg.Template,
+			MinSlots:  sg.MinSlots,
+			MaxSlots:  sg.MaxSlots,
+		}
+	}
+
+	return nil
+}
+
+// discoverPlugins scans the oc-plugins directory for git checkouts and
+// extracts source URLs and current refs.
+func discoverPlugins(dir string, state *OpenChadState) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		checkout := filepath.Join(dir, entry.Name())
+		gitDir := filepath.Join(checkout, ".git")
+		if _, err := os.Stat(gitDir); err != nil {
+			continue // not a git checkout
+		}
+
+		// Find matching plugin in state by checkout path
+		found := false
+		for i := range state.Plugins {
+			if strings.Contains(state.Plugins[i].Checkout, entry.Name()) {
+				state.Plugins[i].Checkout = checkout
+				// Try to read remote URL
+				if url, err := readGitRemoteURL(checkout); err == nil {
+					state.Plugins[i].Source = url
+				}
+				// Try to read current ref (HEAD SHA)
+				if ref, err := readGitHEAD(checkout); err == nil {
+					state.Plugins[i].Ref = ref
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			// Plugin exists on disk but not in opencode.json — add as orphan
+			var ps PluginState
+			ps.Name = entry.Name()
+			ps.Checkout = checkout
+			if url, err := readGitRemoteURL(checkout); err == nil {
+				ps.Source = url
+			}
+			if ref, err := readGitHEAD(checkout); err == nil {
+				ps.Ref = ref
+			}
+			state.Plugins = append(state.Plugins, ps)
+		}
+	}
+
+	return nil
+}
+
+func readGitRemoteURL(dir string) (string, error) {
+	cmdPath := filepath.Join(dir, ".git", "config")
+	data, err := os.ReadFile(cmdPath)
+	if err != nil {
+		return "", err
+	}
+	// Simple parse: look for [remote "origin"] → url = ...
+	lines := strings.Split(string(data), "\n")
+	inOrigin := false
+	for _, line := range lines {
+		if strings.TrimSpace(line) == `[remote "origin"]` {
+			inOrigin = true
+			continue
+		}
+		if inOrigin && strings.HasPrefix(strings.TrimSpace(line), "url = ") {
+			return strings.TrimPrefix(strings.TrimSpace(line), "url = "), nil
+		}
+		if inOrigin && strings.HasPrefix(line, "[") {
+			break
+		}
+	}
+	return "", fmt.Errorf("remote origin not found")
+}
+
+func readGitHEAD(dir string) (string, error) {
+	headPath := filepath.Join(dir, ".git", "HEAD")
+	data, err := os.ReadFile(headPath)
+	if err != nil {
+		return "", err
+	}
+	ref := strings.TrimSpace(string(data))
+	// If HEAD is a symbolic ref, read the actual commit
+	if strings.HasPrefix(ref, "ref: ") {
+		refFile := strings.TrimPrefix(ref, "ref: ")
+		refPath := filepath.Join(dir, ".git", refFile)
+		data, err := os.ReadFile(refPath)
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(string(data)), nil
+	}
+	return ref, nil
+}
+
+// readOpenChadJSON parses the open-chad.json user config file.
+func readOpenChadJSON(path string, state *OpenChadState) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var raw struct {
+		DiscordPresence struct {
+			Enabled  bool   `json:"enabled"`
+			ClientID string `json:"clientId"`
+		} `json:"discordPresence"`
+	}
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	state.Discord = &DiscordState{
+		Enabled:  raw.DiscordPresence.Enabled,
+		ClientID: raw.DiscordPresence.ClientID,
+	}
+
+	return nil
+}
+
+// readInstructions discovers instruction files in a directory, skipping stale
+// instruction names.
+func readInstructions(dir string, state *OpenChadState) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if isStaleInstruction(name) {
+			state.Warnings = append(state.Warnings, fmt.Sprintf("skipped stale instruction: %s", name))
+			continue
+		}
+		path := filepath.Join(dir, name)
+		state.Instructions = append(state.Instructions, path)
+	}
+
+	return nil
+}
+
+// readSkills discovers skill directories in a directory.
+func readSkills(dir string, state *OpenChadState) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if isStaleSkill(name) {
+			state.Warnings = append(state.Warnings, fmt.Sprintf("skipped stale skill: %s", name))
+			continue
+		}
+		state.Skills = append(state.Skills, name)
+	}
+
+	return nil
+}
