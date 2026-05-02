@@ -96,6 +96,7 @@ func newRootCmd(opts commandOptions) *cobra.Command {
 	cmd.AddCommand(newDashboardCmd(state))
 	cmd.AddCommand(newMigrateCmd(state))
 	cmd.AddCommand(newTemporalCmd(state))
+	cmd.AddCommand(newDiscordCmd(state))
 
 	return cmd
 }
