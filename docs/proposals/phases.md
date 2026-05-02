@@ -398,7 +398,7 @@ Phase 6 shipped the installer, uninstaller, shell completion, and shell profile 
 
 ## Phase 6.5: Temporal Dev-Server Supervision
 
-**Status:** Not started — no active change.
+**Status:** Shipped — `phase65TemporalDevServer`.
 
 **Goal:** `oca temporal` subcommands for dev-server lifecycle management: start, stop, restart, status, logs. Manages the Temporal dev-server process that Advance depends on for durable workflow state.
 
@@ -406,19 +406,19 @@ Phase 6 shipped the installer, uninstaller, shell completion, and shell profile 
 
 **Why a .5 phase:** Narrow process-supervision scope that extends Phase 5's config rendering. Advance already uses Temporal as its primary state backend; OCA needs to manage the dev-server process lifecycle for local development. Does not warrant a full numbered phase.
 
-**Planned deliverables:**
+**Delivered:**
 
 - `cmd/oca/temporal.go` — `oca temporal {status,start,stop,restart,logs}`
 - `internal/temporal/supervise.go` — dev-server PID management, log capture, health polling
-- Integration with Phase 5's `$OCA_CACHE_DIR/temporal.env` for server configuration
-- Status bar integration for dev-server state (running/stopped/unhealthy)
+- `$OCA_CACHE_DIR/temporal/` runtime metadata: PID JSON, log file, and persistent `temporal.db`
+- Status bar remains compatible through the existing Phase 5 `temporal.env` reachability probe
 
 **Exit criteria:**
 
 - `oca temporal start` launches `temporal server start-dev` in the background and writes a PID file
 - `oca temporal stop` sends SIGTERM and waits for clean shutdown
 - `oca temporal status` reports server health (running/stopped, namespace reachable)
-- `oca temporal logs` tails the dev-server log output
+- `oca temporal logs` prints bounded recent log output by default; `--follow` streams explicitly
 - Dev-server state is visible in the tmux status bar when `[temporal].enabled = true`
 - All commands use isolated test config directories
 

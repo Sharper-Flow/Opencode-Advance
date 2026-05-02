@@ -84,9 +84,64 @@ Phase 2 adds plugin and instruction management. It extends existing commands and
 | --- | --- |
 | `plugins` | Runs `internal/plugin.Prepare` for every enabled git-source plugin (clone-or-update + build) before rendering. |
 | `instructions` | Renders the `instructions` flat array into `opencode.json` via the `MergeArray` primitive. |
-| `temporal` | Reserved for Phase 6.5. Currently exits with a "reserved" error + doc pointer. |
+| `temporal` | Renders `$OCA_CACHE_DIR/temporal.env` for Advance's Temporal client settings. |
 
 Targets may be combined (`--target mcp --target plugins --target instructions`). Ordering is enforced structurally at the call site: render → sync.
+
+### `oca temporal status`
+
+Report local Temporal dev-server state for agents and scripts.
+
+Behavior:
+
+- supports `--output text|json`
+- reports configured/enabled state, address, namespace, PID, managed/running/reachable/healthy booleans, state enum, log path, and DB path
+- treats reachable servers without OCA PID metadata as `unmanaged`
+- does not mutate runtime state
+
+### `oca temporal start`
+
+Start the OCA-managed local Temporal dev server with `temporal server start-dev`.
+
+Behavior:
+
+- uses `$OCA_CACHE_DIR/temporal/temporal.db` as persistent storage by default
+- writes OCA-owned PID metadata under `$OCA_CACHE_DIR/temporal/temporal.pid.json`
+- appends combined stdout/stderr to `$OCA_CACHE_DIR/temporal/temporal.log`
+- refuses non-loopback dev-server starts and refuses to overwrite unmanaged reachable servers
+- idempotently returns current state when the OCA-managed process is already running
+
+### `oca temporal stop`
+
+Stop only the OCA-managed Temporal dev-server process group.
+
+Behavior:
+
+- sends SIGTERM, waits for shutdown, then escalates to SIGKILL if needed
+- removes stale PID metadata when the recorded process is gone
+- refuses to kill unmanaged reachable servers; it never kills by port lookup alone
+
+### `oca temporal restart`
+
+Compose `stop` then `start` while preserving `$OCA_CACHE_DIR/temporal/temporal.db`.
+
+### `oca temporal logs`
+
+Print bounded recent log output and exit by default.
+
+Flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--lines <n>` | Number of recent lines to print (default: `200`) |
+| `--follow` | Explicitly stream appended log output until interrupted |
+
+Behavior:
+
+- no pager
+- no prompt
+- no default long-running stream
+- missing log file prints empty output and exits successfully
 
 ### `oca pin [plugin...]`
 

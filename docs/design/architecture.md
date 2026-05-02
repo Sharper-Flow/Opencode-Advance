@@ -2,7 +2,7 @@
 
 This document is the canonical high-level architecture reference for the code that is **actually implemented today**.
 
-Current implemented scope on this branch is **Phase 0 through Phase 6 complete, plus out-of-phase dashboard/pane/watchdog/temporal-detect**:
+Current implemented scope on this branch is **Phase 0 through Phase 6.5 complete, plus out-of-phase dashboard/pane/watchdog/temporal-detect**:
 
 - `stack.toml` parsing for `[meta]`, `[mcp]`, `[plugins]`, `[instructions]`, `[providers]`, `[permissions]`, `[watcher]`, `[lsp]`, `[skills]`, `[commands]`, `[formatters]`, `[opencode]`, `[temporal]`, plus deferred future sections
 - `oca apply --target mcp|plugins|instructions|providers|permissions|watcher|lsp|skills|commands|formatters|toggles|temporal`
@@ -15,10 +15,11 @@ Current implemented scope on this branch is **Phase 0 through Phase 6 complete, 
 - `oca theme list/apply` (Phase 4)
 - `oca install [--yes]` and `oca uninstall` (Phase 6, shipped)
 - `oca completion <shell>` (Phase 6, shipped)
+- `oca temporal status/start/stop/restart/logs` for local Temporal dev-server supervision (Phase 6.5, shipped)
 - `oca dashboard` (out-of-phase, shipped)
 - `oca pane` and `oca watchdog` (out-of-phase, shipped)
 - MCP slot group rendering for `[mcp.slot_groups.*]` (Phase 5.5)
-- Temporal config rendering and health checks (Phase 5)
+- Temporal config rendering, health checks, and local dev-server supervision (Phase 5 + Phase 6.5)
 - plugin lifecycle: git clone/pull, build, pin, sync-global.sh delegation
 - Obsidian theme assets (JSON + tmux conf) and managed-block tmux template
 - Shell profile managed-block injection via `internal/install` (Phase 6)

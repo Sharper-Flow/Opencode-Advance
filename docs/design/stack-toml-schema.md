@@ -346,15 +346,18 @@ namespace   = "default"
 allow_remote = false
 ```
 
-Current behavior (Phase 5):
+Current behavior (Phase 5 + Phase 6.5):
 
 - parser accepts and validates the full section shape (typed `TemporalSection`, `TemporalDevServer`, `TemporalEnvVar`)
 - `oca apply --target temporal` writes `$OCA_CACHE_DIR/temporal.env` atomically with all declared `ADV_TEMPORAL_*` values when `enabled = true`; no-op (with friendly message) when disabled
 - `oca doctor --scope temporal` checks reachability and namespace existence
 - Status bar shows Temporal reachability when `[temporal].enabled = true`
 - `adv-temporal` provides category preserves ownership boundaries for the Advance plugin's own Temporal artifacts
+- `oca temporal status/start/stop/restart/logs` manages only the local OCA-owned Temporal dev server
+- `oca temporal start` uses `$OCA_CACHE_DIR/temporal/temporal.db` for persistent local state and writes PID/log metadata under `$OCA_CACHE_DIR/temporal/`
+- `oca temporal logs` prints bounded recent log output by default; `--follow` is explicit opt-in
 
-> Out of scope for Phase 5: dev-server supervision (`temporal server start-dev` PID management), `oca temporal {status,start,stop,restart,logs}` subcommands, `temporal_bundle` wiring. These are deferred to Phase 6.5.
+> Out of scope: production/remote Temporal cluster management, Docker/systemd/launchd supervision, Temporal Web UI controls, and `temporal_bundle` wiring.
 
 ---
 
