@@ -359,41 +359,74 @@ Phase 5 shipped a narrow 4-pillar Temporal enablement. Scope was deliberately cu
 
 ## Phase 6: Installer + Shell Profile
 
-**Status:** In progress — install, uninstall, completion, prereq checker, and shell profile management are implemented. Remaining: full integration testing on fresh VM.
+**Status:** Complete — delivered in commits `172fa2c..bbbb99d` and merged to `trunk`.
 
 **Goal:** `oca install` performs end-to-end first-time setup. Shell profile wiring (PATH, completions) is idempotent and reversible. Installer includes Temporal prerequisite checks and optional dev-server setup (leveraging Phase 5).
 
 **Estimate:** 4-5 days
 
-**Deliverables:**
+**Shipped deliverables:**
 
-- `cmd/oca/install.go` — full install flow
-- `internal/install/` — prerequisite checks, shell profile management
-- `templates/shell_profile.block.gotmpl`
-- `cmd/oca/completion.go` — shell completion generation (bash, zsh, fish)
-- `cmd/oca/uninstall.go` — removes managed blocks
+- `internal/install/shellprofile.go` — managed-block injection into `~/.zshrc` and `~/.bashrc` with idempotent add/remove/diff/edit-detection
+- `internal/install/prereq.go` — prerequisite checker for git, tmux (≥3.4), OpenCode, vision, and optional Temporal CLI
+- `internal/install/flow.go` — `Install` and `Uninstall` flow orchestration (prereqs → apply → profile injection or removal)
+- `cmd/oca/install.go` — `oca install [--yes]` with end-to-end setup
+- `cmd/oca/uninstall.go` — `oca uninstall` removes managed blocks without touching user content
+- `cmd/oca/completion.go` — `oca completion <bash|zsh|fish>` shell completion generation
+- `templates/shell_profile.block.gotmpl` — managed block template with PATH + completion wiring
+- Integration tests for install → uninstall → install round-trips
+- Unit tests for shell profile block operations (WriteBlock, RemoveBlock, DiffBlock, IsEdited)
 
 **Exit criteria:**
 
-- `oca install --yes` installs everything on a fresh Ubuntu 22.04 VM
-- `oca install` adds a managed block to `~/.zshrc` and `~/.bashrc` with PATH + completions
-- `oca completion zsh` and `oca completion bash` print working completion scripts
-- `oca uninstall` removes all managed blocks without touching user-owned content
-- Installer handles partial install recovery (if interrupted, re-running completes)
+- [x] `oca install --yes` runs end-to-end: prerequisite checks, `oca apply` all targets, shell profile block injection
+- [x] `oca install` adds a managed block to `~/.zshrc` and `~/.bashrc` with PATH + completions
+- [x] `oca completion zsh` and `oca completion bash` print working completion scripts
+- [x] `oca uninstall` removes all managed blocks without touching user-owned content
+- [x] Re-running `oca install` after interruption completes remaining steps (idempotent)
 
-**Tasks (high-level):**
+**Historical implementation reference:**
 
-- tk-phase6-01: Implement prerequisite check (git, tmux version, OpenCode, vision binary, Temporal CLI)
-- tk-phase6-02: Implement shell profile block management (add/remove idempotent)
-- tk-phase6-03: Implement `oca install` command with all steps
-- tk-phase6-04: Implement `oca completion <shell>` for bash/zsh/fish
-- tk-phase6-05: Implement `oca uninstall` command
-- tk-phase6-06: Integration test: fresh-VM install in Docker/chroot
-- tk-phase6-07: Integration test: install → uninstall → install again is clean
+- Commit range on `trunk`: `172fa2c..bbbb99d` (5 commits)
+- Next recommended phase: **Phase 6.5** or **Phase 7**
+
+### Retrospective
+
+Phase 6 shipped the installer, uninstaller, shell completion, and shell profile managed-block system. The shell profile package follows a sentinel-delimited block pattern (OCA-specific delimiters wrapping PATH export + completion source) that supports idempotent add, clean removal, drift detection (`DiffBlock`), and user-edit detection (`IsEdited`). The prerequisite checker validates tool versions (e.g., tmux ≥3.4) and gracefully handles missing optional dependencies (Temporal CLI). Flow orchestration composes prereqs → apply → profile injection as discrete steps so an interrupted install can be resumed. The managed block intentionally excludes tmux conf injection — that remains the session lifecycle's responsibility.
+
+---
+
+## Phase 6.5: Temporal Dev-Server Supervision
+
+**Status:** Not started — no active change.
+
+**Goal:** `oca temporal` subcommands for dev-server lifecycle management: start, stop, restart, status, logs. Manages the Temporal dev-server process that Advance depends on for durable workflow state.
+
+**Estimate:** 2-3 days
+
+**Why a .5 phase:** Narrow process-supervision scope that extends Phase 5's config rendering. Advance already uses Temporal as its primary state backend; OCA needs to manage the dev-server process lifecycle for local development. Does not warrant a full numbered phase.
+
+**Planned deliverables:**
+
+- `cmd/oca/temporal.go` — `oca temporal {status,start,stop,restart,logs}`
+- `internal/temporal/supervise.go` — dev-server PID management, log capture, health polling
+- Integration with Phase 5's `$OCA_CACHE_DIR/temporal.env` for server configuration
+- Status bar integration for dev-server state (running/stopped/unhealthy)
+
+**Exit criteria:**
+
+- `oca temporal start` launches `temporal server start-dev` in the background and writes a PID file
+- `oca temporal stop` sends SIGTERM and waits for clean shutdown
+- `oca temporal status` reports server health (running/stopped, namespace reachable)
+- `oca temporal logs` tails the dev-server log output
+- Dev-server state is visible in the tmux status bar when `[temporal].enabled = true`
+- All commands use isolated test config directories
 
 ---
 
 ## Phase 7: Migration + Doctor Expansion
+
+**Status:** Not started — `internal/migrate/doc.go` stub only. No active change.
 
 **Goal:** `oca migrate from-open-chad` works on the maintainer's real open-chad state. Doctor expands to cover Advance state, Temporal health, and cross-component consistency. Migration produces a Temporal-ready stack.toml (leveraging Phase 5).
 
@@ -509,88 +542,85 @@ Every phase is developed as one or more ADV changes following the 7-gate workflo
 - **Phase 5 (Temporal) blocks on Phase 2 only** (needs the Temporal inheritance hooks, generic subprocess runner, and health-check registry). Moved before installer/migration because Advance already depends on Temporal and every subsequent phase benefits from OCA managing it.
 - **Phase 5.5 (Slot Groups) blocks on Phase 1** (extends MCP render/health/validation). Narrow feature that blocks the installer because the example stack must include Playwright slot groups.
 - Phase 6 (Installer) blocks on Phase 4 (uses session lifecycle + theme), Phase 5 (includes Temporal prerequisite checks), and Phase 5.5 (installer must emit complete stack with slot groups)
+- Phase 6.5 (Temporal supervision) blocks on Phase 5 (config rendering) and Phase 6 (installer prerequisite checks)
 - Phase 7 (Migration) blocks on Phase 6 (migration produces a stack.toml, which needs full coverage to be useful)
 - Phase 8 (Extras) blocks on Phase 7 (release is the last step)
 
-### Out-of-phase work
+### Out-of-phase shipped work
 
-Minor fixes, typos, doc updates, and CI tweaks can be committed outside of ADV changes if they are trivial. Anything that touches Go code, stack.toml schema, or render logic MUST go through an ADV change.
+The following capabilities were shipped outside of numbered phase ADV changes:
 
-Completed out-of-phase hardening:
+- **Operator dashboard** (`oca dashboard`) — read-only web dashboard showing cross-project ADV changes, tmux sessions, and Temporal/worker health, updated via SSE. `internal/dashboard/` (~1,900 LOC) with Datastar frontend, Temporal polling, tmux control-mode session watcher. Shipped as a standalone change. Evolution plans in [`../notes/2026-05-01-dashboard-architecture-research.md`](../notes/2026-05-01-dashboard-architecture-research.md).
+- **Pane management** (`oca pane`) — per-pane state operations for OCA tmux sessions. Reads/writes per-pane JSON state (`$XDG_STATE_HOME/oca/panes/`) for session ↔ directory ↔ watchdog correlation.
+- **Session watchdog** (`oca watchdog`) — monitors pane activity and tracks bump counts, last-activity timestamps, and idle-state transitions for OCA-managed tmux sessions.
+- **Temporal CLI detection** (`internal/temporal/detect.go`) — host-level detection for `temporal` CLI and `node` binary presence, used by the installer prerequisite checker and health system.
+- **`oca doctor --scope adv-assets`** — plugin-provided asset ownership drift audit. Shipped in archived change `ocadoctorassetdrift`.
 
-- `ocadoctorassetdrift` — shipped `oca doctor --scope adv-assets` for plugin/OCA asset ownership drift. Keep future roadmap work focused on migration/ADV/cross-component checks instead of reimplementing this scope.
+### Unphased planned commands
+
+The following commands are documented as planned but have no phase assignment yet:
+
+- `oca add mcp <name>` / `oca add plugin <name>` — interactive declaration addition (listed in v1-implementation.md success criteria)
+- `oca remove mcp <name>` / `oca remove plugin <name>` — interactive declaration removal
+- `oca clean` — cleanup stale backups, orphaned cache entries, and expired state files
+- Agent rendering — rendering agent model assignments from `stack.toml` into `opencode.json`. Explicitly deferred past v1.0 per v1-implementation.md
 
 ---
 
 ## Estimated timeline
 
-| Phase                                        | Estimate    | Cumulative    |
-| -------------------------------------------- | ----------- | ------------- |
-| 0: Foundation + brand                        | 3-5 days    | 0.5-1 week    |
-| 1: stack.toml + MCP apply                    | 1-2 weeks   | 1.5-3 weeks   |
-| 2: Plugin + instruction mgmt                 | 1 week      | 2.5-4 weeks   |
-| 3: Core opencode.json coverage               | 1 week      | 3.5-5 weeks   |
-| 3.5: Skills + commands + formatters          | 3-4 days    | 4-5.5 weeks   |
-| 4: Primary client UX + theme                 | 1-1.5 weeks | 5-7 weeks     |
-| 5: Temporal enablement                       | 3-5 days    | 5.5-8 weeks   |
-| 5.5: Vision slot group support               | 2-3 days    | 6-8.5 weeks   |
-| 6: Installer + shell                         | 4-5 days    | 6.5-9 weeks   |
-| 7: Migration + doctor                        | 4-5 days    | 7-10 weeks    |
-| 8: Extras + polish                           | 3-5 days    | 7.5-11 weeks  |
+| Phase                                        | Estimate    | Status      |
+| -------------------------------------------- | ----------- | ----------- |
+| 0: Foundation + brand                        | 3-5 days    | ✓ Complete  |
+| 1: stack.toml + MCP apply                    | 1-2 weeks   | ✓ Complete  |
+| 2: Plugin + instruction mgmt                 | 1 week      | ✓ Complete  |
+| 3: Core opencode.json coverage               | 1 week      | ✓ Complete  |
+| 3.5: Skills + commands + formatters          | 3-4 days    | ✓ Complete  |
+| 4: Primary client UX + theme                 | 1-1.5 weeks | ✓ Complete  |
+| 5: Temporal enablement                       | 3-5 days    | ✓ Complete  |
+| 5.5: Vision slot group support               | 2-3 days    | ✓ Complete  |
+| 6: Installer + shell                         | 4-5 days    | ✓ Complete  |
+| 6.5: Temporal dev-server supervision          | 2-3 days    | Not started |
+| 7: Migration + doctor                        | 4-5 days    | Not started |
+| 8: Extras + polish                           | 3-5 days    | Not started |
 
-**Total: 7.5-11 weeks of focused work.** Temporal enablement ships early (Phase 5) so installer, migration, and release all benefit. Longer if interleaved with other work.
-
-The estimate intentionally allows for:
-
-- Discovery and design time within each phase (ADV workflow includes `/adv-discover` + `/adv-design`)
-- Code review iteration (ADV `/adv-review` and `/adv-harden` gates)
-- Unforeseen complexity (Go template edge cases, Advance API drift, etc.)
-
-If any phase blows its estimate by more than 2x, halt and re-plan. Do not push through.
+**Total shipped: Phases 0–6 (7.5–9 weeks).** Remaining: Phases 6.5–8 (9.5–15.5 days).
 
 ---
 
-## Post-v1: Operator Dashboard (research complete, not yet scoped)
+## Post-v1: Operator Dashboard
 
-A web dashboard providing a unified operator view across all OCA-managed work: ADV changes from every project, active OCA tmux sessions, and Temporal/worker health — all in one filterable, sortable table. Consumes Temporal's workflow state for changes and OCA's session manager for sessions. Research spike for the Temporal slice completed 2026-04-23; findings documented in [`../notes/2026-04-23-temporal-dashboard-research.md`](../notes/2026-04-23-temporal-dashboard-research.md).
+**Status:** v1.0 shipped — `oca dashboard` is live with read-only unified table, SSE real-time updates, tmux session watcher, and Temporal health polling.
 
-**Prerequisites:** Phase 5 (Temporal Enablement) and Phase 4 (Session Lifecycle) must ship first.
+The dashboard is a Go-embedded web UI (`internal/dashboard/`, ~1,900 LOC) using Datastar for reactive rendering, SSE for server-push state updates, and tmux control-mode for event-driven session tracking. Launched via `oca dashboard [--bind <addr>] [--port <n>] [--no-open]`.
 
-**Unified table — first-class capability:**
+**Architecture research:**
 
-A single filterable + sortable table that combines, for the host:
+- Direction locked and documented in [`../notes/2026-05-01-dashboard-architecture-research.md`](../notes/2026-05-01-dashboard-architecture-research.md)
+- Frontend: Datastar + server-rendered HTML + Tailwind (no SPA, no JS framework)
+- Binary delivery: single Go binary via `//go:embed`
+- Real-time: server polls Temporal (gRPC, 2–5s) → SSE push to browser
+- Temporal access: `client.ListWorkflow` + existing search attributes
+- tmux state: control-mode client (`tmux -Loca -C`) parsing `%`-notifications
+- Cross-host: out of scope for v1.x
 
-- All open ADV changes across every project (project, change-id, gate, task progress, blockers, last activity, owner agent, retry/doom-loop state, age)
-- All active OCA sessions (session name, project root, attached client, current change, ADV gate, idle time, started-at)
-- Filters: project, status, gate, has-blocker, recency band (hot/warm/stale), attached/detached, doom-loop only
-- Sorts: any column, with sensible defaults (most-recent-activity, then stalest-first toggle)
-- Row drill-in: open the change view, attach the session, or jump to the Temporal workflow
+### Evolution roadmap (from research note)
 
-**Per-row controls:**
+| Phase | Capability | Cost |
+|---|---|---|
+| v1.0 (shipped) | Read-only unified table; loopback only | — |
+| v1.1 | Per-row controls (gate approve, retry, cancel) + local "switch session" (tmux switch-client) | 1-2 weeks |
+| v1.2 | Local "open in new terminal window" (spawn OS terminal) + auth scaffolding (token-based) | 1 week |
+| v2.0 | Web terminal (xterm.js + PTY broker) + Tailscale-friendly bind + cross-host federation | 3-4 weeks |
 
-- Approve gate, retry task, cancel change, sign off acceptance/archive
-- Attach session, kill session, restart session
-- Manage agenda items inline
+### Session resume / web terminal (v2.0 target)
 
-**Other capabilities:**
+The long-term goal: clicking a session row in the dashboard opens or resumes that session — including from a browser on another device. Three approaches documented:
 
-- Change progress at a glance (gates, tasks, blockers)
-- Multi-change orchestration view (cross-project)
-- Agent activity and cost tracking (retries, time invested, doom-loop state)
-- Temporal operational health (server, worker, namespace, workflow health)
+- **A.** tmux switch-client (local only, trivial)
+- **B.** Spawn OS terminal + tmux attach (local only, low cost)
+- **C.** Web terminal (xterm.js + WebSocket PTY broker) — the real answer for cross-device
 
-**Key research findings (Temporal slice):**
+Architecture implications for v2.0: WebSocket transport alongside SSE, auth model required, network exposure beyond loopback, xterm.js bundle (~200 KB gzip). None of these break v1.0 architecture — they coexist as additional routes on the same Go HTTP server.
 
-- Temporal Web has no plugin system — custom domain views require a separate frontend
-- Browser → Temporal Server direct is not possible (no gRPC-Web, no CORS); requires a proxy
-- Viable paths: ui-server sidecar (low effort, bundled with dev server), custom Node proxy, or OCA-embedded Go proxy (best UX, most effort)
-- Advance exposes 5 change queries + 11 updates, 5 project queries + 4 updates — sufficient for a full control surface
-- Search attributes enable filtered workflow listing across all changes
-
-**Open research questions (session slice):**
-
-- Source of truth for session state — `tmux list-sessions` + OCA session manager metadata, or a new daemon-side cache
-- Cross-host scope — host-local only for v1.x, or surface remote OCA hosts via SSH/Tailscale aggregation
-- Session ↔ change correlation — derive from tmux session env (`OCA_REPO_ROOT`, active change-id) rather than a new registry
-
-**Phase placement TBD** — depends on Phase 5 + Phase 4 maturity and user demand. Likely v1.1+ scope.
+Full details, open questions, and reference implementations in the [research note](../notes/2026-05-01-dashboard-architecture-research.md).

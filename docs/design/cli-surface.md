@@ -290,7 +290,7 @@ working directory rather than relying on path inference.
 
 ## Shipped in Phase 6 (foundation)
 
-Phase 6 adds the installer, uninstaller, and shell completion. These commands are shipped but Phase 6 is not yet fully complete.
+Phase 6 adds the installer, uninstaller, and shell completion. These commands are shipped and Phase 6 is complete.
 
 ### `oca install [--yes]`
 
@@ -332,6 +332,36 @@ Behavior:
 
 - prints a completion script to stdout suitable for `source` or direct file write
 - integrated into `oca install` shell profile wiring
+
+## Shipped out-of-phase
+
+### `oca dashboard [--bind <addr>] [--port <n>] [--no-open]`
+
+Launch a read-only web dashboard showing cross-project ADV changes, tmux sessions, and Temporal/worker health.
+
+Flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--bind <addr>` | bind address (default: `127.0.0.1`) |
+| `--port <n>` | listen port (default: `8080`) |
+| `--no-open` | skip auto-opening browser |
+
+Behavior:
+
+- serves a Go-embedded web UI via `//go:embed`
+- polls Temporal for cross-project ADV change state (2–5s interval)
+- watches tmux sessions via control-mode client for real-time session state
+- pushes state updates to browser via SSE
+- loopback-only by default; bind address is configurable for future v2.0 readiness
+
+### `oca pane`
+
+Per-pane state operations for OCA tmux sessions. Reads and writes JSON state in `$XDG_STATE_HOME/oca/panes/` for session ↔ directory ↔ watchdog correlation.
+
+### `oca watchdog`
+
+Session watchdog that monitors pane activity, tracks bump counts, last-activity timestamps, and idle-state transitions for OCA-managed tmux sessions.
 
 ## Planned later-phase commands
 

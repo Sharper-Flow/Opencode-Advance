@@ -2,7 +2,7 @@
 
 This document is the canonical high-level architecture reference for the code that is **actually implemented today**.
 
-Current implemented scope on this branch is **Phase 1, Phase 2, Phase 3, Phase 3.5, Phase 4, Phase 5, Phase 5.5, and Phase 6 (in progress)**:
+Current implemented scope on this branch is **Phase 0 through Phase 6 complete, plus out-of-phase dashboard/pane/watchdog/temporal-detect**:
 
 - `stack.toml` parsing for `[meta]`, `[mcp]`, `[plugins]`, `[instructions]`, `[providers]`, `[permissions]`, `[watcher]`, `[lsp]`, `[skills]`, `[commands]`, `[formatters]`, `[opencode]`, `[temporal]`, plus deferred future sections
 - `oca apply --target mcp|plugins|instructions|providers|permissions|watcher|lsp|skills|commands|formatters|toggles|temporal`
@@ -13,8 +13,10 @@ Current implemented scope on this branch is **Phase 1, Phase 2, Phase 3, Phase 3
 - `oca pin` and `oca update`
 - `oca session new/list/attach/switch/kill/killall/restart/reap` (Phase 4)
 - `oca theme list/apply` (Phase 4)
-- `oca install [--yes]` and `oca uninstall` (Phase 6, in progress)
-- `oca completion <shell>` (Phase 6, in progress)
+- `oca install [--yes]` and `oca uninstall` (Phase 6, shipped)
+- `oca completion <shell>` (Phase 6, shipped)
+- `oca dashboard` (out-of-phase, shipped)
+- `oca pane` and `oca watchdog` (out-of-phase, shipped)
 - MCP slot group rendering for `[mcp.slot_groups.*]` (Phase 5.5)
 - Temporal config rendering and health checks (Phase 5)
 - plugin lifecycle: git clone/pull, build, pin, sync-global.sh delegation
@@ -160,7 +162,7 @@ Phase 4 foundation. Manages OCA tmux sessions on a dedicated socket.
 
 ### 4.5. Install (`internal/install/`)
 
-Phase 6 (in progress). End-to-end first-time setup and teardown.
+Phase 6 (shipped). End-to-end first-time setup and teardown.
 
 - `PrereqChecker` verifies git, tmux (≥3.4), OpenCode, vision, and optional Temporal CLI presence
 - `ShellProfile` manages idempotent managed-block injection into `~/.zshrc` and `~/.bashrc`:
@@ -187,6 +189,8 @@ Current shipped commands:
 - `oca theme list/apply`
 - `oca install [--yes]` and `oca uninstall`
 - `oca completion <shell>`
+- `oca dashboard [--bind <addr>] [--port <n>] [--no-open]`
+- `oca pane` and `oca watchdog`
 
 Shared shipped flags:
 
