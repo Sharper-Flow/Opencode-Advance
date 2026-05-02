@@ -113,4 +113,38 @@ describe("initWatchdog", () => {
     initWatchdog(mockInput);
     // No interval set when disabled.
   });
+
+  test("clears previous interval before reinitializing", () => {
+    setEnv({
+      OCA_WATCHDOG_ENABLED: "1",
+      OCA_WATCHDOG_IDLE_TIMEOUT_MS: "300000",
+      OCA_WATCHDOG_MAX_BUMPS: "3",
+    });
+
+    const originalSetInterval = globalThis.setInterval;
+    const originalClearInterval = globalThis.clearInterval;
+    const intervals: Array<{ id: { unref: () => void }; timeout?: number }> = [];
+    const cleared: unknown[] = [];
+
+    (globalThis as any).setInterval = (_fn: () => void, timeout?: number) => {
+      const id = { unref: mock(() => {}) };
+      intervals.push({ id, timeout });
+      return id;
+    };
+    (globalThis as any).clearInterval = (id: unknown) => {
+      cleared.push(id);
+    };
+
+    try {
+      const mockInput = { $: {} } as any;
+      initWatchdog(mockInput);
+      initWatchdog(mockInput);
+
+      expect(intervals).toHaveLength(2);
+      expect(cleared).toEqual([intervals[0].id]);
+    } finally {
+      globalThis.setInterval = originalSetInterval;
+      globalThis.clearInterval = originalClearInterval;
+    }
+  });
 });

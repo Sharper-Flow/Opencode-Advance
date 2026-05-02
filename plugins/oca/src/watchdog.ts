@@ -61,6 +61,12 @@ function writePaneState(filePath: string, state: PaneState): void {
 const trackers = new Map<string, SessionTracker>();
 let checkInterval: ReturnType<typeof setInterval> | null = null;
 
+function stopWatchdog(): void {
+  if (!checkInterval) return;
+  clearInterval(checkInterval);
+  checkInterval = null;
+}
+
 function bumpSession(
   filePath: string,
   paneState: PaneState,
@@ -130,7 +136,12 @@ function checkHang(
 
 export function initWatchdog(input: PluginInput): void {
   const config = readConfig();
-  if (!config.enabled) return;
+  if (!config.enabled) {
+    stopWatchdog();
+    return;
+  }
+
+  stopWatchdog();
 
   // Start periodic check (60s interval).
   checkInterval = setInterval(() => {
