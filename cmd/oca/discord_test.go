@@ -16,6 +16,14 @@ func TestDiscordEnableWritesWrapperAndStatus(t *testing.T) {
 	tmp := t.TempDir()
 	stackPath := writeDiscordTestStack(t, tmp)
 	t.Setenv("OCA_CACHE_DIR", filepath.Join(tmp, "cache"))
+	t.Setenv("OCA_ASSETS_ROOT", filepath.Join(tmp, "assets"))
+	assetPath := filepath.Join(tmp, "assets", "discord", "taglines.toml")
+	if err := os.MkdirAll(filepath.Dir(assetPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(assetPath, []byte("taglines = [\"Focused delivery\", \"Spec-driven work\"]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	var stdout bytes.Buffer
 	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stdout, Environment: brand.Environment{IsTTY: false}})
@@ -34,6 +42,13 @@ func TestDiscordEnableWritesWrapperAndStatus(t *testing.T) {
 	}
 	if status.Mode != "builtin" {
 		t.Fatalf("mode = %q, want builtin", status.Mode)
+	}
+	taglines, err := os.ReadFile(paths.Taglines)
+	if err != nil {
+		t.Fatalf("taglines not installed: %v", err)
+	}
+	if !strings.Contains(string(taglines), "Focused delivery") {
+		t.Fatalf("taglines content = %q", string(taglines))
 	}
 	if !strings.Contains(stdout.String(), "Discord Rich Presence enabled") {
 		t.Fatalf("stdout missing enabled message: %q", stdout.String())

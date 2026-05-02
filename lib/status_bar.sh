@@ -53,12 +53,34 @@ _oca_status_date() {
   printf '%s' "$(date '+%Y-%m-%d')"
 }
 
+_oca_cache_dir() {
+  if [[ -n "${OCA_CACHE_DIR:-}" ]]; then
+    printf '%s' "$OCA_CACHE_DIR"
+    return 0
+  fi
+  if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
+    printf '%s/opencode-advance' "$XDG_RUNTIME_DIR"
+    return 0
+  fi
+  printf '%s/opencode-advance-%s' "${TMPDIR:-/tmp}" "${USER:-unknown}"
+}
+
+_oca_discord_update() {
+  local wrapper
+  wrapper="$(_oca_cache_dir)/discord/discord-update.sh"
+  if [[ -x "$wrapper" ]]; then
+    "$wrapper" >/dev/null 2>&1 &
+  fi
+}
+
 # ── Row Builders ───────────────────────────────────────────
 
 # Row 0: [session_name] │ [git branch] │ [ADV state] │ [host] [time]
 oca_status_row0() {
   local session_name="$1"
   local pane_path="$2"
+
+  _oca_discord_update
 
   # Session name (left)
   printf '%s' "$(_oca_status_color '#8B9FE0')"

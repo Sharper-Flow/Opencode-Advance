@@ -79,6 +79,9 @@ func newDiscordEnableCmd(state *commandState) *cobra.Command {
 			if err := writeDiscordWrapper(paths.Wrapper, state.configPath); err != nil {
 				return newCLIError(3, "discord enable: %w", err)
 			}
+			if err := installDiscordTaglines(paths.Taglines); err != nil {
+				return newCLIError(3, "discord enable: %w", err)
+			}
 			if err := writeDiscordStatus(paths.Status, discordStatus{Enabled: true, Mode: mode, AppID: appID, Wrapper: paths.Wrapper}); err != nil {
 				return newCLIError(3, "discord enable: %w", err)
 			}
@@ -195,6 +198,40 @@ func writeDiscordWrapper(path, configPath string) error {
 	}
 	script := fmt.Sprintf("#!/usr/bin/env sh\nexec %q --config %q discord update >/dev/null 2>&1\n", exe, configPath)
 	return os.WriteFile(path, []byte(script), 0o700)
+}
+
+func installDiscordTaglines(path string) error {
+	source := resolveDiscordTaglinesAsset()
+	if source == "" {
+		return nil
+	}
+	data, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o600)
+}
+
+func resolveDiscordTaglinesAsset() string {
+	filename := filepath.Join("discord", "taglines.toml")
+	var candidates []string
+	if root := os.Getenv("OCA_ASSETS_ROOT"); root != "" {
+		candidates = append(candidates, filepath.Join(root, filename))
+	}
+	if exe, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exe), "..", "assets", filename))
+	}
+	candidates = append(candidates, filepath.Join("assets", filename))
+
+	for _, candidate := range candidates {
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate
+		}
+	}
+	return ""
 }
 
 func writeDiscordStatus(path string, status discordStatus) error {
