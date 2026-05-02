@@ -20,7 +20,7 @@ name = "default"
 description = "Personal OpenCode Advance stack"
 
 # ─── MCP servers ─────────────────────────────────────────────────────────────
-# Declared here once. ` + "`oca apply`" + ` renders into both:
+# Declared here once. `+"`oca apply`"+` renders into both:
 #   ~/.config/opencode/opencode.json  (.mcp section)
 #   ~/.config/vision/servers.yaml     (Vision daemon registry)
 

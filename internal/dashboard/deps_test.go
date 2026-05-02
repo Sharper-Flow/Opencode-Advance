@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	_ "github.com/Sharper-Flow/Opencode-Advance/internal/dashboard"
-	_ "go.temporal.io/sdk/client"
 	_ "github.com/starfederation/datastar-go/datastar"
+	_ "go.temporal.io/sdk/client"
 )
 
 func TestDependenciesResolve(t *testing.T) {

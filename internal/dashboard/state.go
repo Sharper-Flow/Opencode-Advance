@@ -8,15 +8,15 @@ import (
 
 // ChangeRow represents a single ADV change in the dashboard.
 type ChangeRow struct {
-	ID           string `json:"id"`
-	Title        string `json:"title"`
-	Status       string `json:"status"`
-	ActiveGate   string `json:"active_gate"`
-	TasksDone    int    `json:"tasks_done"`
-	TasksTotal   int    `json:"tasks_total"`
-	DoomLoop     bool   `json:"doom_loop"`
-	Project      string `json:"project"`
-	LastSeenAgo  string `json:"last_seen_ago,omitempty"`
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Status      string `json:"status"`
+	ActiveGate  string `json:"active_gate"`
+	TasksDone   int    `json:"tasks_done"`
+	TasksTotal  int    `json:"tasks_total"`
+	DoomLoop    bool   `json:"doom_loop"`
+	Project     string `json:"project"`
+	LastSeenAgo string `json:"last_seen_ago,omitempty"`
 }
 
 // SessionRow represents a tmux session in the dashboard.

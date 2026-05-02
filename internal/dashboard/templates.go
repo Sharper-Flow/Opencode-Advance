@@ -20,8 +20,8 @@ func init() {
 
 // indexData is the template data for the index page.
 type indexData struct {
-	Snapshot     *Snapshot
-	JSONChanges  string
+	Snapshot    *Snapshot
+	JSONChanges string
 }
 
 // indexHandler returns an http.Handler that renders the dashboard index.

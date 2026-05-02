@@ -82,8 +82,8 @@ func TestSessionPoller_NilLister(t *testing.T) {
 // mockHealthChecker implements healthChecker for testing.
 type mockHealthChecker struct {
 	temporalReachable bool
-	workerRunning    bool
-	err              error
+	workerRunning     bool
+	err               error
 }
 
 func (m *mockHealthChecker) checkTemporal(ctx context.Context) (bool, error) {
