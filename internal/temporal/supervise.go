@@ -84,14 +84,18 @@ type ProbeFuncs struct {
 
 // Supervisor coordinates OCA-owned Temporal dev-server lifecycle operations.
 type Supervisor struct {
-	Paths           RuntimePaths
-	DetectCLI       func(context.Context) (DetectResult, error)
-	StartBackground func(context.Context, subprocess.Cmd, subprocess.StartOptions) (subprocess.BackgroundProcess, error)
-	Reachable       func(context.Context, string) bool
-	Healthy         func(context.Context, *cfg.Stack) bool
-	Now             func() time.Time
-	ReadinessWait   time.Duration
-	ReadinessTick   time.Duration
+	Paths              RuntimePaths
+	DetectCLI          func(context.Context) (DetectResult, error)
+	StartBackground    func(context.Context, subprocess.Cmd, subprocess.StartOptions) (subprocess.BackgroundProcess, error)
+	Reachable          func(context.Context, string) bool
+	Healthy            func(context.Context, *cfg.Stack) bool
+	Now                func() time.Time
+	PIDAlive           func(int) bool
+	SignalProcessGroup func(int, syscall.Signal) error
+	ReadinessWait      time.Duration
+	ReadinessTick      time.Duration
+	StopWait           time.Duration
+	StopTick           time.Duration
 }
 
 // Start launches the OCA-managed local Temporal dev server or returns existing state.
@@ -170,6 +174,69 @@ func (s Supervisor) Start(ctx context.Context, stack *cfg.Stack) (Status, error)
 	return EvaluateStatus(ctx, stack, paths, probes)
 }
 
+// Stop terminates only the OCA-managed Temporal process group.
+func (s Supervisor) Stop(ctx context.Context, stack *cfg.Stack) (Status, error) {
+	paths := s.paths()
+	probes := s.probes()
+	status, err := EvaluateStatus(ctx, stack, paths, probes)
+	if err != nil {
+		return status, err
+	}
+	if !status.Enabled {
+		return status, nil
+	}
+	if status.Reachable && !status.Managed {
+		return status, ErrUnmanagedServer
+	}
+	meta, hasMeta, err := ReadMetadata(paths)
+	if err != nil {
+		status.State = StateError
+		return status, err
+	}
+	if !hasMeta {
+		status.State = StateStopped
+		return status, nil
+	}
+	if !s.pidAlive(meta.PID) {
+		if err := RemoveMetadata(paths); err != nil {
+			status.State = StateError
+			return status, err
+		}
+		status.Managed = false
+		status.Running = false
+		status.State = StateStopped
+		return status, nil
+	}
+	if err := s.signalProcessGroup(meta.PID, syscall.SIGTERM); err != nil {
+		status.State = StateError
+		return status, err
+	}
+	if !s.waitStopped(ctx, meta.PID) {
+		if err := s.signalProcessGroup(meta.PID, syscall.SIGKILL); err != nil {
+			status.State = StateError
+			return status, err
+		}
+		_ = s.waitStopped(ctx, meta.PID)
+	}
+	if err := RemoveMetadata(paths); err != nil {
+		status.State = StateError
+		return status, err
+	}
+	status.Managed = false
+	status.Running = false
+	status.PID = 0
+	status.State = StateStopped
+	return status, nil
+}
+
+// Restart composes Stop then Start while preserving the persistent DB path.
+func (s Supervisor) Restart(ctx context.Context, stack *cfg.Stack) (Status, error) {
+	if _, err := s.Stop(ctx, stack); err != nil {
+		return Status{}, err
+	}
+	return s.Start(ctx, stack)
+}
+
 func (s Supervisor) paths() RuntimePaths {
 	if s.Paths.Root == "" {
 		return RuntimePathsFromEnv()
@@ -188,6 +255,20 @@ func (s Supervisor) now() time.Time {
 	return time.Now().UTC()
 }
 
+func (s Supervisor) pidAlive(pid int) bool {
+	if s.PIDAlive != nil {
+		return s.PIDAlive(pid)
+	}
+	return pidAlive(pid)
+}
+
+func (s Supervisor) signalProcessGroup(pgid int, signal syscall.Signal) error {
+	if s.SignalProcessGroup != nil {
+		return s.SignalProcessGroup(pgid, signal)
+	}
+	return killProcessGroup(pgid, signal)
+}
+
 func (s Supervisor) waitReachable(ctx context.Context, address string) bool {
 	wait := s.ReadinessWait
 	if wait == 0 {
@@ -204,6 +285,31 @@ func (s Supervisor) waitReachable(ctx context.Context, address string) bool {
 				return true
 			}
 		} else if tcpReachable(ctx, address, time.Second) {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(tick):
+		}
+	}
+}
+
+func (s Supervisor) waitStopped(ctx context.Context, pid int) bool {
+	wait := s.StopWait
+	if wait == 0 {
+		wait = 10 * time.Second
+	}
+	tick := s.StopTick
+	if tick == 0 {
+		tick = 250 * time.Millisecond
+	}
+	deadline := time.Now().Add(wait)
+	for {
+		if !s.pidAlive(pid) {
 			return true
 		}
 		if time.Now().After(deadline) {
