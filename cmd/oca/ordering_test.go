@@ -81,6 +81,49 @@ func TestOrderingContractSyncFailure_RenderNotRolledBack(t *testing.T) {
 	}
 }
 
+func TestSyncFailureDiagnosticIncludesDetails(t *testing.T) {
+	tmp := t.TempDir()
+	setCLIEnv(t, tmp)
+	remote := initOrderingPluginRemote(t, filepath.Join(tmp, "advance-src"), "advance")
+	stackPath := filepath.Join(tmp, "stack.toml")
+	checkout := filepath.Join(tmp, "checkouts", "advance")
+	writeFile(t, stackPath, "[meta]\nversion = \"1.0.0\"\n\n[plugins.advance]\nsource = \""+remote+"\"\nref = \"master\"\ncheckout = \""+checkout+"\"\nsubdir = \"plugin\"\npath = \"{checkout}/{subdir}\"\nsync = \"{checkout}/scripts/sync-global.sh --fix\"\n")
+
+	prevInvoke := invokeAdvance
+	invokeAdvance = func(ctx context.Context, plugin cfg.Plugin) (syncpkg.SyncResult, error) {
+		return syncpkg.SyncResult{
+			ExitCode:  7,
+			ExitClass: "non-zero-exit",
+			Output:    []byte("fatal: could not resolve host github.com"),
+		}, errors.New("injected sync failure")
+	}
+	defer func() { invokeAdvance = prevInvoke }()
+
+	var stdout, stderr bytes.Buffer
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"apply", "--target", "plugins", "--config", stackPath})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected sync failure")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "advance") {
+		t.Errorf("diagnostic missing plugin name: %s", msg)
+	}
+	if !strings.Contains(msg, "exit code 7") {
+		t.Errorf("diagnostic missing exit code: %s", msg)
+	}
+	if !strings.Contains(msg, "non-zero-exit") {
+		t.Errorf("diagnostic missing exit class: %s", msg)
+	}
+	if !strings.Contains(msg, "fatal: could not resolve host github.com") {
+		t.Errorf("diagnostic missing output excerpt: %s", msg)
+	}
+	if !strings.Contains(msg, "oca doctor") {
+		t.Errorf("diagnostic missing actionable doctor command: %s", msg)
+	}
+}
+
 func TestConcurrentApply_SerializesAndBothProceed(t *testing.T) {
 	tmp := t.TempDir()
 	setCLIEnv(t, tmp)

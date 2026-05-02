@@ -9,6 +9,7 @@ package sync
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
@@ -34,6 +35,21 @@ type SyncResult struct {
 // Treat the redaction as a convenience for operators watching live
 // output, not as a guarantee. See docs/design/stack-toml-schema.md
 // ("Security & trust boundaries") for the broader trust model.
+// FormatSyncError returns a user-visible diagnostic for a plugin sync failure.
+// It includes the plugin name, exit code/class, a truncated redacted output
+// excerpt, and an actionable doctor command.
+func FormatSyncError(name string, res SyncResult, err error) error {
+	const maxExcerpt = 200
+	excerpt := string(res.Output)
+	if len(excerpt) > maxExcerpt {
+		excerpt = excerpt[:maxExcerpt] + "..."
+	}
+	return fmt.Errorf(
+		"sync plugin %s failed (exit code %d, class %s)\noutput: %s\naction: run `oca doctor --scope plugins` to diagnose",
+		name, res.ExitCode, res.ExitClass, excerpt,
+	)
+}
+
 func InvokeAdvance(ctx context.Context, plugin cfg.Plugin) (SyncResult, error) {
 	res, err := subprocess.Run(ctx, subprocess.Cmd{
 		Name:    "sh",

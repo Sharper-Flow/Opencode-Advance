@@ -184,8 +184,9 @@ func applyPlugins(ctx context.Context, state *commandState, stack *config.Stack,
 		if !plugin.IsEnabled() || plugin.Sync == "" {
 			continue
 		}
-		if _, err := invokeAdvance(ctx, plugin); err != nil {
-			return newCLIError(3, "sync plugin %s: %w", name, err)
+		res, err := invokeAdvance(ctx, plugin)
+		if err != nil {
+			return newCLIError(3, "%w", syncpkg.FormatSyncError(name, res, err))
 		}
 	}
 	return nil
