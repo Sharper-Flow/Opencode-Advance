@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,6 +14,12 @@ import (
 	"time"
 
 	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
+	"github.com/Sharper-Flow/Opencode-Advance/internal/subprocess"
+)
+
+var (
+	ErrUnmanagedServer = errors.New("temporal server reachable but not OCA-managed")
+	ErrRemoteStart     = errors.New("refusing to start Temporal dev server on non-loopback address")
 )
 
 // State is the canonical Temporal supervisor status enum.
@@ -73,6 +80,141 @@ type Status struct {
 type ProbeFuncs struct {
 	Reachable func(context.Context, string) bool
 	Healthy   func(context.Context, *cfg.Stack) bool
+}
+
+// Supervisor coordinates OCA-owned Temporal dev-server lifecycle operations.
+type Supervisor struct {
+	Paths           RuntimePaths
+	DetectCLI       func(context.Context) (DetectResult, error)
+	StartBackground func(context.Context, subprocess.Cmd, subprocess.StartOptions) (subprocess.BackgroundProcess, error)
+	Reachable       func(context.Context, string) bool
+	Healthy         func(context.Context, *cfg.Stack) bool
+	Now             func() time.Time
+	ReadinessWait   time.Duration
+	ReadinessTick   time.Duration
+}
+
+// Start launches the OCA-managed local Temporal dev server or returns existing state.
+func (s Supervisor) Start(ctx context.Context, stack *cfg.Stack) (Status, error) {
+	paths := s.paths()
+	probes := s.probes()
+	status, err := EvaluateStatus(ctx, stack, paths, probes)
+	if err != nil {
+		return status, err
+	}
+	if !status.Enabled {
+		return status, nil
+	}
+	if status.Managed && status.Running {
+		return status, nil
+	}
+	if status.State == StateStale {
+		if err := RemoveMetadata(paths); err != nil {
+			return status, err
+		}
+	} else if status.Reachable && !status.Managed {
+		return status, ErrUnmanagedServer
+	}
+
+	host, port, err := splitHostPort(status.Address)
+	if err != nil {
+		status.State = StateError
+		return status, err
+	}
+	if !isLoopbackHost(host) {
+		status.State = StateError
+		return status, ErrRemoteStart
+	}
+
+	detect := s.DetectCLI
+	if detect == nil {
+		detect = DetectCLI
+	}
+	detected, err := detect(ctx)
+	if err != nil {
+		status.State = StateError
+		return status, err
+	}
+	starter := s.StartBackground
+	if starter == nil {
+		starter = subprocess.StartBackground
+	}
+	args := []string{"server", "start-dev", "--ip", host, "--port", strconv.Itoa(port), "--namespace", status.Namespace, "--db-filename", paths.DB, "--log-level", "warn", "--headless"}
+	proc, err := starter(ctx, subprocess.Cmd{Name: detected.Path, Args: args}, subprocess.StartOptions{OutputPath: paths.Log, SetProcessGroup: true})
+	if err != nil {
+		status.State = StateError
+		return status, err
+	}
+	if !s.waitReachable(ctx, status.Address) {
+		_ = killProcessGroup(proc.ProcessGroupID, syscall.SIGTERM)
+		status.State = StateError
+		return status, fmt.Errorf("temporal dev server not reachable at %s", status.Address)
+	}
+	meta := Metadata{
+		PID:       proc.PID,
+		StartedAt: s.now(),
+		Address:   status.Address,
+		Host:      host,
+		Port:      port,
+		Namespace: status.Namespace,
+		DBPath:    paths.DB,
+		LogPath:   paths.Log,
+		CLIPath:   detected.Path,
+		Args:      args,
+		Version:   detected.Version,
+	}
+	if err := WriteMetadata(paths, meta); err != nil {
+		status.State = StateError
+		return status, err
+	}
+	return EvaluateStatus(ctx, stack, paths, probes)
+}
+
+func (s Supervisor) paths() RuntimePaths {
+	if s.Paths.Root == "" {
+		return RuntimePathsFromEnv()
+	}
+	return s.Paths
+}
+
+func (s Supervisor) probes() ProbeFuncs {
+	return ProbeFuncs{Reachable: s.Reachable, Healthy: s.Healthy}
+}
+
+func (s Supervisor) now() time.Time {
+	if s.Now != nil {
+		return s.Now()
+	}
+	return time.Now().UTC()
+}
+
+func (s Supervisor) waitReachable(ctx context.Context, address string) bool {
+	wait := s.ReadinessWait
+	if wait == 0 {
+		wait = 30 * time.Second
+	}
+	tick := s.ReadinessTick
+	if tick == 0 {
+		tick = 500 * time.Millisecond
+	}
+	deadline := time.Now().Add(wait)
+	for {
+		if s.probes().Reachable != nil {
+			if s.probes().Reachable(ctx, address) {
+				return true
+			}
+		} else if tcpReachable(ctx, address, time.Second) {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(tick):
+		}
+	}
 }
 
 // RuntimePathsFromEnv resolves the runtime dir from the same OCA path policy as config.ResolvePaths.
@@ -224,6 +366,22 @@ func tcpReachable(ctx context.Context, address string, timeout time.Duration) bo
 	}
 	_ = conn.Close()
 	return true
+}
+
+func isLoopbackHost(host string) bool {
+	host = strings.TrimPrefix(strings.TrimSuffix(host, "]"), "[")
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+func killProcessGroup(pgid int, signal syscall.Signal) error {
+	if pgid <= 0 {
+		return nil
+	}
+	return syscall.Kill(-pgid, signal)
 }
 
 func writeAtomic(path string, data []byte, mode os.FileMode) error {
