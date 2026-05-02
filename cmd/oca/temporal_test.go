@@ -43,6 +43,13 @@ func TestTemporalStatusJSONShape(t *testing.T) {
 	}
 }
 
+func TestDefaultTemporalSupervisorUsesNamespaceHealthCheck(t *testing.T) {
+	sup := defaultTemporalSupervisor()
+	if sup.Healthy == nil {
+		t.Fatal("default Temporal supervisor Healthy hook is nil")
+	}
+}
+
 func TestTemporalStartTextOutput(t *testing.T) {
 	tmp := t.TempDir()
 	stackPath := writeTemporalStack(t, tmp)

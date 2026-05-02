@@ -7,11 +7,24 @@ import (
 	"time"
 
 	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
+	"github.com/Sharper-Flow/Opencode-Advance/internal/health"
 	itemporal "github.com/Sharper-Flow/Opencode-Advance/internal/temporal"
 	"github.com/spf13/cobra"
 )
 
-var temporalSupervisorFactory = func() itemporal.Supervisor { return itemporal.Supervisor{} }
+var temporalSupervisorFactory = defaultTemporalSupervisor
+
+func defaultTemporalSupervisor() itemporal.Supervisor {
+	return itemporal.Supervisor{Healthy: temporalNamespaceHealthy}
+}
+
+func temporalNamespaceHealthy(ctx context.Context, stack *cfg.Stack) bool {
+	checks, err := health.CheckTemporal(ctx, stack, health.Options{Timeout: 5 * time.Second})
+	if err != nil {
+		return false
+	}
+	return !health.HasFailures(checks) && !health.HasWarnings(checks)
+}
 
 func newTemporalCmd(state *commandState) *cobra.Command {
 	cmd := &cobra.Command{
