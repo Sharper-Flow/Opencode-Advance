@@ -94,6 +94,30 @@ func TestTemporalStopUnmanagedReturnsExitCodeOne(t *testing.T) {
 	}
 }
 
+func TestTemporalLogsDefaultIsBoundedAndExits(t *testing.T) {
+	tmp := t.TempDir()
+	stackPath := writeTemporalStack(t, tmp)
+	cache := filepath.Join(tmp, "cache")
+	t.Setenv("OCA_CACHE_DIR", cache)
+	logPath := filepath.Join(cache, "temporal", "temporal.log")
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(logPath, []byte("a\nb\nc\n"), 0o600); err != nil {
+		t.Fatalf("write log: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stdout, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"--config", stackPath, "temporal", "logs", "--lines", "2"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if stdout.String() != "b\nc\n" {
+		t.Fatalf("logs output = %q", stdout.String())
+	}
+}
+
 func writeTemporalStack(t *testing.T, dir string) string {
 	t.Helper()
 	path := filepath.Join(dir, "stack.toml")

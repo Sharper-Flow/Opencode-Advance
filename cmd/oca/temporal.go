@@ -22,6 +22,39 @@ func newTemporalCmd(state *commandState) *cobra.Command {
 	cmd.AddCommand(newTemporalStartCmd(state))
 	cmd.AddCommand(newTemporalStopCmd(state))
 	cmd.AddCommand(newTemporalRestartCmd(state))
+	cmd.AddCommand(newTemporalLogsCmd(state))
+	return cmd
+}
+
+func newTemporalLogsCmd(state *commandState) *cobra.Command {
+	var lines int
+	var follow bool
+	cmd := &cobra.Command{
+		Use:   "logs",
+		Short: "Print Temporal dev-server logs",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := validateOutputMode(state.output); err != nil {
+				return err
+			}
+			if _, err := loadStack(state); err != nil {
+				return err
+			}
+			path := itemporal.RuntimePathsFromEnv().Log
+			if follow {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				return itemporal.FollowLog(ctx, path, state.opts.Stdout, 250*time.Millisecond)
+			}
+			text, err := itemporal.RecentLogLines(path, lines)
+			if err != nil {
+				return newCLIError(3, "temporal logs: %w", err)
+			}
+			_, err = fmt.Fprint(state.opts.Stdout, text)
+			return err
+		},
+	}
+	cmd.Flags().IntVar(&lines, "lines", 200, "Number of recent log lines to print")
+	cmd.Flags().BoolVar(&follow, "follow", false, "Follow appended log output until interrupted")
 	return cmd
 }
 
