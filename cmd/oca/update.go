@@ -87,10 +87,10 @@ func newUpdateCmd(state *commandState) *cobra.Command {
 				if !plugin.IsEnabled() || plugin.Sync == "" {
 					continue
 				}
-			res, err := syncpkg.InvokeAdvance(ctx, plugin)
-			if err != nil {
-				return newCLIError(3, "%w", syncpkg.FormatSyncError(name, res, err))
-			}
+				res, err := syncpkg.InvokeAdvance(ctx, plugin)
+				if err != nil {
+					return newCLIError(3, "%w", syncpkg.FormatSyncError(name, res, err))
+				}
 			}
 			if skipped {
 				return newCLIError(1, "some plugins skipped")
