@@ -224,5 +224,12 @@ func refreshSummaryStatus(report *Report) {
 			status = StatusWarn
 		}
 	}
+	for _, attr := range report.SearchAttributes {
+		if attr.Status == StatusFail {
+			status = StatusFail
+		} else if status == StatusPass && (attr.Status == StatusWarn || attr.Status == StatusUnknown) {
+			status = StatusWarn
+		}
+	}
 	report.Summary.Status = status
 }
