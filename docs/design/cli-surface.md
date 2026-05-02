@@ -2,7 +2,7 @@
 
 This document separates the **implemented CLI** from the broader **planned v1.0 command surface**.
 
-Phase 1 shipped `oca version`, `oca apply --target mcp`, `oca doctor --scope mcp`, and `oca debug`. Phase 2 extended the surface with plugin/instructions targets on `apply`, added new `oca pin` and `oca update` commands, and extended `oca doctor` with a `plugins` scope and a `--network` flag. Phases 3–3.5 extended apply/diff/doctor. Phase 4 shipped session lifecycle. Phase 5 shipped temporal config. Phase 5.5 shipped slot groups. Phase 6 (in progress) ships `oca install`, `oca uninstall`, and `oca completion`.
+Phase 1 shipped `oca version`, `oca apply --target mcp`, `oca doctor --scope mcp`, and `oca debug`. Phase 2 extended the surface with plugin/instructions targets on `apply`, added new `oca pin` and `oca update` commands, and extended `oca doctor` with a `plugins` scope and a `--network` flag. Phases 3–3.5 extended apply/diff/doctor. Phase 4 shipped session lifecycle. Phase 5 shipped temporal config. Phase 5.5 shipped slot groups. Phase 6 shipped `oca install`, `oca uninstall`, and `oca completion`. Phase 6.5 shipped `oca temporal` dev-server supervision subcommands. Phase 7 shipped `adv-plugin` and `cross` doctor scopes.
 
 ## Shipped in Phase 1
 
@@ -82,66 +82,11 @@ Phase 2 adds plugin and instruction management. It extends existing commands and
 
 | Target | Behavior |
 | --- | --- |
-| `plugins` | Runs `internal/plugin.Prepare` for every enabled git-source plugin (clone-or-update + build) before rendering. |
+| `plugins` | Runs `internal/plugin.Prepare` for every enabled git-source plugin (clone-or-update + build) before rendering. After rendering, invokes each plugin's `sync` command; sync failures produce a structured diagnostic (plugin name, exit code/class, redacted output excerpt, actionable `oca doctor` suggestion). |
 | `instructions` | Renders the `instructions` flat array into `opencode.json` via the `MergeArray` primitive. |
 | `temporal` | Renders `$OCA_CACHE_DIR/temporal.env` for Advance's Temporal client settings. |
 
 Targets may be combined (`--target mcp --target plugins --target instructions`). Ordering is enforced structurally at the call site: render → sync.
-
-### `oca temporal status`
-
-Report local Temporal dev-server state for agents and scripts.
-
-Behavior:
-
-- supports `--output text|json`
-- reports configured/enabled state, address, namespace, PID, managed/running/reachable/healthy booleans, state enum, log path, and DB path
-- treats reachable servers without OCA PID metadata as `unmanaged`
-- does not mutate runtime state
-
-### `oca temporal start`
-
-Start the OCA-managed local Temporal dev server with `temporal server start-dev`.
-
-Behavior:
-
-- uses `$OCA_CACHE_DIR/temporal/temporal.db` as persistent storage by default
-- writes OCA-owned PID metadata under `$OCA_CACHE_DIR/temporal/temporal.pid.json`
-- appends combined stdout/stderr to `$OCA_CACHE_DIR/temporal/temporal.log`
-- refuses non-loopback dev-server starts and refuses to overwrite unmanaged reachable servers
-- idempotently returns current state when the OCA-managed process is already running
-
-### `oca temporal stop`
-
-Stop only the OCA-managed Temporal dev-server process group.
-
-Behavior:
-
-- sends SIGTERM, waits for shutdown, then escalates to SIGKILL if needed
-- removes stale PID metadata when the recorded process is gone
-- refuses to kill unmanaged reachable servers; it never kills by port lookup alone
-
-### `oca temporal restart`
-
-Compose `stop` then `start` while preserving `$OCA_CACHE_DIR/temporal/temporal.db`.
-
-### `oca temporal logs`
-
-Print bounded recent log output and exit by default.
-
-Flags:
-
-| Flag | Purpose |
-| --- | --- |
-| `--lines <n>` | Number of recent lines to print (default: `200`) |
-| `--follow` | Explicitly stream appended log output until interrupted |
-
-Behavior:
-
-- no pager
-- no prompt
-- no default long-running stream
-- missing log file prints empty output and exits successfully
 
 ### `oca pin [plugin...]`
 
@@ -180,6 +125,7 @@ Behavior:
 - runs `build` commands with `CI=true`, `DEBIAN_FRONTEND=noninteractive`, `npm_config_yes=true` merged into the environment
 - honors `--frozen-lockfile` semantics (caller's responsibility in the build command string)
 - per-plugin status reported; one plugin's failure does not halt the rest
+- sync failures produce a structured diagnostic: plugin name, exit code/class, truncated redacted output excerpt, and an actionable `oca doctor --scope plugins` suggestion
 
 ### `oca doctor --scope plugins` + `--network`
 
@@ -247,6 +193,29 @@ Findings:
 | `STALE` | `adv-{provider}.md` exists but `{provider}` is not configured in `[providers]` | warn |
 
 The scope uses `stack.toml` plugin `provides` declarations as the ownership source of truth and never deletes files.
+
+### `oca doctor --scope adv-plugin`
+
+Advance plugin checkout and state health checks.
+
+Behavior:
+
+- verifies the Advance plugin is declared in `stack.toml`
+- checks the checkout directory exists
+- validates the build artifact (`dist/index.js`) exists and is non-empty (0-byte artifacts fail)
+- checks the ADV state directory is readable (`$XDG_DATA_HOME/opencode/plugins/advance`)
+- all checks are local; no plugin code execution or network requests
+
+### `oca doctor --scope cross`
+
+Cross-component consistency checks between `stack.toml` declarations and actual filesystem state.
+
+Behavior:
+
+- detects source drift by comparing `remote.origin.url` in plugin checkouts against `stack.toml` `source` (trailing slashes, `.git` suffixes, and protocol variants are normalized)
+- detects MCP server port collisions across all declared `[mcp.servers.*]` entries
+- verifies instruction file paths resolve to existing files
+- all checks are read-only
 
 ## Phase 3.5 additions
 
@@ -387,6 +356,65 @@ Behavior:
 
 - prints a completion script to stdout suitable for `source` or direct file write
 - integrated into `oca install` shell profile wiring
+
+## Shipped in Phase 6.5
+
+Phase 6.5 adds Temporal dev-server supervision subcommands.
+
+### `oca temporal status`
+
+Report local Temporal dev-server state for agents and scripts.
+
+Behavior:
+
+- supports `--output text|json`
+- reports configured/enabled state, address, namespace, PID, managed/running/reachable/healthy booleans, state enum, log path, and DB path
+- treats reachable servers without OCA PID metadata as `unmanaged`
+- does not mutate runtime state
+
+### `oca temporal start`
+
+Start the OCA-managed local Temporal dev server with `temporal server start-dev`.
+
+Behavior:
+
+- uses `$OCA_CACHE_DIR/temporal/temporal.db` as persistent storage by default
+- writes OCA-owned PID metadata under `$OCA_CACHE_DIR/temporal/temporal.pid.json`
+- appends combined stdout/stderr to `$OCA_CACHE_DIR/temporal/temporal.log`
+- refuses non-loopback dev-server starts and refuses to overwrite unmanaged reachable servers
+- idempotently returns current state when the OCA-managed process is already running
+
+### `oca temporal stop`
+
+Stop only the OCA-managed Temporal dev-server process group.
+
+Behavior:
+
+- sends SIGTERM, waits for shutdown, then escalates to SIGKILL if needed
+- removes stale PID metadata when the recorded process is gone
+- refuses to kill unmanaged reachable servers; it never kills by port lookup alone
+
+### `oca temporal restart`
+
+Compose `stop` then `start` while preserving `$OCA_CACHE_DIR/temporal/temporal.db`.
+
+### `oca temporal logs`
+
+Print bounded recent log output and exit by default.
+
+Flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--lines <n>` | Number of recent lines to print (default: `200`) |
+| `--follow` | Explicitly stream appended log output until interrupted |
+
+Behavior:
+
+- no pager
+- no prompt
+- no default long-running stream
+- missing log file prints empty output and exits successfully
 
 ## Shipped out-of-phase
 

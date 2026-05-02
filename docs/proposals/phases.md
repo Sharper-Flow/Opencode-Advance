@@ -426,13 +426,13 @@ Phase 6 shipped the installer, uninstaller, shell completion, and shell profile 
 
 ## Phase 7: Migration + Doctor Expansion
 
-**Status:** Not started — `internal/migrate/doc.go` stub only. No active change.
+**Status:** Shipped — `phase7MigrationOpenChadDoctor`.
 
 **Goal:** `oca migrate from-open-chad` works on the maintainer's real open-chad state. Doctor expands to cover Advance state, Temporal health, and cross-component consistency. Migration produces a Temporal-ready stack.toml (leveraging Phase 5).
 
 **Estimate:** 4-5 days
 
-**Deliverables:**
+**Delivered:**
 
 - `internal/migrate/openchad.go` — reads open-chad state, emits stack.toml
 - `cmd/oca/migrate.go` — `oca migrate from-open-chad`, `oca migrate init`
@@ -440,20 +440,20 @@ Phase 6 shipped the installer, uninstaller, shell completion, and shell profile 
 - `internal/health/cross.go` — cross-component consistency checks
 - Expanded `oca doctor` output with migration-era checks, building on shipped `mcp`, `plugins`, `skills`, `temporal`, and `adv-assets` scopes
 
-**Already delivered out-of-phase:**
+**Also delivered out-of-phase:**
 
 - `oca doctor --scope adv-assets` shipped in archived change `ocadoctorassetdrift` and merged to `trunk`
 - The scope audits plugin-provided asset ownership boundaries (`ORPHANED`, `DUPLICATE-OWNER`, `STALE`) and is read-only
 - Phase 7 should not reimplement asset-ownership drift; it should add migration/ADV/cross-component checks only
 
-**Exit criteria:**
+**Exit criteria:** ✓ Complete
 
 - `oca migrate from-open-chad` successfully reads the maintainer's open-chad state and produces a valid stack.toml
 - The generated stack.toml, when applied, reproduces the user's current state (verified by diff)
 - `oca doctor` reports on: Advance checkout, plugin build state, ADV state directory, Temporal health, cross-component consistency (e.g., agent model references a declared provider), and asset-ownership drift via the shipped `adv-assets` scope
 - Migration preserves user customizations (plugin paths, provider models, agent assignments)
 
-**Tasks (high-level):**
+**Tasks (completed):**
 
 - tk-phase7-01: Implement open-chad state reader (opencode.json + vision/servers.yaml + open-chad.json + config/opencode/)
 - tk-phase7-02: Implement stack.toml emitter
@@ -580,11 +580,11 @@ The following commands are documented as planned but have no phase assignment ye
 | 5: Temporal enablement                       | 3-5 days    | ✓ Complete  |
 | 5.5: Vision slot group support               | 2-3 days    | ✓ Complete  |
 | 6: Installer + shell                         | 4-5 days    | ✓ Complete  |
-| 6.5: Temporal dev-server supervision          | 2-3 days    | Not started |
-| 7: Migration + doctor                        | 4-5 days    | Not started |
+| 6.5: Temporal dev-server supervision          | 2-3 days    | ✓ Shipped   |
+| 7: Migration + doctor                        | 4-5 days    | ✓ Complete  |
 | 8: Extras + polish                           | 3-5 days    | Not started |
 
-**Total shipped: Phases 0–6 (7.5–9 weeks).** Remaining: Phases 6.5–8 (9.5–15.5 days).
+**Total shipped: Phases 0–7 (8.5–10.5 weeks).** Remaining: Phase 8 (3–5 days).
 
 ---
 

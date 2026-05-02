@@ -2,13 +2,13 @@
 
 This document is the canonical high-level architecture reference for the code that is **actually implemented today**.
 
-Current implemented scope on this branch is **Phase 0 through Phase 6.5 complete, plus out-of-phase dashboard/pane/watchdog/temporal-detect**:
+Current implemented scope on this branch is **Phase 0 through Phase 7 complete, plus out-of-phase dashboard/pane/watchdog/temporal-detect**:
 
 - `stack.toml` parsing for `[meta]`, `[mcp]`, `[plugins]`, `[instructions]`, `[providers]`, `[permissions]`, `[watcher]`, `[lsp]`, `[skills]`, `[commands]`, `[formatters]`, `[opencode]`, `[temporal]`, plus deferred future sections
 - `oca apply --target mcp|plugins|instructions|providers|permissions|watcher|lsp|skills|commands|formatters|toggles|temporal`
 - `oca apply` with no `--target` for composed all-target apply
 - `oca diff`
-- `oca doctor --scope mcp`, `oca doctor --scope plugins`, `oca doctor --scope skills`, `oca doctor --scope temporal`, and `oca doctor --scope adv-assets`
+- `oca doctor --scope mcp`, `oca doctor --scope plugins`, `oca doctor --scope skills`, `oca doctor --scope temporal`, `oca doctor --scope adv-assets`, `oca doctor --scope adv-plugin`, and `oca doctor --scope cross`
 - `oca debug plan` and `oca debug validate`
 - `oca pin` and `oca update`
 - `oca session new/list/attach/switch/kill/killall/restart/reap` (Phase 4)
@@ -16,6 +16,7 @@ Current implemented scope on this branch is **Phase 0 through Phase 6.5 complete
 - `oca install [--yes]` and `oca uninstall` (Phase 6, shipped)
 - `oca completion <shell>` (Phase 6, shipped)
 - `oca temporal status/start/stop/restart/logs` for local Temporal dev-server supervision (Phase 6.5, shipped)
+- `oca migrate from-open-chad` and `oca migrate init` (Phase 7, shipped)
 - `oca dashboard` (out-of-phase, shipped)
 - `oca pane` and `oca watchdog` (out-of-phase, shipped)
 - MCP slot group rendering for `[mcp.slot_groups.*]` (Phase 5.5)
@@ -140,6 +141,17 @@ Phase 1 health started with MCP-only. Phase 3.5 added skills health.
   - non-`adv-*` files in plugin-owned category dirs warn as ORPHANED
   - stale `adv-{provider}.md` instruction files warn when `{provider}` is absent from `[providers]`
   - the check is read-only and never deletes deployed files
+- `CheckADVPlugin` verifies the Advance plugin checkout and state directory:
+  - plugin declared in `stack.toml`
+  - checkout directory exists
+  - build artifact (`dist/index.js`) exists and is non-empty
+  - ADV state directory (`$XDG_DATA_HOME/opencode/plugins/advance`) is readable
+  - all checks are local; no plugin code execution or network requests
+- `CheckCross` verifies cross-component consistency:
+  - plugin checkout source drift: compares `remote.origin.url` against `stack.toml` `source`, normalizing trailing slashes, `.git` suffixes, and protocol variants (`https://`, `http://`, `ssh://`, `git@`)
+  - MCP server port collisions across all `[mcp.servers.*]` entries
+  - instruction file path resolution (all declared paths must exist)
+  - agent provider reference check (placeholder; deferred until OCA owns agent rendering)
 
 Current defaults:
 
@@ -181,7 +193,7 @@ Current shipped commands:
 - `oca version`
 - `oca apply [--target ...]` (targets: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles, temporal)
 - `oca diff`
-- `oca doctor --scope mcp|plugins|skills|temporal|adv-assets`
+- `oca doctor --scope mcp|plugins|skills|temporal|adv-assets|adv-plugin|cross`
 - `oca debug plan`
 - `oca debug validate`
 - `oca pin` and `oca update`
@@ -192,6 +204,7 @@ Current shipped commands:
 - `oca completion <shell>`
 - `oca dashboard [--bind <addr>] [--port <n>] [--no-open]`
 - `oca pane` and `oca watchdog`
+- `oca temporal status/start/stop/restart/logs` (Phase 6.5, shipped)
 
 Shared shipped flags:
 
@@ -287,10 +300,8 @@ The following remain planned, not shipped:
 
 - agent rendering
 - `oca add` / `oca remove` interactive flows
-- migration from open-chad
 - status bar richness (metrics, LLM fuel gauges, ADV state) — status bar exists but metrics integration is ongoing
-- Temporal dev-server supervision (Phase 6.5 — Advance now ships Temporal as its primary state backend; OCA needs to manage the CLI, dev server, and env vars)
 
-Advance's Temporal dependency is **current**, not future. Advance runs two durable workflows (`changeWorkflow`, `projectWorkflow`) via Temporal with file-backed fallback. OCA's Phase 6.5 will manage the Temporal infra (CLI detection, dev-server supervision, env-file rendering, health checks) that Advance needs to function.
+Advance's Temporal dependency is **current**. Advance runs two durable workflows (`changeWorkflow`, `projectWorkflow`) via Temporal with file-backed fallback. OCA's Phase 6.5 (shipped) manages the Temporal infra (CLI detection, dev-server supervision, env-file rendering, health checks) that Advance needs to function.
 
 See [`../proposals/phases.md`](../proposals/phases.md) for sequencing.

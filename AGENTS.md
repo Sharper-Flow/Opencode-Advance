@@ -48,6 +48,7 @@ opencodeadvance/
 │   ├── sync/                           # Advance sync-global.sh invocation
 │   ├── session/                        # Tmux session lifecycle (create/list/attach/switch/kill/restart/reap)
 │   ├── install/                        # Prerequisite checks, shell profile management, install/uninstall orchestration
+│   ├── temporal/                       # Temporal dev-server supervision (start/stop/restart/logs/status)
 │   └── migrate/                        # open-chad → opencode-advance importer
 │
 ├── assets/                             # Static files, copied as-is to ~/.config/opencode/

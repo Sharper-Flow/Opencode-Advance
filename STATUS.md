@@ -2,11 +2,11 @@
 
 ## Summary
 
-OpenCode Advance currently has **completed Phases 0, 1, 2, 3, 3.5, 4, 5, and 5.5** on `trunk`, with **Phase 6 installer/shell work in progress**.
+OpenCode Advance currently has **completed Phases 0, 1, 2, 3, 3.5, 4, 5, 5.5, 6, 6.5, and 7** on `trunk`. **Phase 8 extras/polish is next**.
 
-- Implementation status: **Phase 5.5 archived and merged; Phase 6 install/uninstall/completion flow in progress**
-- Repository status: **config rendering ships for MCP, plugins, instructions, providers, permissions, watcher, LSP, skills, commands, formatters, OpenCode toggles, Temporal, and MCP slot groups; doctor scopes ship for mcp, plugins, skills, temporal, and adv-assets**
-- Recommended next action: **continue Phase 6 installer/shell profile work**, then proceed to migration + release polish
+- Implementation status: **Phase 7 migration + doctor expansion and Phase 6.5 Temporal supervision are archived, merged, and pushed**
+- Repository status: **config rendering ships for MCP, plugins, instructions, providers, permissions, watcher, LSP, skills, commands, formatters, OpenCode toggles, Temporal, and MCP slot groups; doctor scopes ship for mcp, plugins, skills, temporal, adv-assets, adv-plugin, and cross**
+- Recommended next action: **start Phase 8 extras/polish**
 
 ## What is done
 
@@ -47,14 +47,13 @@ OpenCode Advance currently has **completed Phases 0, 1, 2, 3, 3.5, 4, 5, and 5.5
 - Phase 5 Temporal enablement shipped
 - Phase 5.5 Vision slot group support shipped
 - `oca doctor --scope adv-assets` shipped as out-of-phase hardening for plugin/OCA asset ownership drift
-- Phase 6 installer/shell profile/completion work is in progress
+- Phase 6 installer/shell profile/completion shipped
+- Phase 6.5 Temporal dev-server supervision shipped (`oca temporal status/start/stop/restart/logs`)
+- Phase 7 migration + doctor expansion shipped (`oca migrate from-open-chad`, `oca migrate init`, `adv-plugin`, and `cross` doctor scopes)
 
 ## What is not done
 
-- No migration implementation yet
 - No release packaging workflow yet
-- Phase 6 remaining: finish installer hardening, docs, and release-ready validation
-- Phase 7 migration + expanded doctor checks not done
 - Phase 8 extras/polish not done
 
 ## Decision log snapshot
@@ -71,4 +70,4 @@ OpenCode Advance currently has **completed Phases 0, 1, 2, 3, 3.5, 4, 5, and 5.5
 
 ## Resume guidance
 
-If you are returning to this repo later, start with `NEXT_STEPS.md`, verify there is no newer active change, and continue Phase 6 installer/shell work or the next roadmap item in `docs/proposals/phases.md`.
+If you are returning to this repo later, start with `NEXT_STEPS.md`, verify there is no newer active change, and start Phase 8 extras/polish from `docs/proposals/phases.md`.
