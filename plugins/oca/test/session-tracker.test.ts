@@ -13,6 +13,10 @@ import {
   parseSocketFromTmux,
   sanitizePaneId,
 } from "../src/tmux";
+import {
+  __testClearTrackers,
+  __testTrackerCount,
+} from "../src/watchdog";
 
 describe("state-file", () => {
   const tmpDir = path.join(os.tmpdir(), `oca-test-${Date.now()}`);
@@ -200,5 +204,40 @@ describe("session tracker hooks", () => {
       },
     });
     expect(fs.existsSync(stateFile)).toBe(true);
+  });
+});
+
+describe("watchdog lifecycle integration", () => {
+  beforeEach(() => {
+    __testClearTrackers();
+  });
+
+  it("cleans up watchdog tracker on session.deleted", async () => {
+    process.env.TMUX_PANE = "%42";
+    process.env.TMUX = "/tmp/tmux-1000/oca,12345";
+    process.env.OCA_WATCHDOG_ENABLED = "1";
+    process.env.OCA_WATCHDOG_IDLE_TIMEOUT_MS = "300000";
+    process.env.OCA_WATCHDOG_MAX_BUMPS = "3";
+
+    const mod = await import("../src/index");
+    const hooks = await mod.default({ $: {} } as any, {} as any);
+
+    // Simulate a busy session to populate the watchdog tracker.
+    await hooks.event!({
+      event: {
+        type: "session.status",
+        properties: { sessionID: "ses_abc", status: { type: "busy" } },
+      },
+    });
+    expect(__testTrackerCount()).toBe(1);
+
+    // When the session is deleted, the tracker must be removed.
+    await hooks.event!({
+      event: {
+        type: "session.deleted",
+        properties: { info: { id: "ses_abc" } },
+      },
+    });
+    expect(__testTrackerCount()).toBe(0);
   });
 });

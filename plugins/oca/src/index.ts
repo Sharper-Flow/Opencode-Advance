@@ -18,6 +18,11 @@ const plugin: Plugin = async (input) => {
 
   return {
     async event({ event }) {
+      // Route all lifecycle events to the watchdog so tracker state stays
+      // consistent with pane state.  The watchdog ignores events it does not
+      // recognise (e.g. session.created), so this is safe.
+      handleWatchdogEvent(event);
+
       switch (event.type) {
         case "session.created": {
           const info = event.properties?.info;
@@ -43,11 +48,6 @@ const plugin: Plugin = async (input) => {
           }
           break;
         }
-
-        default:
-          // Delegate to watchdog event handler for all other events.
-          handleWatchdogEvent(event);
-          break;
       }
     },
   };

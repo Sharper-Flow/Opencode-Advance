@@ -202,6 +202,17 @@ export function handleWatchdogEvent(event: any): void {
   }
 }
 
+// ── Test-only diagnostics ──────────────────────────────────────────────────
+
+/** @internal For test verification only. */
+export function __testClearTrackers(): void {
+  trackers.clear();
+}
+/** @internal For test verification only. */
+export function __testTrackerCount(): number {
+  return trackers.size;
+}
+
 // ── Hook export ────────────────────────────────────────────────────────────
 
 export function watchdogHooks(input: PluginInput): Pick<Hooks, "event"> {
