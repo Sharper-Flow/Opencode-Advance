@@ -86,3 +86,22 @@ func TestStartBackgroundMissingExecutableReturnsError(t *testing.T) {
 		t.Fatal("StartBackground missing executable err=nil")
 	}
 }
+
+func TestStartBackgroundSurvivesCallerContextCancellation(t *testing.T) {
+	tmp := t.TempDir()
+	scriptPath := filepath.Join(tmp, "sleeper")
+	if err := os.WriteFile(scriptPath, []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {
+		t.Fatalf("write sleeper: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	proc, err := StartBackground(ctx, Cmd{Name: scriptPath}, StartOptions{SetProcessGroup: true})
+	if err != nil {
+		t.Fatalf("StartBackground: %v", err)
+	}
+	t.Cleanup(func() { _ = syscall.Kill(-proc.PID, syscall.SIGKILL) })
+	cancel()
+	time.Sleep(50 * time.Millisecond)
+	if err := syscall.Kill(proc.PID, syscall.Signal(0)); err != nil {
+		t.Fatalf("process should survive caller context cancellation, signal err=%v", err)
+	}
+}

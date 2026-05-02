@@ -25,7 +25,10 @@ type BackgroundProcess struct {
 
 // StartBackground starts c without shell interpretation and returns immediately.
 func StartBackground(ctx context.Context, c Cmd, opts StartOptions) (BackgroundProcess, error) {
-	cmd := exec.CommandContext(ctx, c.Name, c.Args...)
+	if err := ctx.Err(); err != nil {
+		return BackgroundProcess{}, err
+	}
+	cmd := exec.Command(c.Name, c.Args...)
 	if c.Dir != "" {
 		cmd.Dir = c.Dir
 	}
