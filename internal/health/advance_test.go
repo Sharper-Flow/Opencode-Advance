@@ -92,3 +92,23 @@ func TestCheckADVPlugin_Full(t *testing.T) {
 		t.Errorf("build: expected pass, got %s", checks[2].Status)
 	}
 }
+
+func TestIsAdvancePlugin(t *testing.T) {
+	tests := []struct {
+		source string
+		want   bool
+	}{
+		{source: "https://github.com/Sharper-Flow/Advance.git", want: true},
+		{source: "git@github.com:Sharper-Flow/Advance.git", want: true},
+		{source: "github.com/Sharper-Flow/Advance", want: true},
+		{source: "https://github.com/example/Sharper-Flow/Advance-proxy.git", want: false},
+		{source: "https://github.com/Sharper-Flow/Advance-fork.git", want: false},
+	}
+
+	for _, tt := range tests {
+		got := isAdvancePlugin(tt.source)
+		if got != tt.want {
+			t.Errorf("isAdvancePlugin(%q) = %v, want %v", tt.source, got, tt.want)
+		}
+	}
+}

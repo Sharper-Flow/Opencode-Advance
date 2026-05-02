@@ -10,6 +10,7 @@ import (
 
 func newMigrateCmd(state *commandState) *cobra.Command {
 	var outputPath string
+	var dryRun bool
 
 	cmd := &cobra.Command{
 		Use:   "migrate",
@@ -35,7 +36,7 @@ Always review the generated stack.toml before running 'oca apply'.`,
 				return fmt.Errorf("read open-chad state: %w", err)
 			}
 
-			if cmd.Flags().Changed("dry-run") {
+			if dryRun {
 				// In dry-run mode, just print summary
 				fmt.Fprintf(cmd.OutOrStdout(), "# Dry run: would read from:\n")
 				fmt.Fprintf(cmd.OutOrStdout(), "#   open-chad repo: %s\n", cfg.OpenChadRepo)
@@ -70,7 +71,7 @@ Always review the generated stack.toml before running 'oca apply'.`,
 		},
 	}
 	fromOpenChadCmd.Flags().StringVarP(&outputPath, "output", "o", "", "Write output to file instead of stdout")
-	fromOpenChadCmd.Flags().Bool("dry-run", false, "Print what would be migrated without writing")
+	fromOpenChadCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print what would be migrated without writing")
 
 	// init subcommand
 	initCmd := &cobra.Command{

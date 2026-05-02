@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 
 	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
 )
@@ -125,7 +124,5 @@ func CheckADVPlugin(ctx context.Context, stack *cfg.Stack, opts Options) ([]Chec
 }
 
 func isAdvancePlugin(source string) bool {
-	return source == "https://github.com/Sharper-Flow/Advance.git" ||
-		source == "github.com/Sharper-Flow/Advance" ||
-		strings.Contains(source, "Sharper-Flow/Advance")
+	return normalizeGitURL(source) == "github.com/Sharper-Flow/Advance"
 }

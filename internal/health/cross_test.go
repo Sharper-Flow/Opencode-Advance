@@ -147,3 +147,14 @@ func TestUrlsMatch(t *testing.T) {
 		}
 	}
 }
+
+func TestResolvePathAssets(t *testing.T) {
+	assetsRoot := filepath.Join(t.TempDir(), "assets")
+	got := resolvePath("{assets}/instructions/identity.md", Options{
+		SkillsAssetsRoot: filepath.Join(assetsRoot, "skills"),
+	})
+	want := filepath.Join(assetsRoot, "instructions", "identity.md")
+	if got != want {
+		t.Fatalf("resolvePath assets = %q, want %q", got, want)
+	}
+}

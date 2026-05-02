@@ -103,7 +103,7 @@ func CheckCross(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check, e
 	// 3. Instruction paths exist
 	missingInstr := 0
 	for _, path := range stack.Instructions.Order {
-		resolved := resolvePath(path, opts.ConfigDir)
+		resolved := resolvePath(path, opts)
 		if _, err := os.Stat(resolved); err != nil {
 			missingInstr++
 			checks = append(checks, Check{
@@ -132,9 +132,9 @@ func CheckCross(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check, e
 			Message: "Agent configs not rendered — provider reference check skipped",
 		})
 	} else {
-		// TODO: parse agent configs and verify provider model references
-		// This requires reading agent markdown files and extracting model references.
-		// Deferring to a future enhancement — mark as pass with note.
+		// Agent model reference parsing is intentionally deferred until OCA owns
+		// agent rendering. The check remains visible so users know the dimension
+		// exists, without failing current v1 configurations.
 		checks = append(checks, Check{
 			Name:    "agent-provider-refs",
 			Status:  StatusPass,
@@ -172,28 +172,31 @@ func readGitRemoteURL(dir string) (string, error) {
 
 // urlsMatch compares two git URLs for equality, normalizing common variations.
 func urlsMatch(a, b string) bool {
-	// Normalize by removing trailing .git and protocol prefixes
-	normalize := func(s string) string {
-		s = strings.TrimSuffix(s, ".git")
-		s = strings.TrimPrefix(s, "https://")
-		s = strings.TrimPrefix(s, "http://")
-		s = strings.TrimPrefix(s, "git@")
-		s = strings.Replace(s, ":", "/", 1)
-		return s
-	}
-	return normalize(a) == normalize(b)
+	return normalizeGitURL(a) == normalizeGitURL(b)
+}
+
+func normalizeGitURL(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.TrimSuffix(s, ".git")
+	s = strings.TrimPrefix(s, "https://")
+	s = strings.TrimPrefix(s, "http://")
+	s = strings.TrimPrefix(s, "ssh://")
+	s = strings.TrimPrefix(s, "git@")
+	s = strings.Replace(s, ":", "/", 1)
+	return s
 }
 
 // resolvePath expands {assets} and ~ tokens in instruction paths.
-func resolvePath(path, configDir string) string {
+func resolvePath(path string, opts Options) string {
 	if strings.HasPrefix(path, "~/") {
 		home, _ := os.UserHomeDir()
 		path = filepath.Join(home, path[2:])
 	}
 	if strings.HasPrefix(path, "{assets}/") {
-		// Assets are relative to the repo root, not config dir
-		// For doctor checks, we can't resolve this precisely
-		// Return as-is and let the stat fail gracefully
+		if opts.SkillsAssetsRoot != "" {
+			assetsRoot := filepath.Dir(opts.SkillsAssetsRoot)
+			return filepath.Join(assetsRoot, strings.TrimPrefix(path, "{assets}/"))
+		}
 	}
 	return path
 }

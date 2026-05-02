@@ -13,7 +13,7 @@ import (
 
 // ReaderConfig controls where ReadOpenChadState looks for source data.
 type ReaderConfig struct {
-	OpenChadRepo     string // path to open-chad checkout (e.g. ~/dev/open-chad)
+	OpenChadRepo      string // path to open-chad checkout (e.g. ~/dev/open-chad)
 	OpenCodeConfigDir string // path to opencode config (e.g. ~/.config/opencode)
 	VisionConfigDir   string // path to vision config (e.g. ~/.config/vision)
 	OcPluginsDir      string // path to plugin checkouts (e.g. ~/dev/oc-plugins)
@@ -94,11 +94,11 @@ type ModelState struct {
 }
 
 type LimitState struct {
-	Tokens   *int
-	TPM      *int
-	RPM      *int
-	Image    *int
-	Audio    *int
+	Tokens *int
+	TPM    *int
+	RPM    *int
+	Image  *int
+	Audio  *int
 }
 
 type PermissionsState struct {
@@ -154,13 +154,13 @@ type OpenCodeState struct {
 // filesystem. Each source is optional — missing sources produce warnings.
 func ReadOpenChadState(cfg ReaderConfig) (*OpenChadState, error) {
 	state := &OpenChadState{
-		MCPServers:   make(map[string]MCPServerState),
-		SlotGroups:   make(map[string]SlotGroupState),
-		Providers:    make(map[string]ProviderState),
-		LSP:          make(map[string]LSPEntryState),
-		Formatters:   make(map[string]FormatterState),
-		Commands:     make(map[string]CommandState),
-		Warnings:     []string{},
+		MCPServers:     make(map[string]MCPServerState),
+		SlotGroups:     make(map[string]SlotGroupState),
+		Providers:      make(map[string]ProviderState),
+		LSP:            make(map[string]LSPEntryState),
+		Formatters:     make(map[string]FormatterState),
+		Commands:       make(map[string]CommandState),
+		Warnings:       []string{},
 		SkippedSources: []string{},
 	}
 
@@ -410,7 +410,7 @@ func discoverPlugins(dir string, state *OpenChadState) error {
 		// Find matching plugin in state by checkout path
 		found := false
 		for i := range state.Plugins {
-			if strings.Contains(state.Plugins[i].Checkout, entry.Name()) {
+			if pluginCheckoutMatches(state.Plugins[i].Checkout, entry.Name()) {
 				state.Plugins[i].Checkout = checkout
 				// Try to read remote URL
 				if url, err := readGitRemoteURL(checkout); err == nil {
@@ -440,6 +440,14 @@ func discoverPlugins(dir string, state *OpenChadState) error {
 	}
 
 	return nil
+}
+
+func pluginCheckoutMatches(checkout, name string) bool {
+	clean := filepath.Clean(checkout)
+	if filepath.Base(clean) == name {
+		return true
+	}
+	return filepath.Base(clean) == "plugin" && filepath.Base(filepath.Dir(clean)) == name
 }
 
 func readGitRemoteURL(dir string) (string, error) {

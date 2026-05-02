@@ -163,6 +163,26 @@ func TestReadOpenChadState_Full(t *testing.T) {
 	}
 }
 
+func TestPluginCheckoutMatches(t *testing.T) {
+	tests := []struct {
+		checkout string
+		name     string
+		want     bool
+	}{
+		{checkout: "/tmp/oc-plugins/advance", name: "advance", want: true},
+		{checkout: "/tmp/oc-plugins/advance/plugin", name: "advance", want: true},
+		{checkout: "/tmp/oc-plugins/advance-proxy", name: "advance", want: false},
+		{checkout: "/tmp/oc-plugins/foo/plugin", name: "bar", want: false},
+	}
+
+	for _, tt := range tests {
+		got := pluginCheckoutMatches(tt.checkout, tt.name)
+		if got != tt.want {
+			t.Errorf("pluginCheckoutMatches(%q, %q) = %v, want %v", tt.checkout, tt.name, got, tt.want)
+		}
+	}
+}
+
 func TestReadOpenChadState_MissingVisionConfig(t *testing.T) {
 	cfg, cleanup := setupOpenChadFixture(t)
 	defer cleanup()
