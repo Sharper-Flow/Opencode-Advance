@@ -12,9 +12,6 @@ This directory holds bash scripts that handle integration with tmux, the shell, 
 | `session_lifecycle.sh`       | tmux session creation / list primitives (shell counterpart to `internal/session/`) | 4     |
 | `status_bar.sh`              | Tmux status bar renderer (row 0: session/git/ADV state/host/clock; row 1: window list/LLM gauges/date) | 4     |
 | `obsidian.tmux.conf`         | *(moved to `assets/themes/` — referenced by `resolveTmuxConf()` at runtime)* | 4     |
-| `discord/setup.sh`           | Discord Rich Presence wizard (enable/disable/status)         | 8     |
-| `discord/update.sh`          | Rate-limited Discord presence updater                        | 8     |
-| `discord/taglines.toml`      | Data-driven tagline pool (new, non-"chad" era)             | 8     |
 
 ## Why bash here?
 
@@ -29,4 +26,4 @@ The Go CLI (`cmd/oca/`) handles everything else — parsing, validation, renderi
 
 ## Status
 
-Populated through Phases 0 and 4. Current files: `palette.sh`, `wordmark.sh`, `boot_splash.sh`, `session_lifecycle.sh`, `status_bar.sh`, `adv_status.sh`, `llm_gauge.sh`. Discord scripts are Phase 8.
+Populated through Phases 0 and 4. Current files: `palette.sh`, `wordmark.sh`, `boot_splash.sh`, `session_lifecycle.sh`, `status_bar.sh`, `adv_status.sh`, `llm_gauge.sh`. Discord runtime code now lives in `cmd/oca/discord.go` and `internal/discord/`; tagline data lives in `assets/discord/taglines.toml`.

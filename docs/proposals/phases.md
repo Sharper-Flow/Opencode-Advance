@@ -468,12 +468,14 @@ Phase 6 shipped the installer, uninstaller, shell completion, and shell profile 
 
 ## Phase 8: Extras + Polish
 
+**Status:** Release-candidate implementation — `phase8ExtrasPolishDiscord`.
+
 **Goal:** Discord integration (with new taglines), release pipeline, final README, polish pass.
 
 **Estimate:** 3-5 days
 
-- `lib/discord/` — ported and rewritten Discord Rich Presence integration
-- `lib/discord/taglines.toml` — all new taglines (data-driven, no "chad" era jokes)
+- `cmd/oca/discord.go` + `internal/discord/` — Go-native Discord Rich Presence integration
+- `assets/discord/taglines.toml` — all new taglines (data-driven, no "chad" era jokes)
 - `cmd/oca/discord.go` — `oca discord enable/disable/status`
 - `.github/workflows/release.yml` — goreleaser release pipeline
 - `.goreleaser.yaml` — cross-platform build config
@@ -582,9 +584,9 @@ The following commands are documented as planned but have no phase assignment ye
 | 6: Installer + shell                         | 4-5 days    | ✓ Complete  |
 | 6.5: Temporal dev-server supervision          | 2-3 days    | ✓ Shipped   |
 | 7: Migration + doctor                        | 4-5 days    | ✓ Complete  |
-| 8: Extras + polish                           | 3-5 days    | Not started |
+| 8: Extras + polish                           | 3-5 days    | RC shipped   |
 
-**Total shipped: Phases 0–7 (8.5–10.5 weeks).** Remaining: Phase 8 (3–5 days).
+**Total shipped: Phases 0–8 (11.5–15.5 weeks).** Remaining before v1.0: release-candidate smoke validation and tag publication.
 
 ---
 

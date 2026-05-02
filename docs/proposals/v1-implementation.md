@@ -17,9 +17,11 @@ This document is the source material for the first ADV change in this repository
 - Phase 5.5 (`addVisionSlotGroupSupport`) is complete, archived, and merged to `trunk`
 - Out-of-phase hardening (`ocadoctorassetdrift`) is complete, archived, and merged to `trunk`; `oca doctor --scope adv-assets` now covers plugin/OCA asset ownership drift
 - Phase 6 (installer + shell profile) is complete, archived, and merged to `trunk`
+- Phase 6.5 (`phase65TemporalDevServer`) is complete, archived, and merged to `trunk`
+- Phase 7 (`phase7MigrationOpenChadDoctor`) is complete, archived, and merged to `trunk`
+- Phase 8 (`phase8ExtrasPolishDiscord`) is implemented as the v1.0 release-candidate change
 - Out-of-phase: operator dashboard (`oca dashboard`), pane management (`oca pane`), session watchdog (`oca watchdog`), Temporal CLI detection (`internal/temporal/detect.go`)
-- Current recommended next phase: **Phase 6.5 (Temporal dev-server supervision) or Phase 7: Migration + Doctor Expansion**
-- This document remains the umbrella roadmap for the full v1.0 effort
+- This document remains the umbrella roadmap and historical context for the v1.0 effort
 
 ---
 

@@ -39,7 +39,7 @@ stack.toml
         └─► skills/ (OCA-owned skill directories copied from assets/skills/)
 ```
 
-OCA now renders skills, commands, formatters, and OpenCode toggles (Phase 3.5). Phase 4 foundation adds session lifecycle (`internal/session/`, `cmd/oca/session.go`) and theme assets (`assets/themes/`, `templates/tmux.conf.block.gotmpl`). OCA still does **not** render agents, discord, or apply theme/session config through `oca apply`. Those sections remain deferred for later phases.
+OCA renders skills, commands, formatters, OpenCode toggles, session settings, and Discord configuration. Phase 4 foundation added session lifecycle (`internal/session/`, `cmd/oca/session.go`) and theme assets (`assets/themes/`, `templates/tmux.conf.block.gotmpl`). Phase 8 promotes Discord from deferred config to typed runtime support through `cmd/oca/discord.go` and `internal/discord/`. OCA still does **not** render agents through `oca apply`; agents remain deferred.
 
 ## Subsystems
 
@@ -48,8 +48,8 @@ OCA now renders skills, commands, formatters, and OpenCode toggles (Phase 3.5). 
 Config is typed where implementation exists and deferred where ownership is intentionally postponed.
 
 - Parses TOML with `github.com/BurntSushi/toml`
-- Decodes typed sections: `Meta`, `MCP`, `Plugins`, `Instructions`, `Temporal`, `Providers`, `Permissions`, `Watcher`, `LSP`, `Skills`, `Formatters`, `Commands`, `OpenCode`
-- Preserves deferred future sections in `Stack.DeferredSections` (`agents`, `session`, `discord`)
+- Decodes typed sections: `Meta`, `MCP`, `Plugins`, `Instructions`, `Temporal`, `Providers`, `Permissions`, `Watcher`, `LSP`, `Skills`, `Formatters`, `Commands`, `OpenCode`, `Session`, `Discord`
+- Preserves deferred future sections in `Stack.DeferredSections` (`agents`)
 - Resolves shell-style paths and env variables in-place
 - Emits aggregated field-path validation errors
 - Collects non-fatal `env_file` warnings
