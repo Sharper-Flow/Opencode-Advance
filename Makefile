@@ -1,7 +1,10 @@
 # OpenCode Advance — Makefile
 #
 # Standard targets for local development. The real build pipeline runs in CI
-# via goreleaser (configured in Phase 7).
+# via goreleaser (configured in Phase 8).
+
+VERSION ?= 0.0.0-dev
+LDFLAGS ?= -X main.version=$(VERSION)
 
 .PHONY: help build test shell-test vet fmt check clean baseline-check
 
@@ -20,7 +23,7 @@ help:
 
 build:
 	@mkdir -p bin
-	go build -o bin/oca ./cmd/oca
+	go build -ldflags "$(LDFLAGS)" -o bin/oca ./cmd/oca
 
 test:
 	go test ./...
