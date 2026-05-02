@@ -4,8 +4,10 @@ go 1.24.0
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/hugolgst/rich-go v0.0.0-20240715122152-74618cc1ace2
 	github.com/spf13/cobra v1.9.1
 	github.com/starfederation/datastar-go v1.2.1
+	go.temporal.io/api v1.62.11
 	go.temporal.io/sdk v1.43.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -29,7 +31,6 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	go.temporal.io/api v1.62.11 // indirect
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
@@ -39,4 +40,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260120221211-b8f7ae30c516 // indirect
 	google.golang.org/grpc v1.79.3 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
+	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 )
