@@ -44,6 +44,9 @@ type Stack struct {
 	// Session typed section (promoted from deferred)
 	Session *SessionSection `toml:"session,omitempty"`
 
+	// Discord typed section (promoted from deferred)
+	Discord *DiscordSection `toml:"discord,omitempty"`
+
 	// DeferredSections holds known-but-unimplemented top-level sections
 	// verbatim so that a complete stack.toml (including future-phase
 	// sections) round-trips through Phase 1 without errors. Entries are
@@ -831,6 +834,58 @@ func (w *WatchdogConfig) UnmarshalTOML(value any) error {
 				w.MaxBumps = n
 			}
 		}
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Discord section (promoted from deferred)
+// ---------------------------------------------------------------------------
+
+// DiscordSection is the [discord] table. It controls Discord Rich Presence
+// integration for OCA-managed tmux sessions.
+type DiscordSection struct {
+	Enabled bool           `toml:"enabled"`
+	Mode    string         `toml:"mode,omitempty"`
+	AppID   string         `toml:"app_id,omitempty"`
+	Extra   map[string]any `toml:"-"`
+}
+
+// UnmarshalTOML implements custom decoding for DiscordSection to capture
+// forward-compatible unknown fields while validating known field types.
+func (d *DiscordSection) UnmarshalTOML(value any) error {
+	m, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("expected table for discord, got %T", value)
+	}
+
+	extra := make(map[string]any)
+	for k, v := range m {
+		switch k {
+		case "enabled":
+			b, ok := v.(bool)
+			if !ok {
+				return fmt.Errorf("enabled: expected bool, got %T", v)
+			}
+			d.Enabled = b
+		case "mode":
+			s, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("mode: expected string, got %T", v)
+			}
+			d.Mode = s
+		case "app_id":
+			s, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("app_id: expected string, got %T", v)
+			}
+			d.AppID = s
+		default:
+			extra[k] = v
+		}
+	}
+	if len(extra) > 0 {
+		d.Extra = extra
 	}
 	return nil
 }

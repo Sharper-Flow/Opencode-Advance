@@ -342,8 +342,8 @@ unknown_lsp_field = "ignored"
 	}
 }
 
-// TestPhase3Sections_AllDeferred verifies that agents, session, discord, skills,
-// formatters, commands, and opencode remain in DeferredSections after Phase 3.
+// TestPhase3Sections_AllDeferred verifies that agents remain deferred while
+// promoted sections parse into typed fields.
 func TestPhase3Sections_AllDeferred(t *testing.T) {
 	toml := `
 [meta]
@@ -365,10 +365,13 @@ model = "openai/gpt-5"
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	remaining := []string{"agents", "discord"}
+	remaining := []string{"agents"}
 	for _, section := range remaining {
 		if _, ok := stack.DeferredSections[section]; !ok {
 			t.Errorf("%s should remain in DeferredSections", section)
 		}
+	}
+	if stack.Discord == nil {
+		t.Fatal("discord should parse into typed Discord field")
 	}
 }

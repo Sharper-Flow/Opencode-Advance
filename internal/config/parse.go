@@ -238,6 +238,13 @@ func Parse(data []byte) (*Stack, error) {
 			}
 			stack.Session = ss
 
+		case "discord":
+			ds := &DiscordSection{}
+			if err := decodeInto(v, ds); err != nil {
+				return nil, &ParseError{Err: fmt.Errorf("[discord]: %w", err)}
+			}
+			stack.Discord = ds
+
 		default:
 			// Known-but-unimplemented OR truly unknown — defer the
 			// classification to Validate so all errors can be aggregated
