@@ -177,6 +177,7 @@ func urlsMatch(a, b string) bool {
 
 func normalizeGitURL(s string) string {
 	s = strings.TrimSpace(s)
+	s = strings.TrimSuffix(s, "/")
 	s = strings.TrimSuffix(s, ".git")
 	s = strings.TrimPrefix(s, "https://")
 	s = strings.TrimPrefix(s, "http://")

@@ -108,6 +108,42 @@ func TestCheckCross_PluginMatch(t *testing.T) {
 	}
 }
 
+func TestCheckCross_TrailingSlashNoDrift(t *testing.T) {
+	tmpDir := t.TempDir()
+	checkoutDir := filepath.Join(tmpDir, "advance")
+	os.MkdirAll(checkoutDir, 0755)
+	gitDir := filepath.Join(checkoutDir, ".git")
+	os.MkdirAll(gitDir, 0755)
+	configContent := `[remote "origin"]
+	url = https://github.com/Sharper-Flow/Advance.git/
+`
+	os.WriteFile(filepath.Join(gitDir, "config"), []byte(configContent), 0644)
+
+	stack := &cfg.Stack{
+		Plugins: cfg.PluginsSection{
+			"advance": {
+				Source:   "https://github.com/Sharper-Flow/Advance.git",
+				Checkout: checkoutDir,
+			},
+		},
+	}
+
+	checks, err := CheckCross(context.Background(), stack, Options{})
+	if err != nil {
+		t.Fatalf("CheckCross failed: %v", err)
+	}
+
+	found := false
+	for _, c := range checks {
+		if c.Name == "plugin-drift-advance" && c.Status == StatusPass {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected trailing slash to be normalised, not reported as drift")
+	}
+}
+
 func TestCheckCross_InstructionMissing(t *testing.T) {
 	stack := &cfg.Stack{
 		Instructions: cfg.InstructionsSection{

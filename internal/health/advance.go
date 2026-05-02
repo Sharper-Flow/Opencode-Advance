@@ -82,12 +82,20 @@ func CheckADVPlugin(ctx context.Context, stack *cfg.Stack, opts Options) ([]Chec
 		buildArtifact = filepath.Join(checkout, advancePlugin.Subdir, "dist", "index.js")
 	}
 
-	if _, err := os.Stat(buildArtifact); err != nil {
+	info, err := os.Stat(buildArtifact)
+	if err != nil {
 		checks = append(checks, Check{
 			Name:    "advance-build-artifact",
 			Status:  StatusFail,
 			Message: "Advance build artifact not found: " + buildArtifact,
 			Hint:    "Run 'oca update advance' to build the plugin",
+		})
+	} else if info.Size() == 0 {
+		checks = append(checks, Check{
+			Name:    "advance-build-artifact",
+			Status:  StatusFail,
+			Message: "Advance build artifact is empty: " + buildArtifact,
+			Hint:    "Run 'oca update advance' to rebuild the plugin",
 		})
 	} else {
 		checks = append(checks, Check{

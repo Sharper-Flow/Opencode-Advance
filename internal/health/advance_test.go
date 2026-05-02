@@ -93,6 +93,43 @@ func TestCheckADVPlugin_Full(t *testing.T) {
 	}
 }
 
+func TestCheckADVPlugin_EmptyArtifact(t *testing.T) {
+	tmpDir := t.TempDir()
+	checkoutDir := filepath.Join(tmpDir, "advance")
+	os.MkdirAll(checkoutDir, 0755)
+	os.MkdirAll(filepath.Join(checkoutDir, "dist"), 0755)
+	os.WriteFile(filepath.Join(checkoutDir, "dist", "index.js"), []byte(""), 0644)
+
+	stack := &cfg.Stack{
+		Plugins: cfg.PluginsSection{
+			"advance": {
+				Source:   "https://github.com/Sharper-Flow/Advance.git",
+				Checkout: checkoutDir,
+			},
+		},
+	}
+
+	checks, err := CheckADVPlugin(context.Background(), stack, Options{})
+	if err != nil {
+		t.Fatalf("CheckADVPlugin failed: %v", err)
+	}
+
+	// Should have: declared (pass), checkout (pass), build (fail/warn), state (warn or pass)
+	if len(checks) < 3 {
+		t.Fatalf("expected at least 3 checks, got %d", len(checks))
+	}
+
+	if checks[0].Status != StatusPass {
+		t.Errorf("declared: expected pass, got %s", checks[0].Status)
+	}
+	if checks[1].Status != StatusPass {
+		t.Errorf("checkout: expected pass, got %s", checks[1].Status)
+	}
+	if checks[2].Status != StatusFail {
+		t.Errorf("build: expected fail for empty artifact, got %s", checks[2].Status)
+	}
+}
+
 func TestIsAdvancePlugin(t *testing.T) {
 	tests := []struct {
 		source string
