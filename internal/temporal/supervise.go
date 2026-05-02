@@ -174,6 +174,11 @@ func (s Supervisor) Start(ctx context.Context, stack *cfg.Stack) (Status, error)
 	return EvaluateStatus(ctx, stack, paths, probes)
 }
 
+// Status returns current Temporal supervisor status.
+func (s Supervisor) Status(ctx context.Context, stack *cfg.Stack) (Status, error) {
+	return EvaluateStatus(ctx, stack, s.paths(), s.probes())
+}
+
 // Stop terminates only the OCA-managed Temporal process group.
 func (s Supervisor) Stop(ctx context.Context, stack *cfg.Stack) (Status, error) {
 	paths := s.paths()
