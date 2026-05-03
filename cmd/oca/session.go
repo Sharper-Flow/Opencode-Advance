@@ -4,15 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/Sharper-Flow/Opencode-Advance/internal/advruntime"
+	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
 	"github.com/Sharper-Flow/Opencode-Advance/internal/session"
 	"github.com/Sharper-Flow/Opencode-Advance/internal/subprocess"
 	"github.com/spf13/cobra"
+	operatorservicepb "go.temporal.io/api/operatorservice/v1"
+	workflowservicepb "go.temporal.io/api/workflowservice/v1"
+	"google.golang.org/grpc"
 )
 
 // newSessionCmd creates the "oca session" command group.
@@ -71,6 +76,18 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 
+			// Load stack config once — drives theme, watchdog, reaper, and
+			// boot-splash decisions below. Failures are non-fatal: each
+			// consumer falls back to v1 defaults so `oca session new` still
+			// works in fresh environments before stack.toml exists.
+			stack, stackErr := loadStack(state)
+
+			// Preflight: warn about ADV runtime debt before creating session.
+			// Never blocks session creation — warnings only.
+			if stackErr == nil {
+				runSessionPreflight(ctx, cmd.ErrOrStderr(), stack)
+			}
+
 			// Auto-generate name if not provided
 			if sessionName == "" {
 				sessionName, err = mgr.NextSessionName(ctx, repoSlug)
@@ -78,12 +95,6 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 					return newCLIError(1, "generate session name: %v", err)
 				}
 			}
-
-			// Load stack config once — drives theme, watchdog, reaper, and
-			// boot-splash decisions below. Failures are non-fatal: each
-			// consumer falls back to v1 defaults so `oca session new` still
-			// works in fresh environments before stack.toml exists.
-			stack, stackErr := loadStack(state)
 
 			// Resolve tmux conf from configured theme (default "obsidian"
 			// on missing config or unset theme; empty conf path on unknown
@@ -668,6 +679,76 @@ func newSessionDoctorCmd(state *commandState) *cobra.Command {
 	cmd.Flags().StringVar(&backupDir, "backup-dir", "", "Directory to store database backup before deletion (required with --apply)")
 
 	return cmd
+}
+
+// operatorServiceAdapter adapts the gRPC client to advruntime.OperatorService.
+type operatorServiceAdapter struct {
+	client interface {
+		ListSearchAttributes(context.Context, *operatorservicepb.ListSearchAttributesRequest, ...grpc.CallOption) (*operatorservicepb.ListSearchAttributesResponse, error)
+	}
+}
+
+func (a *operatorServiceAdapter) ListSearchAttributes(ctx context.Context, req *operatorservicepb.ListSearchAttributesRequest) (*operatorservicepb.ListSearchAttributesResponse, error) {
+	return a.client.ListSearchAttributes(ctx, req)
+}
+
+// workflowServiceAdapter adapts the gRPC client to advruntime.WorkflowService.
+type workflowServiceAdapter struct {
+	client interface {
+		ListWorkflowExecutions(context.Context, *workflowservicepb.ListWorkflowExecutionsRequest, ...grpc.CallOption) (*workflowservicepb.ListWorkflowExecutionsResponse, error)
+		DescribeTaskQueue(context.Context, *workflowservicepb.DescribeTaskQueueRequest, ...grpc.CallOption) (*workflowservicepb.DescribeTaskQueueResponse, error)
+	}
+}
+
+func (a *workflowServiceAdapter) ListWorkflowExecutions(ctx context.Context, req *workflowservicepb.ListWorkflowExecutionsRequest) (*workflowservicepb.ListWorkflowExecutionsResponse, error) {
+	return a.client.ListWorkflowExecutions(ctx, req)
+}
+
+func (a *workflowServiceAdapter) DescribeTaskQueue(ctx context.Context, req *workflowservicepb.DescribeTaskQueueRequest) (*workflowservicepb.DescribeTaskQueueResponse, error) {
+	return a.client.DescribeTaskQueue(ctx, req)
+}
+
+// runSessionPreflight inspects ADV runtime state and prints warnings to stderr.
+// It never blocks or fails — warnings are purely advisory.
+func runSessionPreflight(ctx context.Context, stderr io.Writer, stack *cfg.Stack) {
+	if stack.Temporal == nil || stack.Temporal.Address == "" {
+		return // Temporal not configured — nothing to preflight
+	}
+
+	config := advruntime.Config{
+		Address:   stack.Temporal.Address,
+		Namespace: stack.Temporal.Namespace,
+	}
+	if config.Namespace == "" {
+		config.Namespace = advruntime.DefaultNamespace
+	}
+
+	provider := advruntime.NewTemporalClientProvider(config, nil)
+	defer provider.Close()
+
+	client, err := provider.Client(ctx)
+	if err != nil {
+		fmt.Fprintf(stderr, "warning: ADV preflight: Temporal unreachable: %v\n", err)
+		return
+	}
+
+	// Check search attributes
+	checker := advruntime.NewSearchAttributeChecker(&operatorServiceAdapter{client.OperatorService()}, config)
+	report, _ := checker.Check(ctx)
+	for _, attr := range report.SearchAttributes {
+		if attr.Status == advruntime.StatusFail || attr.Status == advruntime.StatusUnknown {
+			fmt.Fprintf(stderr, "warning: ADV search attribute %s is %s: %s\n", attr.Name, attr.Status, attr.Message)
+		}
+	}
+
+	// Check workflow queues
+	classifier := advruntime.NewWorkflowClassifier(&workflowServiceAdapter{client.WorkflowService()}, config, nil)
+	report, _ = classifier.Classify(ctx)
+	for _, queue := range report.WorkflowQueues {
+		if queue.Status == advruntime.StatusWarn || queue.Status == advruntime.StatusFail {
+			fmt.Fprintf(stderr, "warning: ADV queue %s: %s\n", queue.TaskQueue, queue.Message)
+		}
+	}
 }
 
 func defaultOpenCodeDBPath() string {
