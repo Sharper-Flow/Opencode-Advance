@@ -2,7 +2,7 @@
 
 This document is the canonical high-level architecture reference for the code that is **actually implemented today**.
 
-Current implemented scope on this branch is **Phase 0 through Phase 7 complete, plus out-of-phase dashboard/pane/watchdog/temporal-detect**:
+Current implemented scope on this branch is **Phase 0 through Phase 7 complete, plus ADV runtime hardening (work-in-progress)**:
 
 - `stack.toml` parsing for `[meta]`, `[mcp]`, `[plugins]`, `[instructions]`, `[providers]`, `[permissions]`, `[watcher]`, `[lsp]`, `[skills]`, `[commands]`, `[formatters]`, `[opencode]`, `[temporal]`, plus deferred future sections
 - `oca apply --target mcp|plugins|instructions|providers|permissions|watcher|lsp|skills|commands|formatters|toggles|temporal`
@@ -159,6 +159,20 @@ Current defaults:
 - per-request timeout: caller-controlled, defaulted by CLI
 - execution model: sequential, not worker-pooled
 
+### 3.5. ADV Runtime (`internal/advruntime/`)
+
+ADV runtime diagnostics layer. Read-only by default; never silently mutates ADV workflow state.
+
+- `Report` data model aggregates findings from all scanners
+- `WorkflowClassifier` lists Running ADV workflows via Temporal visibility, groups by task queue, detects stale queues (no pollers + stale age)
+- `SearchAttributeChecker` verifies required ADV search attributes via `ListSearchAttributes`
+- `SessionDebtScanner` classifies repairable blank assistant messages in OpenCode SQLite DB
+- `WorktreeCensus` scans OCA worktree roots and ADV project state roots
+- `RecoveryPlanSynthesizer` emits ordered dry-run recovery steps from a report
+- `ClientProvider` manages lazy/idempotent Temporal client lifecycle
+- Narrow interfaces (`WorkflowService`, `OperatorService`) for testability without live Temporal
+- All thresholds tunable via `Config` with conservative defaults
+
 ### 4. Session (`internal/session/`)
 
 Phase 4 foundation. Manages OCA tmux sessions on a dedicated socket.
@@ -193,7 +207,7 @@ Current shipped commands:
 - `oca version`
 - `oca apply [--target ...]` (targets: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles, temporal)
 - `oca diff`
-- `oca doctor --scope mcp|plugins|skills|temporal|adv-assets|adv-plugin|cross`
+- `oca doctor --scope mcp|plugins|skills|temporal|adv-assets|adv-plugin|adv-runtime|cross`
 - `oca debug plan`
 - `oca debug validate`
 - `oca pin` and `oca update`
@@ -205,6 +219,8 @@ Current shipped commands:
 - `oca dashboard [--bind <addr>] [--port <n>] [--no-open]`
 - `oca pane` and `oca watchdog`
 - `oca temporal status/start/stop/restart/logs` (Phase 6.5, shipped)
+- `oca session doctor [--db] [--threshold] [--apply --backup-dir]` (ADV runtime hardening)
+- `oca adv recover --dry-run [--project] [--change]` (ADV runtime hardening)
 
 Shared shipped flags:
 
