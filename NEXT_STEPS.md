@@ -2,6 +2,17 @@
 
 This file is the fastest way to resume work in `~/dev/opencodeadvance` later.
 
+## Quick answer: what's next on roadmap?
+
+Two parallel tracks, in priority order:
+
+| Priority | Track | What | Blocked by |
+|---|---|---|---|
+| 1 | **Finish v1.0** | Phase 8 release-candidate validation + tag publication. Phase 8 work is RC-shipped; remaining is smoke test and `git tag v1.0.0`. See `docs/proposals/phases.md` § "Phase 8: Extras + Polish". | Nothing |
+| 2 | **Post-v1 session architecture** | 7-change split decision-locked 2026-05-03. Pattern B session topology + graceful hibernation + tmux-resurrect on the OCA side; idle worker reaper + peer-session topology + sync-global prompt-ref fix on the ADV side; OCA umbrella plugin install as prereq. See `docs/proposals/phases.md` § "Post-v1: Session & Resource Architecture" + `docs/proposals/2026-05-03-session-and-resource-architecture.md` for the parent decision lock. | **ADV change #6 (`syncGlobalPromptRefSingleFile`) must ship first** — current OpenCode 1.14.33 does not expand multi-`{file:...}` refs in `agent.X.prompt`, so ADV provider variants run in degraded persona until it ships. Workaround C in place locally; next fresh session has a working ADV agent. See [`docs/proposals/2026-05-03-adv-sync-prompt-ref-fix.md`](docs/proposals/2026-05-03-adv-sync-prompt-ref-fix.md). |
+
+If asked "what's next" without further context: confirm v1.0 finalization (track 1) before starting any of the 7 post-v1 changes (track 2).
+
 ## Current state
 
 - Repository scaffold exists and is pushed to `origin/trunk`
