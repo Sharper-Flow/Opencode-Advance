@@ -214,6 +214,8 @@ Advance now uses **Temporal as its primary state backend**. Key implications for
 - `adv-researcher` promoted from repo-scoped to bundled global
 - Worker model: in-process (Node hosts) or out-of-process child (Bun hosts via `ADV_NODE_PATH`)
 - Continue-as-new prevents unbounded workflow history (configurable thresholds)
+- Recent Advance repair work (`repairTemporalMigrationDebt`) adds cleanup and diagnostic tooling for Temporal/disk divergence. OCA should use that tooling for legacy in-repo `.adv/{changes,archive,db,agenda*}` cleanup instead of manual deletion, and must preserve `.adv/specs/`.
+- Recent Advance worker work (`boundParentProjectWorkflow`) moves toward one Temporal worker per project rather than one worker per OpenCode session. OCA doctor/status logic should avoid process-count assumptions and prefer service/workflow health checks.
 
 ---
 

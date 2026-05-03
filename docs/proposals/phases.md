@@ -626,3 +626,79 @@ The long-term goal: clicking a session row in the dashboard opens or resumes tha
 Architecture implications for v2.0: WebSocket transport alongside SSE, auth model required, network exposure beyond loopback, xterm.js bundle (~200 KB gzip). None of these break v1.0 architecture — they coexist as additional routes on the same Go HTTP server.
 
 Full details, open questions, and reference implementations in the [research note](../notes/2026-05-01-dashboard-architecture-research.md).
+
+---
+
+## Post-v1: Session & Resource Architecture
+
+**Status:** Decision-locked 2026-05-03. **Seven change proposals drafted** (one added 2026-05-03 post-reconnaissance). Drafting via `/adv-proposal` deferred until ADV-side blocker (#6) ships first.
+
+**Goal:** adapt OCA's session topology and resource-sharing model for the operator's actual workload — 8+ concurrent agents per project, 4–5 active projects, on a 42 GB WSL2 ceiling. Replace per-invocation tmux sessions (Pattern A) with session-per-project (Pattern B), surface per-window ADV status markers in the tmux status bar, and add graceful opencode hibernation as the dominant RAM lever (~16 GB savings at 50% idle of 40 agents).
+
+**Decision lock + research trail:**
+
+- Parent doc (decision-lock + lever analysis + research citations): [`./2026-05-03-session-and-resource-architecture.md`](./2026-05-03-session-and-resource-architecture.md)
+- Resolutions for 13 questions (10 from parent §6, 3 from architectural critique) recorded in parent §9
+- Discovery-phase items per change inlined into each child proposal
+
+### Seven-change split
+
+Work splits into **7 ADV changes across 2 repositories** (OCA + ADV plugin), plus the existing in-flight Operator Dashboard track. The split grew from 5 to 7 during 2026-05-03 reconnaissance: ADV #6 surfaced as a blocker (multi-`{file:...}` prompt-ref expansion failure in OpenCode 1.14.33), and OCA #0 surfaced as a prerequisite (the OCA umbrella plugin is not registered in the operator's opencode.json today).
+
+| #     | Change                                                  | Repo            | Effort       | Proposal file                                                                                                  |
+| ----- | ------------------------------------------------------- | --------------- | ------------ | -------------------------------------------------------------------------------------------------------------- |
+| **6** | **sync-global.sh single-ref prompt fix (BLOCKER)**      | **ADV plugin**  | 1–2 hours    | [`./2026-05-03-adv-sync-prompt-ref-fix.md`](./2026-05-03-adv-sync-prompt-ref-fix.md)                           |
+| **0** | **OCA umbrella plugin install (PREREQ for #1, #2)**     | **OCA**         | 1–2 hours    | [`./2026-05-03-oca-plugin-install.md`](./2026-05-03-oca-plugin-install.md)                                     |
+| 1     | Pattern B + per-window status decode + smart `oca` entry | OCA             | 3–6 days     | [`./2026-05-03-pattern-b-session-topology.md`](./2026-05-03-pattern-b-session-topology.md)                     |
+| 2     | Graceful opencode session hibernation                   | OCA             | 2–4 days     | [`./2026-05-03-graceful-hibernation.md`](./2026-05-03-graceful-hibernation.md)                                 |
+| 3     | tmux-resurrect (manual) + concurrency warning polish    | OCA             | ~1 day       | [`./2026-05-03-tmux-resurrect-warning-polish.md`](./2026-05-03-tmux-resurrect-warning-polish.md)               |
+| 4     | Idle Temporal worker reaper                             | ADV plugin      | 1–2 days     | [`./2026-05-03-adv-idle-worker-reaper.md`](./2026-05-03-adv-idle-worker-reaper.md)                             |
+| 5     | Peer-session topology distinction (rescoped from coordinated marker reframe) | ADV plugin | 1–2 hours | [`./2026-05-03-adv-coordinated-session-marker.md`](./2026-05-03-adv-coordinated-session-marker.md) |
+
+**Reconnaissance findings 2026-05-03 (post-decision-lock):**
+
+- ADV #5 was originally scoped as "replace `[ADV:WARN] Concurrent OpenCode sessions detected` with `[ADV:COORDINATED]` info marker." Reconnaissance discovered the marker reframe is **already shipped** — ADV plugin emits `[ADV:PEER_SESSIONS] N peer session(s) active` at info level (not warn) since a prior 2026-04-era change. ADV #5 was rescoped to add only the **topology distinction** (worktree-aware coordinated-vs-conflict classification), reducing effort from 0.5–1 day to 1–2 hours.
+- OCA umbrella plugin (`plugins/oca/`) source exists in OCA repo but is **not registered** in operator's `opencode.json` plugin array (only ADV, claude-max, morph-fast-apply, vision, codex-auth are registered). `~/.local/state/oca/panes/` doesn't exist → no pane state being written. Created OCA #0 to address the gap before #1 + #2 work begins.
+
+ADV-repo proposals (#4, #5, #6) are drafted in this OCA repo for split coherence; each carries an explicit "Filing path" header instructing the operator to move/redraft the proposal in the ADV repo before invoking `/adv-proposal` from inside `~/dev/oc-plugins/advance`.
+
+### Sequencing
+
+| Order | Change                                          | Reason                                                                                                          |
+| ----- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 1     | **ADV #6** — sync-global single-ref prompt fix   | BLOCKER. OpenCode 1.14.33 does not expand multi-`{file:...}` refs in `agent.X.prompt`; ADV provider variants run in degraded persona until fixed. Must ship before any other change can run `/adv-proposal` cleanly. |
+| 2     | **OCA #0** — umbrella plugin install             | PREREQ for #1 + #2. The OCA plugin (writes pane state, hosts watchdog) is not registered in operator's opencode.json today. ~1–2 hour install fix. |
+| 3     | OCA #1 — Pattern B                              | Highest UX value at 8-agent scale; unblocks #2's status surface and the rest of the OCA work.                  |
+| 4     | OCA #2 — Hibernation                            | Dominant RAM lever (~16 GB headroom). Depends on #1's status bar to surface 💤 marker.                          |
+| 5     | OCA #3 — tmux-resurrect + warning polish        | Small composable; can run in parallel with #2.                                                                  |
+| 6     | ADV #4 — Idle worker reaper                     | ADV-repo work; parallelizable with OCA. Lands once worker-singleton handover is verified at 8-agent scale.      |
+| 7     | ADV #5 — Peer-session topology distinction      | Quality-of-life enhancement on existing peer-session detection; lands any time after Pattern B is in operator hands. |
+
+### Workaround in place
+
+Pending ADV #6 ship: `~/.config/opencode/agents/adv-claude.md` body has been manually overwritten with concatenated canonical `adv.md` + claude provider hint. Survives until the next `sync-global.sh --fix` run, which will re-stub it. Backup at `~/.config/opencode/agents/adv-claude.md.bak.20260503-161725`. Workaround documented in #6's proposal §Operator-Side Workaround.
+
+### Composition with Operator Dashboard track
+
+Pattern B (#1) materially improves dashboard rendering — one row per project instead of per-invocation slug clutter. Hibernation (#2) surfaces "5 agents active, 3 hibernated" per row; resume-from-row buttons land at dashboard v1.2. Web terminal (v2.0) gives cross-device session resume that composes with hibernation to extend hibernation across devices. The two tracks are independent: dashboard work continues per its existing v1.1 → v2.0 plan whether session-architecture work has shipped or not.
+
+---
+
+## Post-v1: Context Budget & Instruction Loading Diet
+
+**Status:** Proposal drafted 2026-05-03. Drafting via `/adv-proposal` deferred until ADV provider prompt refs are healthy.
+
+**Goal:** measure and reduce baseline context load without weakening strict tool, shell, MCP, lgrep, morph, security, or ADV safety instructions. OCA should make prompt/tool-schema cost visible before trimming anything.
+
+| Change | Repo | Effort | Proposal file |
+| ------ | ---- | ------ | ------------- |
+| Context Budget Audit + Instruction Loading Diet | OCA, possible ADV follow-up | 1–3 days | [`./2026-05-03-context-budget-audit.md`](./2026-05-03-context-budget-audit.md) |
+
+Planned outcomes:
+
+- Add `oca doctor --scope context` to report estimated baseline context cost.
+- Break down context contributors by instructions, agent prompts, plugin instruction refs, commands, skills, and exposed tool schemas.
+- Compare agent profiles (`adv`, `build`, `explore`, `librarian`, `mechanic`, `general`) by tool count and estimated schema load.
+- Surface top prompt contributors and actionable recommendations.
+- Keep strict tool/safety rules detailed; reduce load through agent-specific exposure and on-demand methodology loading.
+- Investigate whether non-ADV sessions can avoid loading full ADV workflow detail while ADV sessions retain required ADV law.
