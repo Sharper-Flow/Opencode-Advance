@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/Sharper-Flow/Opencode-Advance/internal/advruntime"
 	"github.com/Sharper-Flow/Opencode-Advance/internal/session"
 	"github.com/Sharper-Flow/Opencode-Advance/internal/subprocess"
 	"github.com/spf13/cobra"
@@ -35,6 +37,7 @@ func newSessionCmd(state *commandState) *cobra.Command {
 	cmd.AddCommand(newSessionKillallCmd(state))
 	cmd.AddCommand(newSessionRestartCmd(state))
 	cmd.AddCommand(newSessionReapCmd(state))
+	cmd.AddCommand(newSessionDoctorCmd(state))
 	return cmd
 }
 
@@ -568,4 +571,109 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%dm", int(d.Minutes()))
 	}
 	return fmt.Sprintf("%dh", int(d.Hours()))
+}
+
+func newSessionDoctorCmd(state *commandState) *cobra.Command {
+	var (
+		dbPath    string
+		threshold time.Duration
+		apply     bool
+		backupDir string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "doctor",
+		Short: "Diagnose and clean up stale OpenCode session debt",
+		Long: "Scan the OpenCode SQLite database for stale blank assistant messages. " +
+			"By default, runs in dry-run mode. Use --apply --backup-dir to delete repairable rows.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := validateOutputMode(state.output); err != nil {
+				return err
+			}
+
+			// Resolve DB path
+			if dbPath == "" {
+				dbPath = defaultOpenCodeDBPath()
+			}
+
+			// Open DB
+			db, err := sql.Open("sqlite", dbPath)
+			if err != nil {
+				return newCLIError(1, "open database %s: %v", dbPath, err)
+			}
+			defer db.Close()
+
+			config := advruntime.Config{SessionStaleAfter: threshold}
+			scanner := advruntime.NewSessionDebtScanner(db, config)
+
+			ctx := context.Background()
+			finding, err := scanner.Scan(ctx)
+			if err != nil {
+				return newCLIError(1, "scan session debt: %v", err)
+			}
+
+			// Dry-run mode: just print findings
+			if !apply {
+				if state.output == "json" {
+					return printJSON(cmd.OutOrStdout(), finding)
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "Session doctor (dry-run)\n")
+				fmt.Fprintf(cmd.OutOrStdout(), "  DB:         %s\n", dbPath)
+				fmt.Fprintf(cmd.OutOrStdout(), "  Status:     %s\n", finding.Status)
+				fmt.Fprintf(cmd.OutOrStdout(), "  Repairable: %d\n", finding.Repairable)
+				fmt.Fprintf(cmd.OutOrStdout(), "  Ignored:    %d\n", finding.Ignored)
+				if finding.OldestAge > 0 {
+					fmt.Fprintf(cmd.OutOrStdout(), "  Oldest:     %s\n", finding.OldestAge.Round(time.Second))
+				}
+				if finding.Message != "" {
+					fmt.Fprintf(cmd.OutOrStdout(), "  Message:    %s\n", finding.Message)
+				}
+				if finding.Hint != "" {
+					fmt.Fprintf(cmd.OutOrStdout(), "  Hint:       %s\n", finding.Hint)
+				}
+				return nil
+			}
+
+			// Apply mode: require backup dir
+			if backupDir == "" {
+				return newCLIError(2, "--apply requires --backup-dir for safety")
+			}
+
+			manifest, err := scanner.ApplyDeletion(ctx, advruntime.ApplyDeletionOptions{
+				BackupDir: backupDir,
+			})
+			if err != nil {
+				return newCLIError(1, "apply deletion: %v", err)
+			}
+
+			if state.output == "json" {
+				return printJSON(cmd.OutOrStdout(), map[string]any{
+					"finding":  finding,
+					"manifest": manifest,
+				})
+			}
+
+			fmt.Fprintf(cmd.OutOrStdout(), "Session doctor (APPLY)\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "  DB:        %s\n", dbPath)
+			fmt.Fprintf(cmd.OutOrStdout(), "  Backup:    %s\n", manifest.BackupPath)
+			fmt.Fprintf(cmd.OutOrStdout(), "  Deleted:   %d row(s)\n", len(manifest.DeletedIDs))
+			fmt.Fprintf(cmd.OutOrStdout(), "  Threshold: %s\n", threshold)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&dbPath, "db", "", "Path to OpenCode SQLite database (default: $XDG_DATA_HOME/opencode/opencode.db)")
+	cmd.Flags().DurationVar(&threshold, "threshold", 5*time.Minute, "Age threshold for stale messages")
+	cmd.Flags().BoolVar(&apply, "apply", false, "Actually delete repairable rows (requires --backup-dir)")
+	cmd.Flags().StringVar(&backupDir, "backup-dir", "", "Directory to store database backup before deletion (required with --apply)")
+
+	return cmd
+}
+
+func defaultOpenCodeDBPath() string {
+	if dataHome := os.Getenv("XDG_DATA_HOME"); dataHome != "" {
+		return filepath.Join(dataHome, "opencode", "opencode.db")
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".local", "share", "opencode", "opencode.db")
 }
