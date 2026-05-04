@@ -1,0 +1,467 @@
+{
+  "id": "standaloneMaintenanceCliOca",
+  "title": "Standalone maintenance CLI (`oca maintain`) that runs when no OpenCode sessions are active to rebuild plugin dist, merge completed change branches, detect source-drift, run pending migrations, and prepare a clean environment for the next session. Closes Sharper-Flow/Advance#40.",
+  "status": "archived",
+  "created_at": "2026-05-04T18:41:44.992Z",
+  "tasks": [
+    {
+      "id": "tk-6d5b9031-8e03-4a56-b8b0-8285fd67c978",
+      "title": "[TDD inline] Build `oca maintain` dry-run planner and hard active-state gate in OCA. Add command registration, plan JSON/text model, and session/worker blocker scanning by reusing existing occupancy/session/advruntime primitives. Red: dry-run emits expected plan and execute refuses with fake active blockers. Green: implement `cmd/oca/maintain.go` + `internal/maintain/{plan,session_gate,report}.go`.",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 0,
+      "created_at": "2026-05-04T19:06:14.233Z",
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T19:06:14.241Z",
+      "implementation_summary": "Added `oca maintain` command registration and command handler, dry-run/execute planning output, hard active blocker refusal, and initial `internal/maintain` plan/session gate primitives. Added RED/GREEN tests for dry-run JSON output and execute blocker refusal. Used fallback evidence for broader verification after one `adv_run_test` incremental WorkflowUpdateFailedError; external `go test ./cmd/oca -count=1` passed and checkpoint recorded.",
+      "error_recovery": {
+        "last_error": "adv_run_test incremental verification returned WorkflowUpdateFailedError after targeted green evidence passed.",
+        "retry_count": 1,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "Use fallback evidence when external command passes and Temporal diagnose reports queue serviceable/change workflow reachable.",
+        "attempts": [
+          {
+            "attempt_number": 1,
+            "error": "WorkflowUpdateFailedError from adv_run_test for go test ./cmd/oca -count=1",
+            "diagnosis": "Temporal diagnose reported queue serviceable and change workflow reachable; external command passed, so evidence recording path had transient workflow update failure.",
+            "fix_tried": "Ran command externally via bash and attached green fallback evidence with adv_task_evidence.",
+            "strategy_label": "fallback-evidence-after-workflow-update-failure",
+            "outcome": "succeeded",
+            "attempted_at": "2026-05-04T19:22:05Z"
+          }
+        ]
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T19:20:12.361Z",
+          "test_file": "go test ./cmd/oca -run 'TestMaintainCommand_(DryRunReportsPlanWithoutMutation|ExecuteRefusesActiveSessionBlockers)' -count=1"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T19:22:05.256Z",
+          "test_file": "go test ./cmd/oca -count=1"
+        }
+      },
+      "touched_files": [
+        "cmd/oca/maintain.go",
+        "cmd/oca/maintain_test.go",
+        "cmd/oca/root.go",
+        "internal/maintain/plan.go",
+        "internal/maintain/session_gate.go"
+      ],
+      "completed_at": "2026-05-04T19:06:14.243Z",
+      "completed_by": "Task complete. Checkpoint 4f2910d569df6ed166f9677a0831c14890b3d085 recorded. Verification: go test ./cmd/oca -count=1 passed."
+    },
+    {
+      "id": "tk-074a5c38-3f86-4248-8efd-62b186c3a5b0",
+      "title": "[TDD inline] Add OCA plugin drift detection and build marker support. Detect stale/missing Advance plugin dist relative to source/git SHA, write `<checkout>/plugin/dist/oca-build.json` after successful build, and extend plugin health/doctor checks to report marker freshness. Red: stale marker/missing marker tests fail. Green: implement `internal/maintain/{plugin_drift,rebuild}.go` and marker health checks.",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 1,
+      "created_at": "2026-05-04T19:06:14.234Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-6d5b9031-8e03-4a56-b8b0-8285fd67c978"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T19:06:14.244Z",
+      "implementation_summary": "Added plugin build marker model and drift detection in `internal/maintain/plugin_drift.go`, including missing-marker, stale, unknown, and fresh statuses. Added marker writing to `<runtime-root>/dist/oca-build.json` with git SHA, source root, branch, dist index, optional worker bundle, and build command hash. Extended plugin health checks with `plugins.advance.build_marker` freshness reporting. Added maintain and health tests for missing marker, fresh marker, and doctor marker pass.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T19:25:06.584Z",
+          "test_file": "go test ./internal/maintain ./internal/health -run 'Test(DetectPluginDrift_MissingMarkerReportsStale|WriteBuildMarkerAndDetectFresh|CheckPlugins_AdvanceBuildMarkerFresh)' -count=1"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T19:28:03.557Z",
+          "test_file": "go test ./internal/maintain ./internal/health -run 'Test(DetectPluginDrift_MissingMarkerReportsStale|WriteBuildMarkerAndDetectFresh|CheckPlugins_AdvanceBuildMarkerFresh)' -count=1"
+        }
+      },
+      "touched_files": [
+        "internal/health/plugin.go",
+        "internal/health/plugin_test.go",
+        "internal/maintain/plugin_drift.go",
+        "internal/maintain/plugin_drift_test.go"
+      ],
+      "completed_at": "2026-05-04T19:06:14.246Z",
+      "completed_by": "Checkpoint 062bc1c07cbe50d89bcb34248d9c1d7a1957c93b recorded. Verification passed: targeted drift/marker tests and broader maintain/health package tests."
+    },
+    {
+      "id": "tk-37e95826-8775-45cd-8ab6-c339f4b582c8",
+      "title": "[TDD inline][cross-repo: Advance] Add standalone maintenance inspect surface and issue URL validation. Implement `scripts/maintenance/inspect.mjs` with `schema_version: 1`, archived/release-gate eligibility output, and verification summary; add validation so `adv_change_update_issues` rejects non-URL issue refs before corrupting state. Red: shorthand issue refs rejected and inspect schema test fails before implementation. Green: implement scripts/tests in `/home/jrede/dev/oc-plugins/advance`.",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 2,
+      "created_at": "2026-05-04T19:06:14.235Z",
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T19:06:14.248Z",
+      "implementation_summary": "In isolated Advance worktree `/tmp/opencode/advance-standaloneMaintenanceCliOca`, added standalone maintenance inspect script `scripts/maintenance/inspect.mjs` with schema_version 1, archived release-gate eligibility, and verification summary. Added `plugin/src/maintenance-inspect-script.test.ts`. Hardened `adv_change_update_issues` with explicit GitHub issue URL validation before store mutation and added shorthand rejection regression test. Rebased WIP onto `origin/trunk` (`5f42fcddbcb2bd9c6c3bc56f566b0c3d9040a76b`) before checkpoint.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T19:31:42.420Z",
+          "test_file": "pnpm exec vitest run src/tools/change.test.ts src/maintenance-inspect-script.test.ts"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T19:32:33.780Z",
+          "test_file": "pnpm exec vitest run src/tools/change.test.ts src/maintenance-inspect-script.test.ts"
+        }
+      },
+      "touched_files": [
+        "plugin/src/maintenance-inspect-script.test.ts",
+        "plugin/src/tools/change.test.ts",
+        "plugin/src/tools/change.ts",
+        "scripts/maintenance/inspect.mjs"
+      ],
+      "completed_at": "2026-05-04T19:06:14.251Z",
+      "completed_by": "Checkpoint 847ba28346813e4c39268dd72348240a8186b4c5 recorded in Advance worktree after rebase onto origin/trunk. Verification passed: targeted vitest and typecheck."
+    },
+    {
+      "id": "tk-966ffcc1-2d5e-4ccc-8033-e625e69469d1",
+      "title": "[TDD inline] Implement OCA verified merge and rebuild execute path. Consume Advance inspect JSON, filter only archived release-gate-done candidates, require clean main/worktree and `git merge --ff-only`, rebuild runtime plugins, and retry idempotently after partial build failure. Red: unverified/non-ff candidates skipped and verified candidate action planned. Green: implement `internal/maintain/{advance_state,git,rebuild}.go` execute flow.",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 3,
+      "created_at": "2026-05-04T19:06:14.236Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-6d5b9031-8e03-4a56-b8b0-8285fd67c978"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-074a5c38-3f86-4248-8efd-62b186c3a5b0"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-37e95826-8775-45cd-8ab6-c339f4b582c8"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T19:06:14.252Z",
+      "implementation_summary": "Implemented OCA Advance inspect consumption and verified merge/rebuild planning. Added `AdvanceInspectReport` parsing via `scripts/maintenance/inspect.mjs`, planner dependency injection, merge candidate filtering on archived release-gate-done evidence, and rebuild actions from plugin drift. Added `ExecutePlan` for execute mode with blocker enforcement, clean git tree + `git merge --ff-only` merge execution, plugin rebuild execution, and build marker writing after rebuild. Wired `oca maintain --execute` to execute allowed actions after plan/blocker reporting. Adjusted build-marker health check to avoid warning for no-build plugins unless marker exists.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T19:46:36.200Z",
+          "test_file": "go test ./internal/maintain -run TestPlannerBuild_ConsumesAdvanceInspectAndPlansOnlyVerifiedMerges -count=1"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T19:49:23.049Z",
+          "test_file": "go test ./internal/maintain ./cmd/oca -count=1"
+        }
+      },
+      "touched_files": [
+        "internal/maintain/execute.go"
+      ],
+      "completed_at": "2026-05-04T19:06:14.266Z",
+      "completed_by": "Checkpoint 8c97a0eaa73a9c52d1dfc1abe438b4ffb02346f1 recorded. Verification passed: maintain/cmd targeted and maintain/health/cmd packages."
+    },
+    {
+      "id": "tk-8c62fc2b-e6fe-4539-a815-35da45d44524",
+      "title": "[TDD inline] Implement conservative worktree cleanup and ADV registry reconciliation integration. Remove only merged, clean, process-free, session-free worktrees; call Advance `scripts/maintenance/reconcile-worktree.mjs` when available; otherwise report follow-up blocker without direct ADV state mutation. Red: dirty/session-active cleanup candidates are blocked. Green: implement `internal/maintain/cleanup.go`.",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 4,
+      "created_at": "2026-05-04T19:06:14.237Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-6d5b9031-8e03-4a56-b8b0-8285fd67c978"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-37e95826-8775-45cd-8ab6-c339f4b582c8"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T19:06:14.255Z",
+      "implementation_summary": "Added conservative cleanup planning with worktree enumeration, eligibility checks for merged, clean, process-free, and session-free worktrees, blocked candidate reasons, and cleanup actions only for eligible change worktrees. Added cleanup execute path that rechecks clean/merged safety, removes worktree, deletes branch, and invokes Advance `scripts/maintenance/reconcile-worktree.mjs` when available without direct ADV state mutation. Added regression test for dirty/session-active cleanup blockers.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T19:51:13.664Z",
+          "test_file": "go test ./internal/maintain -run TestPlannerBuild_BlocksDirtyAndSessionActiveCleanupCandidates -count=1"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T19:52:50.045Z",
+          "test_file": "go test ./internal/maintain ./internal/health ./cmd/oca -count=1"
+        }
+      },
+      "touched_files": [
+        "internal/maintain/cleanup.go",
+        "internal/maintain/cleanup_test.go",
+        "internal/maintain/execute.go",
+        "internal/maintain/plan.go"
+      ],
+      "completed_at": "2026-05-04T19:06:14.257Z",
+      "completed_by": "Checkpoint 9ada37b3e480e1e4ffd7e7e4bc062c28b3fc7b8a recorded. Verification passed: maintain/health/cmd packages."
+    },
+    {
+      "id": "tk-2967180f-0a98-48b6-9c50-003f64c399a1",
+      "title": "[TDD inline][cross-repo: Advance] Add runtime loaded plugin diagnostic. Expose loaded plugin module path, process start time, loaded `oca-build.json` marker, worker script path, and host-tool-code reload caveat via `adv_plugin_runtime_info` or `adv_status view=health`. Red: diagnostic test expects marker/path fields. Green: implement in `/home/jrede/dev/oc-plugins/advance`.",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 5,
+      "created_at": "2026-05-04T19:06:14.238Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-074a5c38-3f86-4248-8efd-62b186c3a5b0"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-37e95826-8775-45cd-8ab6-c339f4b582c8"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T19:06:14.258Z",
+      "implementation_summary": "Added Advance runtime loaded plugin diagnostic to `adv_status view=health` via `plugin_runtime`. It reports loaded module path, process start time, `dist/oca-build.json` marker path/found/data, worker script path, and restart caveat for host-loaded plugin code. Added `plugin/src/utils/plugin-runtime-info.ts` and health-view regression test.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T19:54:55.820Z",
+          "test_file": "pnpm exec vitest run src/tools/status.test.ts -t 'health view includes loaded plugin runtime diagnostic'"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T19:55:46.654Z",
+          "test_file": "pnpm exec vitest run src/tools/status.test.ts -t 'health view includes loaded plugin runtime diagnostic'"
+        }
+      },
+      "touched_files": [
+        "plugin/src/tools/status.test.ts",
+        "plugin/src/tools/status.ts",
+        "plugin/src/utils/plugin-runtime-info.ts"
+      ],
+      "completed_at": "2026-05-04T19:06:14.260Z",
+      "completed_by": "Checkpoint 08b1eb3f10d87b1117c05ec1f19687e157a2a20b recorded in Advance worktree. Verification passed: runtime diagnostic targeted test, broader touched tests, and typecheck."
+    },
+    {
+      "id": "tk-f1590201-910c-4567-bbf4-0b4eca606870",
+      "title": "[separate verification] Run full cross-repo verification and update docs/spec deltas. Verify OCA with `go test ./...`; verify Advance touched tests/checks; update OCA CLI docs and Advance docs for offline maintenance, build marker, Temporal report-only scope, and runtime diagnostic. Confirm all AC map to tests or documented manual checks.",
+      "type": "code",
+      "section": "verification",
+      "status": "done",
+      "priority": 6,
+      "created_at": "2026-05-04T19:06:14.239Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-966ffcc1-2d5e-4ccc-8033-e625e69469d1"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-8c62fc2b-e6fe-4539-a815-35da45d44524"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-2967180f-0a98-48b6-9c50-003f64c399a1"
+        }
+      ],
+      "tdd_phase": "green",
+      "metadata": {
+        "tdd_intent": "separate_verification"
+      },
+      "tdd_reclassification": {
+        "from_intent": "inline",
+        "to_intent": "separate_verification",
+        "reason": "Prep approval explicitly marked final cross-repo verification/docs/spec task as separate verification, not inline implementation TDD.",
+        "approved_by_user": true,
+        "approval_evidence": "User replied `approve` to prep; prep handoff stated first action: mark verification task as `separate_verification`.",
+        "approved_at": "2026-05-04T19:18:59.859Z"
+      },
+      "started_at": "2026-05-04T19:06:14.261Z",
+      "implementation_summary": "Ran final cross-repo verification: OCA `go test ./...` passed; Advance touched vitest suite `src/tools/status.test.ts src/tools/change.test.ts src/maintenance-inspect-script.test.ts` passed (180 tests); Advance `pnpm run typecheck` passed. Updated OCA README and CLI surface docs for `oca maintain`, offline gates, verified merges, rebuild marker, cleanup behavior, and Temporal report-only scope. Updated Advance README for standalone maintenance inspect surface, issue URL validation, `adv_status view=health` plugin runtime diagnostic, and offline maintenance boundary.",
+      "error_recovery": {
+        "last_error": "Advance docs checkpoint commit succeeded but ledger recording failed twice with Workflow Update failed.",
+        "retry_count": 2,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "Proceed because adv_task_run_status reports checkpointed/mark_done and both repos are clean; keep Advance commit SHA in task notes for audit.",
+        "attempts": [
+          {
+            "attempt_number": 1,
+            "error": "adv_task_checkpoint for Advance docs returned checkpointRecorded:false after committing 0e42adcc1b95f97ef00a605e1ae58b86cf139f81: Workflow Update failed",
+            "diagnosis": "Git commit succeeded in cross-repo worktree, but Temporal ledger update failed.",
+            "fix_tried": "Ran adv_task_run_status; retried checkpoint with clean tree and expectedHeadSha 0e42adcc1b95f97ef00a605e1ae58b86cf139f81.",
+            "strategy_label": "retry-clean-checkpoint-ledger-record",
+            "outcome": "failed",
+            "attempted_at": "2026-05-04T20:00:00Z"
+          },
+          {
+            "attempt_number": 2,
+            "error": "retry adv_task_checkpoint returned clean with checkpointRecorded:false: Workflow Update failed",
+            "diagnosis": "Ledger update failure persisted, while task_run_status still reports phase=checkpointed and requiredNextAction=mark_done from OCA checkpoint.",
+            "fix_tried": "Verified both OCA and Advance worktrees are clean; retained Advance commit SHA in task notes.",
+            "strategy_label": "verify-clean-and-record-sha-in-task-notes",
+            "outcome": "succeeded",
+            "attempted_at": "2026-05-04T20:00:20Z"
+          }
+        ]
+      },
+      "tdd_evidence": {
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T19:59:30.143Z",
+          "test_file": "cross-repo final verification"
+        }
+      },
+      "touched_files": [
+        "README.md"
+      ],
+      "completed_at": "2026-05-04T19:06:14.264Z",
+      "completed_by": "Final verification/docs complete. OCA checkpoint 6017d93db1034cf11943577f4052d72030b9c288 recorded in ledger; Advance docs commit 0e42adcc1b95f97ef00a605e1ae58b86cf139f81 succeeded in Advance worktree but follow-up ledger recording returned Workflow Update failed twice. `adv_task_run_status` reports phase=checkpointed and requiredNextAction=mark_done. Both OCA and Advance worktrees are clean."
+    }
+  ],
+  "deltas": {},
+  "wisdom": [
+    {
+      "id": "ws-111dbfb3-4f4a-428f-97de-65865cd3f53b",
+      "type": "pattern",
+      "content": "For plugin build freshness, prefer a committed-runtime marker carrying source git SHA plus build command hash and relative dist paths; health checks can treat missing/stale markers as warnings while `oca maintain --execute` later owns rebuild/remediation.",
+      "source_task": "tk-074a5c38-3f86-4248-8efd-62b186c3a5b0",
+      "recorded_at": "2026-05-04T19:06:14.247Z"
+    }
+  ],
+  "gates": {
+    "proposal": {
+      "status": "done",
+      "completed_at": "2026-05-04T18:41:45.052Z",
+      "completed_by": "agent",
+      "notes": "User invoked exact continuation command `/adv-discover standaloneMaintenanceCliOca`, treated as Tier A command-as-approval for proposal checkpoint. Proposal warnings are non-blocking and will be resolved in discovery agreement."
+    },
+    "discovery": {
+      "status": "done",
+      "completed_at": "2026-05-04T19:06:14.231Z",
+      "completed_by": "agent",
+      "notes": "Discovery completed. Temporal docs researched before policy decisions. User approved AC. Decisions: hard refuse active sessions/workers; dry-run default plus explicit --execute; require archived ADV state plus latest full verification before merge. v1 Temporal recovery report-only unless safe standalone execute surface exists."
+    },
+    "design": {
+      "status": "done",
+      "completed_at": "2026-05-04T19:06:14.232Z",
+      "completed_by": "agent",
+      "notes": "Design completed. Mandatory validator returned CAUTION. Blocker was stale/empty agreement projection and undefined verification proof; resolved by persisting agreement and defining v1 proof as archived ADV state with release gate done. Other cautions incorporated: reuse internal/advruntime and occupancy/session primitives, schema_version on Advance inspect output, explicit oca adv recover relationship. No validator CONFLICT or user-value design tradeoff remains."
+    },
+    "planning": {
+      "status": "done",
+      "completed_at": "2026-05-04T19:06:14.240Z",
+      "completed_by": "agent",
+      "notes": "Prep approved by user. Task graph has 7 tasks. Verification task reclassified to separate_verification. Investment tier auto; no unresolved judgment calls surfaced."
+    },
+    "execution": {
+      "status": "done",
+      "completed_at": "2026-05-04T19:06:14.265Z",
+      "completed_by": "agent",
+      "notes": "All 7 planned tasks completed. OCA worktree and Advance worktree are clean. Verification evidence recorded for each implementation task and final cross-repo verification."
+    },
+    "acceptance": {
+      "status": "done",
+      "completed_at": "2026-05-04T19:06:14.267Z",
+      "completed_by": "agent",
+      "notes": "User accepted delivered work with reply `accept` after review findings showed no blockers/issues, review remediation was complete, OCA `go test ./...` passed, Advance touched tests/typecheck passed, and both worktrees were clean."
+    },
+    "release": {
+      "status": "done",
+      "completed_at": "2026-05-04T19:06:14.268Z",
+      "completed_by": "agent",
+      "notes": "Archive sign-off received from user reply `sign off`. Validation passed with warnings only. Final verification passed: OCA `go test ./...`; Advance touched vitest suite and typecheck. User explicitly instructed to ignore pre-existing dirty Advance trunk files during integration."
+    }
+  },
+  "reentry_history": [],
+  "adv_project_id": "cdae139e16c8cbaa4ef2ebf35dda326e826e93bc",
+  "clarify_findings": [
+    {
+      "code": "CLARIFY_SUBJECTIVE_LANGUAGE",
+      "severity": "warning",
+      "message": "Change title contains subjective term \"clean\": \"Standalone maintenance CLI (`oca maintain`) that runs when no OpenCode sessions are active to rebuild plugin dist, merge completed change branches, detect source-drift, run pending migrations, and prepare a clean environment for the next session. Closes Sharper-Flow/Advance#40.\". What specific, measurable criteria define \"clean\"?",
+      "recorded_at": "2026-05-04T19:06:22.646Z"
+    },
+    {
+      "code": "CLARIFY_MISSING_SUCCESS_CRITERIA",
+      "severity": "warning",
+      "message": "Success criteria are placeholder or empty. What measurable outcomes define done?",
+      "recorded_at": "2026-05-04T19:06:22.646Z",
+      "resolved": true,
+      "resolved_at": "2026-05-04T19:11:03.524Z"
+    },
+    {
+      "code": "CLARIFY_UNCLEAR_SCOPE",
+      "severity": "warning",
+      "message": "Scope section is empty or placeholder. What specific files/modules will change?",
+      "recorded_at": "2026-05-04T19:11:03.524Z"
+    }
+  ]
+}

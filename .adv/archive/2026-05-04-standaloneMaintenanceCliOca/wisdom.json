@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "id": "ws-111dbfb3-4f4a-428f-97de-65865cd3f53b",
+      "type": "pattern",
+      "content": "For plugin build freshness, prefer a committed-runtime marker carrying source git SHA plus build command hash and relative dist paths; health checks can treat missing/stale markers as warnings while `oca maintain --execute` later owns rebuild/remediation.",
+      "source_task": "tk-074a5c38-3f86-4248-8efd-62b186c3a5b0",
+      "recorded_at": "2026-05-04T19:06:14.247Z"
+    }
+  ],
+  "count": 1
+}
