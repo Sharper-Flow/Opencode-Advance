@@ -1,0 +1,414 @@
+{
+  "id": "alignOcaLandedProgressAdvance",
+  "title": "Align OCA with landed and in-progress Advance changes: in-repo archive, agent mesh, worktree absorption, zombie worker heartbeat, foldering cleanup, evidence semantics, and command removals",
+  "status": "archived",
+  "created_at": "2026-05-04T00:47:33.840Z",
+  "tasks": [
+    {
+      "id": "tk-78cd23f5-c338-457e-9d10-ee7a04f1c4f5",
+      "title": "[KD-C] Add `gh` CLI dependency/auth health check. Affected files: `internal/health/dependency.go`, `internal/health/dependency_test.go`, potentially `cmd/oca/doctor.go`. RED: tests for gh available+authed, gh available+unauthenticated, gh missing. GREEN: probe `gh --version` and `gh auth status` via subprocess/fake binary pattern; return StatusWarn for missing/unauthenticated and StatusPass for authed. Acceptance: AC4, AC8.",
+      "type": "code",
+      "section": "Phase 1 — Dependency and CLI health",
+      "status": "done",
+      "priority": 0,
+      "created_at": "2026-05-04T00:47:33.856Z",
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T00:47:33.864Z",
+      "implementation_summary": "Added GitHub CLI dependency/auth detection (`temporal.DetectGH`) and surfaced it through `CheckDependencies` as `dependencies.gh_cli`: pass when `gh --version` and `gh auth status` succeed, warning when missing or unauthenticated. Added tests for authenticated, unauthenticated, and missing gh cases; updated dependency checks to return three rows.",
+      "error_recovery": {
+        "last_error": "ADV evidence/checkpoint ledger tools failed after implementation verification",
+        "retry_count": 1,
+        "max_retries": 3,
+        "error_class": "ENVIRONMENTAL",
+        "next_strategy": "Continue with direct test evidence in notes; avoid blocking on ADV ledger bug because git checkpoint commit succeeded.",
+        "attempts": [
+          {
+            "attempt_number": 1,
+            "error": "adv_run_test failed with TypeError evidenceResult?.task.tdd_phase; adv_task_evidence failed with TypeError task.tdd_evidence; adv_task_checkpoint committed but checkpointRecorded=false due Workflow Update failed",
+            "diagnosis": "Current Advance evidence/ledger tooling is broken, consistent with in-progress makeAdvTaskEvidenceFallback changes; direct tests and git checkpoint provide evidence.",
+            "fix_tried": "Ran tests directly via bash, retried checkpoint ledger after commit, recorded evidence in task notes.",
+            "strategy_label": "direct-evidence-and-checkpoint-retry",
+            "outcome": "succeeded",
+            "attempted_at": "2026-05-04T01:19:00.000Z"
+          }
+        ]
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T01:12:44.792Z",
+          "test_file": "internal/health/dependency_test.go"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T01:32:31.586Z",
+          "test_file": "go test ./internal/health -run 'TestCheckDependencies'"
+        }
+      },
+      "touched_files": [
+        "internal/health/dependency.go",
+        "internal/health/dependency_test.go",
+        "internal/temporal/detect.go"
+      ],
+      "completed_at": "2026-05-04T00:47:33.866Z",
+      "completed_by": "Completed. Red: dependency tests failed because `writeFakeGH`/gh check missing. Green: `go test ./internal/health -run 'TestCheckDependencies'` passed; `go test ./internal/temporal` passed. Checkpoint commit fefe9ed. Note: adv_run_test and adv_task_evidence both crashed due current Advance evidence bug; checkpoint ledger recording also failed with Workflow Update failed after commit succeeded."
+    },
+    {
+      "id": "tk-8b88e90d-ddb8-4566-a419-1f8e3a3dd4d9",
+      "title": "[KD-D] Implement ADV worker lock heartbeat scanner helper. Affected files: new or existing `internal/advruntime/*worker_lock*.go`, tests. RED: table tests for v2 fresh heartbeat, v2 stale heartbeat with live PID, v2 stale with dead PID, v1/no-last_heartbeat fallback, missing lock, malformed lock. GREEN: scan all `{advRoot}/{projectId}/worker.lock` files; parse heartbeat; derive stale threshold from `ADV_WORKER_HEARTBEAT_STALE_MS` with safe default; never mutate lock files. Acceptance: AC3, AC8.",
+      "type": "code",
+      "section": "Phase 2 — Worker heartbeat diagnostics",
+      "status": "done",
+      "priority": 1,
+      "created_at": "2026-05-04T00:47:33.857Z",
+      "tdd_phase": "green",
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "started_at": "2026-05-04T00:47:33.867Z",
+      "implementation_summary": "Added read-only ADV worker lock scanner that scans all `{advRoot}/{projectId}/worker.lock` files, handles v1 locks without heartbeat as no-warning fallback, warns on stale v2 heartbeat and malformed heartbeat/lock content, supports env/default stale threshold, and never mutates worker lock files.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "SEMANTIC",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "touched_files": [
+        "internal/advruntime/worker_lock.go",
+        "internal/advruntime/worker_lock_test.go"
+      ],
+      "completed_at": "2026-05-04T00:47:33.869Z",
+      "completed_by": "Completed. Red: worker lock scanner tests failed because `NewWorkerLockScanner` was undefined. Green: `go test ./internal/advruntime -run 'TestWorkerLockScanner'` and `go test ./internal/advruntime` pass. Checkpoint 8d6168e.",
+      "tdd_evidence": {
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T01:33:01.899Z",
+          "test_file": "internal/advruntime/worker_lock_test.go"
+        }
+      },
+      "tdd_reclassification": {
+        "from_intent": "inline",
+        "to_intent": "not_applicable",
+        "reason": "Evidence captured via tdd_evidence field on task object + checkpoint commit; durable ledger blocked by upstream Advance evidence-tool TypeError (makeAdvTaskEvidenceFallback in-progress). User accepted at acceptance gate; this reclassification clears strict-validation MISSING_TDD_EVIDENCE for archive.",
+        "approved_by_user": true,
+        "approval_evidence": "User selected \"Reclassify TDD intent → not_applicable\" via question tool 2026-05-04T01:36:45Z in Phase 1 of /adv-archive alignOcaLandedProgressAdvance.",
+        "approved_at": "2026-05-04T01:37:52.887Z"
+      }
+    },
+    {
+      "id": "tk-de16f3ca-90d3-4b71-9d97-caf9bcff39ba",
+      "title": "[KD-D] Integrate worker heartbeat findings into `oca doctor --scope adv-runtime`. Affected files: `internal/health/adv_runtime.go`, `internal/health/adv_runtime_test.go`. Blocked by worker scanner helper. RED: tests mapping stale/fresh/v1 scanner findings to `health.Check` rows. GREEN: append scanner results after existing workflow/worktree checks; stale heartbeat emits StatusWarn with project id/pid/remediation; v1/missing emits no noisy warning. Acceptance: AC3, AC8.",
+      "type": "code",
+      "section": "Phase 2 — Worker heartbeat diagnostics",
+      "status": "done",
+      "priority": 2,
+      "created_at": "2026-05-04T00:47:33.858Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-8b88e90d-ddb8-4566-a419-1f8e3a3dd4d9"
+        }
+      ],
+      "tdd_phase": "green",
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "started_at": "2026-05-04T00:47:33.870Z",
+      "implementation_summary": "Integrated WorkerLockScanner into `CheckAdvRuntime`, appending `adv-runtime.worker-lock.<projectID>` warnings for stale/malformed worker locks while keeping v1/missing locks quiet. Added regression test verifying stale worker heartbeat appears in adv-runtime doctor checks.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "SEMANTIC",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "touched_files": [
+        "internal/health/adv_runtime.go",
+        "internal/health/adv_runtime_test.go"
+      ],
+      "completed_at": "2026-05-04T00:47:33.872Z",
+      "completed_by": "Completed. Red: stale worker heartbeat check absent from adv-runtime output. Green: `go test ./internal/health -run 'TestCheckAdvRuntime'` and full `go test ./internal/health` pass. Checkpoint 2d748db.",
+      "tdd_evidence": {
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T01:32:31.216Z",
+          "test_file": "go test ./internal/health -run 'TestCheckAdvRuntime'"
+        }
+      },
+      "tdd_reclassification": {
+        "from_intent": "inline",
+        "to_intent": "not_applicable",
+        "reason": "Evidence captured via tdd_evidence field on task object + checkpoint commit; durable ledger blocked by upstream Advance evidence-tool TypeError (makeAdvTaskEvidenceFallback in-progress). User accepted at acceptance gate; this reclassification clears strict-validation MISSING_TDD_EVIDENCE for archive.",
+        "approved_by_user": true,
+        "approval_evidence": "User selected \"Reclassify TDD intent → not_applicable\" via question tool 2026-05-04T01:36:45Z in Phase 1 of /adv-archive alignOcaLandedProgressAdvance.",
+        "approved_at": "2026-05-04T01:37:55.164Z"
+      }
+    },
+    {
+      "id": "tk-9c01bbb6-d550-41f3-a2f9-848fd5842d9b",
+      "title": "[KD-B] Add bundle-aware local `.adv/` state health warning. Affected files: likely `internal/health/advance.go`, `internal/health/advance_test.go`, maybe `internal/health/mcp.go` for `Options.ProjectRoot`. RED: fixtures for specs-only pass, valid archive bundle pass, empty/non-bundle `.adv/archive` warn, `.adv/changes`/`.adv/db`/agenda warn. GREEN: scan current repo `.adv`; treat subdirs containing `change.json` as valid archive bundles; warn non-destructively with `adv_migrate_cleanup` hint. Acceptance: AC1, AC6, AC8.",
+      "type": "code",
+      "section": "Phase 3 — Bundle-aware ADV state diagnosis",
+      "status": "done",
+      "priority": 3,
+      "created_at": "2026-05-04T00:47:33.859Z",
+      "tdd_phase": "green",
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "started_at": "2026-05-04T00:47:33.873Z",
+      "implementation_summary": "Added `Options.ProjectRoot` and repo-local `.adv` scanner to `CheckADVPlugin`. The scanner treats `.adv/specs` and archive subdirs containing `change.json` as valid, warns for `.adv/changes`, `.adv/db`, agenda files, empty archive dirs, and non-bundle archive residue with non-destructive `adv_migrate_cleanup` guidance.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "SEMANTIC",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "touched_files": [
+        "internal/health/advance.go",
+        "internal/health/advance_test.go",
+        "internal/health/mcp.go"
+      ],
+      "completed_at": "2026-05-04T00:47:33.875Z",
+      "completed_by": "Completed. Red: local ADV state tests failed because `Options.ProjectRoot` and bundle-aware scan were missing. Green: `go test ./internal/health -run 'TestCheckADVPlugin_LocalADV'` and full `go test ./internal/health` pass. Checkpoint 6c66287.",
+      "tdd_evidence": {
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T01:32:30.604Z",
+          "test_file": "go test ./internal/health -run 'TestCheckADVPlugin_LocalADV'"
+        }
+      },
+      "tdd_reclassification": {
+        "from_intent": "inline",
+        "to_intent": "not_applicable",
+        "reason": "Evidence captured via tdd_evidence field on task object + checkpoint commit; durable ledger blocked by upstream Advance evidence-tool TypeError (makeAdvTaskEvidenceFallback in-progress). User accepted at acceptance gate; this reclassification clears strict-validation MISSING_TDD_EVIDENCE for archive.",
+        "approved_by_user": true,
+        "approval_evidence": "User selected \"Reclassify TDD intent → not_applicable\" via question tool 2026-05-04T01:36:45Z in Phase 1 of /adv-archive alignOcaLandedProgressAdvance.",
+        "approved_at": "2026-05-04T01:37:57.705Z"
+      }
+    },
+    {
+      "id": "tk-8679790c-6292-4c87-97ea-3d4c33aadb23",
+      "title": "[KD-E/F] Reconcile OCA-owned worktree skill as thin defer to ADV `adv-worktree`. Affected files: `assets/skills/worktree/SKILL.md`, relevant skills/docs tests if present or new asset regression test. RED: test or scan fails on active `openchad`, `oc switch`, primary old `worktree_create`, or `git checkout` cleanup guidance in OCA-owned worktree skill. GREEN: keep asset file; state ADV-managed worktrees use `skill(\"adv-worktree\")`; use `adv_worktree_*` names if mentioned; remove stale OpenChad wording and checkout cleanup anti-pattern. Acceptance: AC5, AC8.",
+      "type": "code",
+      "section": "Phase 4 — OCA skill boundary cleanup",
+      "status": "done",
+      "priority": 4,
+      "created_at": "2026-05-04T00:47:33.860Z",
+      "tdd_phase": "green",
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "started_at": "2026-05-04T00:47:33.876Z",
+      "implementation_summary": "Rewrote OCA-owned worktree skill as generic/defer guidance: ADV-managed worktrees defer to `skill(\"adv-worktree\")` and `adv_worktree_*` tools, old aliases are marked backward-compatible only, checkout cleanup anti-pattern and active OpenChad wording removed. Added asset regression test preventing stale worktree guidance from returning.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "SEMANTIC",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "touched_files": [
+        "assets/skills/worktree/SKILL.md",
+        "tests/skills_assets_test.go"
+      ],
+      "completed_at": "2026-05-04T00:47:33.878Z",
+      "completed_by": "Completed. Red: asset test failed on stale `openchad` guidance. Green: `go test ./tests -run 'TestWorktreeSkillDefersToAdvWorktree'` and full `go test ./tests` pass. Checkpoint c73a8c5.",
+      "tdd_evidence": {
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T01:32:30.592Z",
+          "test_file": "go test ./tests -run 'TestWorktreeSkillDefersToAdvWorktree'"
+        }
+      },
+      "tdd_reclassification": {
+        "from_intent": "inline",
+        "to_intent": "not_applicable",
+        "reason": "Evidence captured via tdd_evidence field on task object + checkpoint commit; durable ledger blocked by upstream Advance evidence-tool TypeError (makeAdvTaskEvidenceFallback in-progress). User accepted at acceptance gate; this reclassification clears strict-validation MISSING_TDD_EVIDENCE for archive.",
+        "approved_by_user": true,
+        "approval_evidence": "User selected \"Reclassify TDD intent → not_applicable\" via question tool 2026-05-04T01:36:45Z in Phase 1 of /adv-archive alignOcaLandedProgressAdvance.",
+        "approved_at": "2026-05-04T01:37:59.372Z"
+      }
+    },
+    {
+      "id": "tk-c2e91ca0-262a-4066-ba09-cbc525ecff62",
+      "title": "[KD-A/G] Update OCA docs for Advance landed changes and ownership boundaries. Affected files: `AGENTS.md`, `STATUS.md`, `NEXT_STEPS.md`. TDD intent: not applicable/docs; verify via text scan. Update `.adv/` architecture/ownership text, in-repo archive bundle reality, landed tense for `boundParentProjectWorkflow` and `repairTemporalMigrationDebt`, heartbeat env vars, no exact `/adv-coordinate` stale refs, and status/next-step guidance for bundle-aware cleanup. Acceptance: AC1, AC2, AC6, AC7, AC8.",
+      "type": "code",
+      "section": "Phase 5 — Documentation alignment",
+      "status": "done",
+      "priority": 5,
+      "created_at": "2026-05-04T00:47:33.861Z",
+      "tdd_phase": "green",
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "started_at": "2026-05-04T00:47:33.879Z",
+      "implementation_summary": "Updated AGENTS architecture and ownership matrix for `.adv/archive/*/change.json` bundles, clarified OCA worktree skill boundary, documented Advance heartbeat env vars, and changed repair/worker notes to landed wording. Updated STATUS and NEXT_STEPS to refer to landed cleanup tooling and bundle-aware archive preservation.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "SEMANTIC",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "touched_files": [
+        "AGENTS.md",
+        "NEXT_STEPS.md",
+        "STATUS.md"
+      ],
+      "completed_at": "2026-05-04T00:47:33.881Z",
+      "completed_by": "Completed docs update. Verification scans: no `moves toward one Temporal worker`, no `upcoming adv_migrate_cleanup`; heartbeat env vars documented. Remaining `.adv/{changes,archive` references are historical notes/staged proposal references, not active AGENTS/STATUS/NEXT guidance. Checkpoint fb19edb.",
+      "tdd_evidence": {
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T01:32:32.286Z",
+          "test_file": "go test ./..."
+        }
+      },
+      "tdd_reclassification": {
+        "from_intent": "inline",
+        "to_intent": "not_applicable",
+        "reason": "Docs-update task (per task title: \"TDD intent: not applicable/docs; verify via text scan\"). Verification was via text scan + go test ./... — no inline TDD applicable. Originally classified inline due to template default; correcting now.",
+        "approved_by_user": true,
+        "approval_evidence": "User selected \"Reclassify TDD intent → not_applicable\" via question tool 2026-05-04T01:36:45Z in Phase 1 of /adv-archive alignOcaLandedProgressAdvance.",
+        "approved_at": "2026-05-04T01:38:03.186Z"
+      }
+    },
+    {
+      "id": "tk-28f37828-1baf-4ca5-af8f-7c2121de2507",
+      "title": "Final verification and related-scan closure. Affected files: all touched. TDD intent: separate verification. Run focused tests from prior tasks, `go test ./...`, `go vet ./...`, and `gofmt -d .`; run text scans for stale active `openchad` in OCA-owned skill, exact `/adv-coordinate`, and `.adv/archive` blanket-legacy wording. Record any ADV-owned `adv-worktree` stale wording as follow-up/wisdom, not OCA mutation. Acceptance: AC8 and full change acceptance.",
+      "type": "code",
+      "section": "Phase 6 — Verification",
+      "status": "done",
+      "priority": 6,
+      "created_at": "2026-05-04T00:47:33.862Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-78cd23f5-c338-457e-9d10-ee7a04f1c4f5"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-de16f3ca-90d3-4b71-9d97-caf9bcff39ba"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-9c01bbb6-d550-41f3-a2f9-848fd5842d9b"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-8679790c-6292-4c87-97ea-3d4c33aadb23"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-c2e91ca0-262a-4066-ba09-cbc525ecff62"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "started_at": "2026-05-04T00:47:33.882Z",
+      "implementation_summary": "Ran full final verification and closed related-scan findings. Fixed residual stale `open-chad` wording in OCA lgrep skill and bundle-aware archive wording in staged proposal/notes/roadmap docs.",
+      "error_recovery": {
+        "last_error": "adv_run_test failed with TypeError: undefined is not an object (evaluating 'evidenceResult?.task.tdd_phase')",
+        "retry_count": 1,
+        "max_retries": 3,
+        "error_class": "ENVIRONMENTAL",
+        "next_strategy": "Use direct bash verification and record outputs in task notes until ADV evidence tool bug is fixed.",
+        "attempts": [
+          {
+            "attempt_number": 1,
+            "error": "adv_run_test returned TypeError: undefined is not an object (evaluating 'evidenceResult?.task.tdd_phase')",
+            "diagnosis": "ADV evidence recording tool bug; same failure observed earlier in this change.",
+            "fix_tried": "Fallback to direct `go test`, `go vet`, and `gofmt` commands plus task notes/checkpoint verification.",
+            "strategy_label": "direct-verification-fallback",
+            "outcome": "succeeded",
+            "attempted_at": "2026-05-04T00:00:00Z"
+          }
+        ]
+      },
+      "tdd_evidence": {
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T01:27:40.015Z",
+          "test_file": "go test ./..."
+        }
+      },
+      "touched_files": [
+        "assets/skills/lgrep/SKILL.md",
+        "docs/notes/2026-05-02-advance-plugin-impact-check.md",
+        "docs/proposals/2026-05-03-legacy-adv-state-doctor-warning.md",
+        "docs/proposals/2026-05-03-oca-roadmap-queue.md"
+      ],
+      "completed_at": "2026-05-04T00:47:33.884Z",
+      "completed_by": "Final verification complete. `adv_run_test` failed with known TypeError (`undefined is not an object (evaluating 'evidenceResult?.task.tdd_phase')`), so verification was run directly. Passed: `go test ./...`, `go vet ./...`, `gofmt -d .` produced no diff. Stale scans clean for OCA-owned skill `openchad`, `open-chad`, `oc switch`, `worktree_create succeeds`, exact `/adv-coordinate`, and blanket `.adv/archive` warning wording. Checkpoint 2e74785.",
+      "tdd_reclassification": {
+        "from_intent": "inline",
+        "to_intent": "not_applicable",
+        "reason": "Final-verification task (per task title: \"TDD intent: separate verification\") — runs go test ./..., go vet ./..., gofmt -d . and stale-text scans across already-tested code. No inline TDD applicable. Original tdd_intent inline was template default; correcting now.",
+        "approved_by_user": true,
+        "approval_evidence": "User selected \"Reclassify TDD intent → not_applicable\" via question tool 2026-05-04T01:36:45Z in Phase 1 of /adv-archive alignOcaLandedProgressAdvance.",
+        "approved_at": "2026-05-04T01:38:06.132Z"
+      }
+    }
+  ],
+  "deltas": {},
+  "wisdom": [],
+  "gates": {
+    "proposal": {
+      "status": "done",
+      "completed_at": "2026-05-04T00:47:33.853Z",
+      "completed_by": "agent",
+      "notes": "Proposal covers 10 identified gaps from 16 Advance changes (4 in-progress + 12 archived). User confirmed \"all\" when asked which actions to take. Problem statement, success criteria, constraints, and discovery agenda persisted."
+    },
+    "discovery": {
+      "status": "done",
+      "completed_at": "2026-05-04T00:47:33.854Z",
+      "completed_by": "agent",
+      "notes": "Discovery contract executed: skills considered, prior research extended, conflict scan/validation/agenda checked, edge cases/design questions/draft deltas recorded, related pattern scan completed, LBP check passed. User resolved Phase 4.5 questions: bundle-aware archive warning, gh warn severity, and ADV-owned worktree boundary. Agreement persisted."
+    },
+    "design": {
+      "status": "done",
+      "completed_at": "2026-05-04T00:47:33.855Z",
+      "completed_by": "agent",
+      "notes": "Design completed. Independent validator verdict: CAUTION; required clarifications resolved inline by adding Scope/Success Criteria, choosing thin OCA worktree redirect to ADV adv-worktree, specifying all-project worker.lock scan, and specifying archive bundle heuristic based on change.json. No unresolved user-value tradeoff, no CONFLICT, no contract-compromise risk."
+    },
+    "planning": {
+      "status": "done",
+      "completed_at": "2026-05-04T00:47:33.863Z",
+      "completed_by": "agent",
+      "notes": "User replied `approve` to prep task graph. 7 tasks across 6 phases. Validation passed with expected warnings only. No unresolved user-facing judgment calls."
+    },
+    "execution": {
+      "status": "done",
+      "completed_at": "2026-05-04T00:47:33.885Z",
+      "completed_by": "agent",
+      "notes": "All 7 planned tasks completed and checkpointed. Final verification passed: go test ./..., go vet ./..., gofmt -d . clean; related stale text scans clean. Direct verification fallback used because adv_run_test evidence tool returned TypeError."
+    },
+    "acceptance": {
+      "status": "done",
+      "completed_at": "2026-05-04T00:47:33.886Z",
+      "completed_by": "agent",
+      "notes": "User replied `accept` after review reported no blockers/issues/suggestions/questions. Verification passed: go test ./..., go vet ./..., gofmt -d . clean, stale scans clean. Worktree clean."
+    },
+    "release": {
+      "status": "done",
+      "completed_at": "2026-05-04T00:47:33.887Z",
+      "completed_by": "agent",
+      "notes": "User replied `sign off` to Tier B inline approval prompt at 2026-05-04T01:38Z. All 6 prior gates done; strict validation passes after TDD reclassification; conformance not required."
+    }
+  },
+  "reentry_history": [],
+  "adv_project_id": "cdae139e16c8cbaa4ef2ebf35dda326e826e93bc"
+}
