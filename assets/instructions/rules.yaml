@@ -226,3 +226,10 @@ rules:
     tags: [clarity, design, simplicity, architecture, yagni]
     hint: clean_not_minimal
     priority: 7
+
+  P32:
+    name: trunk-is-prod
+    rule: Treat main/trunk as a production-ready invariant. If a commit is on main/trunk, it MUST be ready to ship to production — fully reviewed, verified, and complete. Work-in-progress, exploratory, unverified, or partial changes MUST live on a branch (worktree branch, change branch, feature branch) and never on main/trunk. Merging or pushing to main/trunk is the explicit ship-to-prod signal — perform it only when the change is production-ready. Never commit directly to main/trunk for "quick fixes," "incremental progress," or "I'll clean it up later"; create a branch instead. This invariant composes with P05 (ship-complete), P06 (atomic-commits), and the worktree merge-before-delete protocol — together they enforce that the path to production runs branch → verify → merge to trunk → ship.
+    tags: [git, shipping, quality, branching, production]
+    hint: trunk_ships_prod
+    priority: 9
