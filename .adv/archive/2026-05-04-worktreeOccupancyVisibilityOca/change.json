@@ -1,0 +1,411 @@
+{
+  "id": "worktreeOccupancyVisibilityOca",
+  "title": "worktree occupancy visibility for OCA and ADV sessions",
+  "status": "archived",
+  "created_at": "2026-05-04T07:21:35.699Z",
+  "tasks": [
+    {
+      "id": "tk-a3b3e0a9-e885-482a-974c-7be0b8717672",
+      "title": "Go occupancy model + parser (internal/occupancy/): define PaneStateV1/V2 structs, Parse() for permissive v1/v2 JSON parsing, GroupBy() to group by project/worktree, liveness classification (active/stale/unknown), reconciliation logic with tmux pane cross-check. No external dependencies beyond stdlib.",
+      "type": "code",
+      "section": "Plane 1-2: OCA Core",
+      "status": "done",
+      "priority": 0,
+      "created_at": "2026-05-04T07:21:35.753Z",
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline",
+        "delegation_hint": "inline_required"
+      },
+      "started_at": "2026-05-04T07:21:35.764Z",
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T13:03:27.841Z",
+          "test_file": "internal/occupancy/occupancy_test.go"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T13:03:27.956Z",
+          "test_file": "internal/occupancy/occupancy_test.go"
+        }
+      },
+      "touched_files": [
+        "internal/occupancy/occupancy.go",
+        "internal/occupancy/occupancy_test.go"
+      ],
+      "completed_at": "2026-05-04T07:21:35.766Z"
+    },
+    {
+      "id": "tk-a86de83c-fe05-4237-8aeb-1a70e0b8ca8e",
+      "title": "Go occupancy tests (internal/occupancy/): unit tests for v1/v2 parse (valid, partial, malformed), grouping by project/worktree, stale detection (pane gone vs active), malformed record counting, reconciliation precedence (tmux > pane state > git), edge cases (empty dir, mixed v1/v2). TDD red phase first.",
+      "type": "code",
+      "section": "Plane 1-2: OCA Core",
+      "status": "done",
+      "priority": 1,
+      "created_at": "2026-05-04T07:21:35.754Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-a3b3e0a9-e885-482a-974c-7be0b8717672"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline",
+        "delegation_hint": "inline_required"
+      },
+      "started_at": "2026-05-04T07:21:35.767Z",
+      "completed_at": "2026-05-04T07:21:35.768Z",
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T13:03:51.132Z",
+          "test_file": "internal/occupancy/occupancy_test.go"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T13:03:28.448Z",
+          "test_file": "internal/occupancy/occupancy_test.go"
+        }
+      }
+    },
+    {
+      "id": "tk-e65d7d22-6d23-455b-a657-4053b11042ff",
+      "title": "TypeScript plugin v2 state enrichment (plugins/oca/src/): extend session.created handler in index.ts to write v2 pane-state with schemaVersion:2, startedAt, lastSeenAt, socket, paneID, sessionName, windowID, windowName, agent (best-effort from env), gitRoot, gitCommonDir, projectId, worktreePath, worktreeBranch (best-effort). Preserve backwards compat: write v2 JSON but v1 fields remain. Update session.deleted to handle v2 cleanup.",
+      "type": "code",
+      "section": "Plane 1: Plugin Writer",
+      "status": "done",
+      "priority": 2,
+      "created_at": "2026-05-04T07:21:35.755Z",
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline",
+        "delegation_hint": "inline_required"
+      },
+      "started_at": "2026-05-04T07:21:35.769Z",
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T07:48:17.989Z",
+          "test_file": "cd /home/jrede/.local/share/opencode/worktree/cdae139e16c8cbaa4ef2ebf35dda326e826e93bc/change/worktreeOccupancyVisibilityOca/plugins/oca && bun test test/session-tracker.test.ts 2>&1"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T07:49:22.027Z",
+          "test_file": "cd /home/jrede/.local/share/opencode/worktree/cdae139e16c8cbaa4ef2ebf35dda326e826e93bc/change/worktreeOccupancyVisibilityOca/plugins/oca && bun test test/session-tracker.test.ts 2>&1"
+        }
+      },
+      "touched_files": [
+        "plugins/oca/src/index.ts",
+        "plugins/oca/test/session-tracker.test.ts"
+      ],
+      "completed_at": "2026-05-04T07:21:35.771Z"
+    },
+    {
+      "id": "tk-5d93939b-9d75-4fd1-88c9-f21044605e30",
+      "title": "TypeScript plugin v2 tests (plugins/oca/src/): test v2 write produces correct schema, partial fields when env vars missing, v1 backwards compat on read, session.deleted cleans up v2, atomic write behavior. Add/update tests alongside existing watchdog.test.ts.",
+      "type": "code",
+      "section": "Plane 1: Plugin Writer",
+      "status": "done",
+      "priority": 3,
+      "created_at": "2026-05-04T07:21:35.756Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-a3b3e0a9-e885-482a-974c-7be0b8717672"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline",
+        "delegation_hint": "inline_required"
+      },
+      "started_at": "2026-05-04T07:21:35.772Z",
+      "completed_at": "2026-05-04T07:21:35.773Z",
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T13:03:51.148Z",
+          "test_file": "plugins/oca/test/session-tracker.test.ts"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T13:03:51.162Z",
+          "test_file": "plugins/oca/test/session-tracker.test.ts"
+        }
+      }
+    },
+    {
+      "id": "tk-157f3eba-bd25-46dd-86bc-bb6ee60ab2c1",
+      "title": "CLI `oca occupancy` command (cmd/oca/occupancy.go): implement occupancy subcommand with --all, --json, --socket, --path, --status, --pane flags. Human output groups active occupants by project/worktree with warnings for multiple occupants. JSON output exposes full local operator data. --status --pane is narrow single-pane compact output (e.g. \"1× trunk\", \"2× occupied ⚠\", \"?\"). Uses internal/occupancy package for parsing/grouping/reconciliation.",
+      "type": "code",
+      "section": "Plane 3: CLI",
+      "status": "done",
+      "priority": 4,
+      "created_at": "2026-05-04T07:21:35.757Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-a86de83c-fe05-4237-8aeb-1a70e0b8ca8e"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-5d93939b-9d75-4fd1-88c9-f21044605e30"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "delegation_hint": "inline_required",
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T07:21:35.774Z",
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T13:04:18.079Z",
+          "test_file": "cmd/oca/occupancy_test.go"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T13:04:18.095Z",
+          "test_file": "cmd/oca/occupancy_test.go"
+        }
+      },
+      "touched_files": [
+        "cmd/oca/occupancy.go",
+        "cmd/oca/occupancy_test.go",
+        "cmd/oca/root.go"
+      ],
+      "completed_at": "2026-05-04T07:21:35.776Z"
+    },
+    {
+      "id": "tk-891b20d3-1777-40f1-9bc5-535b8146ce11",
+      "title": "CLI occupancy golden/output tests (cmd/oca/occupancy_test.go): golden file tests for human output grouping, JSON output schema, --status --pane compact output, --all shows stale records, --path filtering, malformed record counting in warnings. Test with mock pane state dirs.",
+      "type": "code",
+      "section": "Plane 3: CLI",
+      "status": "done",
+      "priority": 5,
+      "created_at": "2026-05-04T07:21:35.758Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-a3b3e0a9-e885-482a-974c-7be0b8717672"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "delegation_hint": "inline_required",
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T07:21:35.777Z",
+      "touched_files": [
+        "cmd/oca/occupancy_test.go"
+      ],
+      "completed_at": "2026-05-04T07:21:35.779Z",
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T13:04:39.707Z",
+          "test_file": "cmd/oca/occupancy_test.go"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T13:04:18.133Z",
+          "test_file": "cmd/oca/occupancy_test.go"
+        }
+      }
+    },
+    {
+      "id": "tk-c70b91e2-1ef2-4a3b-845f-c4d9c4278207",
+      "title": "Status bar integration (lib/status_bar.sh): update to pass pane id and call `timeout 0.5s oca occupancy --status --pane <pane-id>` for compact occupancy segment. Suppress stderr. Render empty segment on failure/timeout. Preserve existing branch/ADV/Temporal output.",
+      "type": "code",
+      "section": "Plane 4: Status Bar",
+      "status": "done",
+      "priority": 6,
+      "created_at": "2026-05-04T07:21:35.759Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-a3b3e0a9-e885-482a-974c-7be0b8717672"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "delegation_hint": "delegate_allowed",
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T07:21:35.780Z",
+      "touched_files": [
+        "lib/status_bar.sh"
+      ],
+      "completed_at": "2026-05-04T07:21:35.782Z",
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T13:04:39.767Z",
+          "test_file": "tests/shell/status_bar_test.sh"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T13:04:39.797Z",
+          "test_file": "tests/shell/status_bar_test.sh"
+        }
+      }
+    },
+    {
+      "id": "tk-cb9b3020-a8bd-469f-8a29-52b453191350",
+      "title": "Status bar shell test (tests/shell/): test timeout/fail-closed behavior for `oca occupancy --status --pane`. Verify empty output on missing state file, correct compact output on valid state, timeout kills slow invocation. Uses bash test framework.",
+      "type": "code",
+      "section": "Plane 4: Status Bar",
+      "status": "done",
+      "priority": 7,
+      "created_at": "2026-05-04T07:21:35.760Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-c70b91e2-1ef2-4a3b-845f-c4d9c4278207"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "delegation_hint": "delegate_allowed",
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T07:21:35.783Z",
+      "touched_files": [
+        "tests/shell/status_bar_test.sh"
+      ],
+      "completed_at": "2026-05-04T07:21:35.785Z",
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T13:05:00.299Z",
+          "test_file": "tests/shell/status_bar_test.sh"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T13:05:00.377Z",
+          "test_file": "tests/shell/status_bar_test.sh"
+        }
+      }
+    },
+    {
+      "id": "tk-f6779c2e-82af-4330-a300-5e7fcff80186",
+      "title": "Advance `lastSeenAt` + occupancy marker (cross-repo: /home/jrede/dev/oc-plugins/advance): add `lastSeenAt` field to SessionListEntry in plugin/src/tools/session/index.ts. Add worktree occupancy marker: when >1 session shares a worktree, emit `[ADV:WORKTREE_OCCUPANCY] N sessions share this worktree. Nominal 1:1 violated; continuing allowed.` Count-only, no peer PID/path/branch. Graceful degradation when Temporal unavailable.",
+      "type": "code",
+      "section": "Plane 5: Advance",
+      "status": "done",
+      "priority": 8,
+      "created_at": "2026-05-04T07:21:35.761Z",
+      "tdd_phase": "complete",
+      "metadata": {
+        "delegation_hint": "inline_required",
+        "tdd_intent": "inline",
+        "target_repo": "advance",
+        "target_path": "/home/jrede/dev/oc-plugins/advance"
+      },
+      "started_at": "2026-05-04T07:21:35.786Z",
+      "completed_at": "2026-05-04T07:21:35.787Z",
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T13:05:16.212Z",
+          "test_file": "Advance plugin session projection / marker expectation"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T13:05:00.426Z",
+          "test_file": "Advance plugin build"
+        }
+      }
+    },
+    {
+      "id": "tk-1b331587-4cfd-4deb-8d03-7e3df1df5542",
+      "title": "Cross-surface integration verification: run `go test ./...` for OCA, build plugin (`cd plugins/oca && bun build`), run Advance scoped tests for session/occupancy changes. Verify no regressions. Report pass/fail.",
+      "type": "code",
+      "section": "Verification",
+      "status": "done",
+      "priority": 9,
+      "created_at": "2026-05-04T07:21:35.762Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-157f3eba-bd25-46dd-86bc-bb6ee60ab2c1"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-c70b91e2-1ef2-4a3b-845f-c4d9c4278207"
+        }
+      ],
+      "tdd_phase": "none",
+      "metadata": {
+        "delegation_hint": "delegate_allowed",
+        "tdd_intent": "separate_verification"
+      },
+      "started_at": "2026-05-04T07:21:35.788Z",
+      "completed_at": "2026-05-04T07:21:35.794Z",
+      "touched_files": [
+        "cmd/oca/occupancy_test.go",
+        "internal/occupancy/occupancy.go",
+        "internal/occupancy/occupancy_test.go"
+      ]
+    }
+  ],
+  "deltas": {},
+  "wisdom": [],
+  "gates": {
+    "proposal": {
+      "status": "done",
+      "completed_at": "2026-05-04T07:21:35.750Z",
+      "completed_by": "agent",
+      "notes": "User approved proposal inline with 'approve'. Proposal establishes nominal 1:1 worktree↔session visibility without hard locking, all four visibility surfaces, hybrid OCA pane-state + ADV Temporal direction, and privacy-safe no-chat-log constraint."
+    },
+    "discovery": {
+      "status": "done",
+      "completed_at": "2026-05-04T07:21:35.751Z",
+      "completed_by": "agent",
+      "notes": "User approved discovery agreement inline with 'approve'. Agreement sets hybrid OCA pane-state + CLI/tmux + privacy-safe ADV marker direction, 10 acceptance criteria, no chat-log source, no hard-locking, and Pattern B deconflict."
+    },
+    "design": {
+      "status": "done",
+      "completed_at": "2026-05-04T07:21:35.752Z",
+      "completed_by": "agent",
+      "notes": "Design completed after independent validator returned CAUTION. Required fixes applied: worktreeBranch remains out of ADV peer-facing output; reconciliation precedence specified (tmux > Temporal > pane state > git enrichment); plugin writer vs CLI reader responsibilities specified. No validator CONFLICT, no user-value tradeoff, no contract-compromise risk."
+    },
+    "planning": {
+      "status": "done",
+      "completed_at": "2026-05-04T07:21:35.763Z",
+      "completed_by": "agent",
+      "notes": "User approved 10-task graph via 'approve'. T1/T3/T9 parallel start. Investment tier: escalate, no judgment calls."
+    },
+    "execution": {
+      "status": "done",
+      "completed_at": "2026-05-04T07:21:35.790Z",
+      "completed_by": "agent",
+      "notes": "All 10 tasks completed. Go test suite pass, OCA plugin 29/29 bun tests, Advance plugin builds clean. No regressions."
+    },
+    "acceptance": {
+      "status": "done",
+      "completed_at": "2026-05-04T07:21:35.793Z",
+      "completed_by": "agent",
+      "notes": "User accepted review outcome inline with 'accept'. Review verdict APPROVED after remediation; verification green."
+    },
+    "release": {
+      "status": "done",
+      "completed_at": "2026-05-04T07:21:35.795Z",
+      "completed_by": "agent",
+      "notes": "User signed off archive inline with 'sign off'. Hardening passed: go test ./..., OCA bun tests, status shell tests, Advance build, validation."
+    }
+  },
+  "reentry_history": [],
+  "adv_project_id": "cdae139e16c8cbaa4ef2ebf35dda326e826e93bc",
+  "clarify_findings": [
+    {
+      "code": "CLARIFY_UNCLEAR_SCOPE",
+      "severity": "warning",
+      "message": "Scope section is empty or placeholder. What specific files/modules will change?",
+      "recorded_at": "2026-05-04T07:35:46.881Z"
+    }
+  ]
+}
