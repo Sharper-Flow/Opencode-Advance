@@ -61,6 +61,180 @@ func TestNewManager_NoTmux(t *testing.T) {
 	}
 }
 
+func TestProjectRoot_FromNestedGitRepo(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+
+	root := filepath.Join(t.TempDir(), "opencodeadvance")
+	nested := filepath.Join(root, "cmd", "oca")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	cmd := exec.Command("git", "init")
+	cmd.Dir = root
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v (output: %s)", err, out)
+	}
+
+	got, err := ProjectRoot(context.Background(), nested)
+	if err != nil {
+		t.Fatalf("ProjectRoot: %v", err)
+	}
+	if got != root {
+		t.Errorf("ProjectRoot = %q, want %q", got, root)
+	}
+}
+
+func TestProjectSessionName(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "OpenCode Advance")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	got, err := ProjectSessionName(root)
+	if err != nil {
+		t.Fatalf("ProjectSessionName: %v", err)
+	}
+	if got != "opencode-advance" {
+		t.Errorf("ProjectSessionName = %q, want %q", got, "opencode-advance")
+	}
+}
+
+func TestGetOrCreateProjectSession_CreatesMissingProjectSession(t *testing.T) {
+	root := mustProjectRootDir(t)
+	tmuxPath, logPath := fakeTmux(t, "ERR:no server running on fake", "")
+	m := &Manager{socket: "fake", tmuxPath: tmuxPath}
+
+	s, created, err := m.GetOrCreateProjectSession(context.Background(), root, "")
+	if err != nil {
+		t.Fatalf("GetOrCreateProjectSession: %v", err)
+	}
+	if !created {
+		t.Fatal("created = false, want true")
+	}
+	if s.Name != "opencodeadvance" || s.Path != root {
+		t.Fatalf("session = %+v, want name opencodeadvance path %q", s, root)
+	}
+	log := readFakeTmuxLog(t, logPath)
+	if !strings.Contains(log, "new-session -d -s opencodeadvance -n trunk -c "+root) {
+		t.Fatalf("tmux log missing project new-session command:\n%s", log)
+	}
+}
+
+func TestGetOrCreateProjectSession_ReusesExistingProjectSession(t *testing.T) {
+	root := mustProjectRootDir(t)
+	tmuxPath, logPath := fakeTmux(t, fmt.Sprintf("opencodeadvance\t0\t%s", root), "")
+	m := &Manager{socket: "fake", tmuxPath: tmuxPath}
+
+	s, created, err := m.GetOrCreateProjectSession(context.Background(), root, "")
+	if err != nil {
+		t.Fatalf("GetOrCreateProjectSession: %v", err)
+	}
+	if created {
+		t.Fatal("created = true, want false")
+	}
+	if s.Name != "opencodeadvance" || s.Path != root {
+		t.Fatalf("session = %+v, want name opencodeadvance path %q", s, root)
+	}
+	log := readFakeTmuxLog(t, logPath)
+	if strings.Contains(log, "new-session") {
+		t.Fatalf("tmux log created duplicate session:\n%s", log)
+	}
+}
+
+func TestGetOrCreateProjectSession_RecreatesStaleProjectSession(t *testing.T) {
+	root := mustProjectRootDir(t)
+	stalePath := filepath.Join(t.TempDir(), "missing")
+	tmuxPath, logPath := fakeTmux(t, fmt.Sprintf("opencodeadvance\t0\t%s", stalePath), "")
+	m := &Manager{socket: "fake", tmuxPath: tmuxPath}
+
+	_, created, err := m.GetOrCreateProjectSession(context.Background(), root, "")
+	if err != nil {
+		t.Fatalf("GetOrCreateProjectSession: %v", err)
+	}
+	if !created {
+		t.Fatal("created = false, want true after stale session recreation")
+	}
+	log := readFakeTmuxLog(t, logPath)
+	if !strings.Contains(log, "kill-session -t opencodeadvance") {
+		t.Fatalf("tmux log missing stale kill-session command:\n%s", log)
+	}
+	if !strings.Contains(log, "new-session -d -s opencodeadvance -n trunk -c "+root) {
+		t.Fatalf("tmux log missing replacement new-session command:\n%s", log)
+	}
+}
+
+func TestListWindows(t *testing.T) {
+	root := mustProjectRootDir(t)
+	worktree := filepath.Join(t.TempDir(), "change-one")
+	if err := os.MkdirAll(worktree, 0o755); err != nil {
+		t.Fatalf("MkdirAll(worktree): %v", err)
+	}
+	windowOutput := fmt.Sprintf("%%1\t0\ttrunk\t1\t%s\n%%2\t1\tchange-one\t0\t%s", root, worktree)
+	tmuxPath, _ := fakeTmux(t, "ERR:no sessions", windowOutput)
+	m := &Manager{socket: "fake", tmuxPath: tmuxPath}
+
+	windows, err := m.ListWindows(context.Background(), "opencodeadvance")
+	if err != nil {
+		t.Fatalf("ListWindows: %v", err)
+	}
+	if len(windows) != 2 {
+		t.Fatalf("len(windows) = %d, want 2: %+v", len(windows), windows)
+	}
+	if windows[0].ID != "%1" || windows[0].Index != 0 || windows[0].Name != "trunk" || !windows[0].Active || windows[0].Path != root {
+		t.Errorf("windows[0] = %+v, want active trunk at %q", windows[0], root)
+	}
+	if windows[1].ID != "%2" || windows[1].Index != 1 || windows[1].Name != "change-one" || windows[1].Active || windows[1].Path != worktree {
+		t.Errorf("windows[1] = %+v, want inactive change-one at %q", windows[1], worktree)
+	}
+}
+
+func TestEnsureWindow_ReusesExistingWindow(t *testing.T) {
+	root := mustProjectRootDir(t)
+	windowOutput := fmt.Sprintf("%%1\t0\ttrunk\t1\t%s", root)
+	tmuxPath, logPath := fakeTmux(t, "", windowOutput)
+	m := &Manager{socket: "fake", tmuxPath: tmuxPath}
+
+	w, created, err := m.EnsureWindow(context.Background(), "opencodeadvance", "trunk", root)
+	if err != nil {
+		t.Fatalf("EnsureWindow: %v", err)
+	}
+	if created {
+		t.Fatal("created = true, want false")
+	}
+	if w.Name != "trunk" || w.Path != root {
+		t.Fatalf("window = %+v, want trunk at %q", w, root)
+	}
+	log := readFakeTmuxLog(t, logPath)
+	if strings.Contains(log, "new-window") {
+		t.Fatalf("tmux log created duplicate window:\n%s", log)
+	}
+}
+
+func TestEnsureWindow_RecreatesStaleWindowCwd(t *testing.T) {
+	root := mustProjectRootDir(t)
+	stalePath := filepath.Join(t.TempDir(), "missing")
+	windowOutput := fmt.Sprintf("%%2\t1\tchange-one\t0\t%s", stalePath)
+	tmuxPath, logPath := fakeTmux(t, "", windowOutput)
+	m := &Manager{socket: "fake", tmuxPath: tmuxPath}
+
+	_, created, err := m.EnsureWindow(context.Background(), "opencodeadvance", "change-one", root)
+	if err != nil {
+		t.Fatalf("EnsureWindow: %v", err)
+	}
+	if !created {
+		t.Fatal("created = false, want true after stale window recreation")
+	}
+	log := readFakeTmuxLog(t, logPath)
+	if !strings.Contains(log, "kill-window -t opencodeadvance:%2") {
+		t.Fatalf("tmux log missing stale kill-window command:\n%s", log)
+	}
+	if !strings.Contains(log, "new-window -t opencodeadvance -n change-one -c "+root) {
+		t.Fatalf("tmux log missing replacement new-window command:\n%s", log)
+	}
+}
+
 func TestCreateAndList(t *testing.T) {
 	testTmuxAvailable(t)
 	cleanupSocket(t, testSocket)
@@ -712,4 +886,75 @@ func TestReapStale_NonOcaPrefixSkipped(t *testing.T) {
 			t.Error("ReapStale killed non-oca-prefix session 'user-other' — prefix filter broken")
 		}
 	}
+}
+
+func mustProjectRootDir(t *testing.T) string {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), "opencodeadvance")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("MkdirAll(root): %v", err)
+	}
+	return root
+}
+
+func fakeTmux(t *testing.T, sessionOutput, windowOutput string) (string, string) {
+	t.Helper()
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "tmux.log")
+	scriptPath := filepath.Join(dir, "tmux")
+	script := fmt.Sprintf(`#!/bin/sh
+printf '%%s\n' "$*" >> %s
+cmd=""
+for arg in "$@"; do
+  case "$arg" in
+    list-sessions|new-session|kill-session|list-windows|new-window|kill-window|has-session|setenv|showenv)
+      cmd="$arg"
+      break
+      ;;
+  esac
+done
+case "$cmd" in
+  list-sessions)
+%s
+    ;;
+  list-windows)
+%s
+    ;;
+  new-session|kill-session|new-window|kill-window|has-session|setenv|showenv)
+    exit 0
+    ;;
+  *)
+    echo "unexpected tmux args: $*" >&2
+    exit 2
+    ;;
+esac
+`, shellQuote(logPath), fakeTmuxOutputClause(sessionOutput), fakeTmuxOutputClause(windowOutput))
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("WriteFile(fake tmux): %v", err)
+	}
+	return scriptPath, logPath
+}
+
+func fakeTmuxOutputClause(output string) string {
+	exitCode := 0
+	stream := "cat <<'EOF'"
+	if strings.HasPrefix(output, "ERR:") {
+		exitCode = 1
+		stream = "cat >&2 <<'EOF'"
+		output = strings.TrimPrefix(output, "ERR:")
+	}
+	return fmt.Sprintf("    %s\n%s\nEOF\n    exit %d", stream, output, exitCode)
+}
+
+func readFakeTmuxLog(t *testing.T, logPath string) string {
+	t.Helper()
+	b, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("ReadFile(fake tmux log): %v", err)
+	}
+	return string(b)
+}
+
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }

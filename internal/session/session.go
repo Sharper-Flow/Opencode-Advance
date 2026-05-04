@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -28,11 +29,22 @@ const (
 // sessionNamePattern matches OCA-managed session names: oca-<slug>-<n>
 var sessionNamePattern = regexp.MustCompile(`^oca-([a-zA-Z0-9_-]+)-(\d+)$`)
 
+var projectSlugInvalidChars = regexp.MustCompile(`[^a-z0-9_-]+`)
+
 // Session represents a tmux session managed by OCA.
 type Session struct {
 	Name     string
 	Attached bool
 	Path     string // working directory of the session
+}
+
+// Window represents a tmux window inside an OCA project session.
+type Window struct {
+	ID     string
+	Index  int
+	Name   string
+	Active bool
+	Path   string // current pane working directory for the window
 }
 
 // Manager manages OCA tmux sessions on a specific socket.
@@ -49,6 +61,58 @@ func NewManager(socket string) (*Manager, error) {
 		return nil, err
 	}
 	return &Manager{socket: socket, tmuxPath: tmuxPath}, nil
+}
+
+// ProjectRoot resolves the git project root for workingDir.
+func ProjectRoot(ctx context.Context, workingDir string) (string, error) {
+	if workingDir == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("get current directory: %w", err)
+		}
+		workingDir = wd
+	}
+	info, err := os.Stat(workingDir)
+	if err != nil {
+		return "", fmt.Errorf("working directory %q does not exist: %w", workingDir, err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("working directory %q is not a directory", workingDir)
+	}
+
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		return "", fmt.Errorf("git not found on PATH: %w", err)
+	}
+	res, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    gitPath,
+		Args:    []string{"-C", workingDir, "rev-parse", "--show-toplevel"},
+		Timeout: sessionTimeout,
+	})
+	if err != nil {
+		return "", fmt.Errorf("resolve git project root for %q: %w", workingDir, err)
+	}
+	root := strings.TrimSpace(string(res.Output))
+	if root == "" {
+		return "", fmt.Errorf("resolve git project root for %q: empty git output", workingDir)
+	}
+	return filepath.Clean(root), nil
+}
+
+// ProjectSessionName returns the Pattern B project tmux session name for root.
+// Pattern B uses the git repo slug directly: no "oca-" prefix and no numeric
+// per-invocation suffix.
+func ProjectSessionName(projectRoot string) (string, error) {
+	if projectRoot == "" {
+		return "", fmt.Errorf("project root is required")
+	}
+	slug := strings.ToLower(filepath.Base(filepath.Clean(projectRoot)))
+	slug = projectSlugInvalidChars.ReplaceAllString(slug, "-")
+	slug = strings.Trim(slug, "-")
+	if slug == "" {
+		return "", fmt.Errorf("project root %q does not produce a valid session name", projectRoot)
+	}
+	return slug, nil
 }
 
 // Create creates a new detached tmux session.
@@ -82,6 +146,55 @@ func (m *Manager) Create(ctx context.Context, name, workingDir, tmuxConfPath str
 	return nil
 }
 
+// GetOrCreateProjectSession returns the Pattern B session for projectRoot,
+// creating it when missing. Existing sessions with a stale/nonexistent cwd are
+// killed and recreated at projectRoot with a "trunk" window.
+func (m *Manager) GetOrCreateProjectSession(ctx context.Context, projectRoot, tmuxConfPath string) (*Session, bool, error) {
+	if err := validateDir(projectRoot, "project root"); err != nil {
+		return nil, false, err
+	}
+	name, err := ProjectSessionName(projectRoot)
+	if err != nil {
+		return nil, false, err
+	}
+
+	existing, err := m.getRawSessionByName(ctx, name)
+	if err != nil {
+		return nil, false, err
+	}
+	if existing != nil {
+		if dirExists(existing.Path) {
+			return existing, false, nil
+		}
+		if err := m.Kill(ctx, name); err != nil {
+			return nil, false, fmt.Errorf("kill stale project session %q: %w", name, err)
+		}
+	}
+
+	if err := m.createProjectSession(ctx, name, projectRoot, tmuxConfPath); err != nil {
+		return nil, false, err
+	}
+	return &Session{Name: name, Attached: false, Path: projectRoot}, true, nil
+}
+
+func (m *Manager) createProjectSession(ctx context.Context, name, projectRoot, tmuxConfPath string) error {
+	args := []string{"-L", m.socket}
+	if tmuxConfPath != "" {
+		args = append(args, "-f", tmuxConfPath)
+	}
+	args = append(args, "new-session", "-d", "-s", name, "-n", "trunk", "-c", projectRoot)
+
+	_, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    m.tmuxPath,
+		Args:    args,
+		Timeout: sessionTimeout,
+	})
+	if err != nil {
+		return fmt.Errorf("tmux new project session failed: %w", err)
+	}
+	return nil
+}
+
 // List returns all OCA-managed sessions on the manager's socket.
 // Filters by the "oca-" prefix.
 func (m *Manager) List(ctx context.Context) ([]Session, error) {
@@ -106,6 +219,30 @@ func (m *Manager) List(ctx context.Context) ([]Session, error) {
 	}
 
 	return parseSessionList(string(res.Output)), nil
+}
+
+func (m *Manager) getRawSessionByName(ctx context.Context, name string) (*Session, error) {
+	args := []string{"-L", m.socket, "list-sessions", "-F", "#{session_name}\t#{session_attached}\t#{session_path}"}
+
+	res, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    m.tmuxPath,
+		Args:    args,
+		Timeout: sessionTimeout,
+	})
+	if err != nil {
+		output := string(res.Output)
+		if isNoSessionsOutput(output) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("tmux list-sessions failed: %w", err)
+	}
+
+	for _, s := range parseAllSessionList(string(res.Output)) {
+		if s.Name == name {
+			return &s, nil
+		}
+	}
+	return nil, nil
 }
 
 // NextSessionName returns the next sequential session name for the given repo slug.
@@ -137,6 +274,17 @@ func (m *Manager) NextSessionName(ctx context.Context, repoSlug string) (string,
 
 // parseSessionList parses tmux list-sessions output into Session structs.
 func parseSessionList(output string) []Session {
+	all := parseAllSessionList(output)
+	var sessions []Session
+	for _, s := range all {
+		if strings.HasPrefix(s.Name, sessionPrefix) {
+			sessions = append(sessions, s)
+		}
+	}
+	return sessions
+}
+
+func parseAllSessionList(output string) []Session {
 	output = strings.TrimSpace(output)
 	if output == "" {
 		return nil
@@ -153,9 +301,6 @@ func parseSessionList(output string) []Session {
 			continue
 		}
 		name := parts[0]
-		if !strings.HasPrefix(name, sessionPrefix) {
-			continue
-		}
 		attached := parts[1] == "1"
 		path := ""
 		if len(parts) >= 3 {
@@ -164,6 +309,25 @@ func parseSessionList(output string) []Session {
 		sessions = append(sessions, Session{Name: name, Attached: attached, Path: path})
 	}
 	return sessions
+}
+
+func validateDir(path, label string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("%s %q does not exist: %w", label, path, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s %q is not a directory", label, path)
+	}
+	return nil
+}
+
+func dirExists(path string) bool {
+	if path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 func isNoSessionsOutput(output string) bool {
@@ -214,6 +378,127 @@ func (m *Manager) SwitchClient(ctx context.Context, name string) error {
 		return fmt.Errorf("tmux switch-client failed: %w", err)
 	}
 	return nil
+}
+
+// ListWindows returns windows for an exact tmux session name. Pattern B project
+// sessions intentionally do not use the legacy oca- prefix, so this helper is
+// exact-name scoped rather than prefix-scoped.
+func (m *Manager) ListWindows(ctx context.Context, sessionName string) ([]Window, error) {
+	args := []string{"-L", m.socket, "list-windows", "-t", sessionName, "-F", "#{window_id}\t#{window_index}\t#{window_name}\t#{window_active}\t#{pane_current_path}"}
+	res, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    m.tmuxPath,
+		Args:    args,
+		Timeout: sessionTimeout,
+	})
+	if err != nil {
+		output := string(res.Output)
+		if isNoSessionsOutput(output) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("tmux list-windows failed: %w", err)
+	}
+	return parseWindowList(string(res.Output)), nil
+}
+
+// EnsureWindow returns the named project-session window, creating it at
+// workingDir when missing. If a matching window has a stale cwd, it is replaced
+// so the next attach lands in the expected worktree.
+func (m *Manager) EnsureWindow(ctx context.Context, sessionName, windowName, workingDir string) (*Window, bool, error) {
+	if sessionName == "" {
+		return nil, false, fmt.Errorf("session name is required")
+	}
+	if windowName == "" {
+		return nil, false, fmt.Errorf("window name is required")
+	}
+	if err := validateDir(workingDir, "working directory"); err != nil {
+		return nil, false, err
+	}
+
+	windows, err := m.ListWindows(ctx, sessionName)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, w := range windows {
+		if w.Name != windowName {
+			continue
+		}
+		if dirExists(w.Path) {
+			return &w, false, nil
+		}
+		if err := m.killWindow(ctx, sessionName, w.ID); err != nil {
+			return nil, false, fmt.Errorf("kill stale window %q: %w", windowName, err)
+		}
+		break
+	}
+
+	if err := m.createWindow(ctx, sessionName, windowName, workingDir); err != nil {
+		return nil, false, err
+	}
+	return &Window{Index: -1, Name: windowName, Path: workingDir}, true, nil
+}
+
+func (m *Manager) createWindow(ctx context.Context, sessionName, windowName, workingDir string) error {
+	args := []string{"-L", m.socket, "new-window", "-t", sessionName, "-n", windowName, "-c", workingDir}
+	_, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    m.tmuxPath,
+		Args:    args,
+		Timeout: sessionTimeout,
+	})
+	if err != nil {
+		return fmt.Errorf("tmux new-window failed: %w", err)
+	}
+	return nil
+}
+
+func (m *Manager) killWindow(ctx context.Context, sessionName, windowID string) error {
+	target := sessionName
+	if windowID != "" {
+		target = sessionName + ":" + windowID
+	}
+	args := []string{"-L", m.socket, "kill-window", "-t", target}
+	_, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    m.tmuxPath,
+		Args:    args,
+		Timeout: sessionTimeout,
+	})
+	if err != nil {
+		return fmt.Errorf("tmux kill-window failed: %w", err)
+	}
+	return nil
+}
+
+func parseWindowList(output string) []Window {
+	output = strings.TrimSpace(output)
+	if output == "" {
+		return nil
+	}
+	var windows []Window
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "\t", 5)
+		if len(parts) < 4 {
+			continue
+		}
+		index, err := strconv.Atoi(parts[1])
+		if err != nil {
+			continue
+		}
+		path := ""
+		if len(parts) >= 5 {
+			path = parts[4]
+		}
+		windows = append(windows, Window{
+			ID:     parts[0],
+			Index:  index,
+			Name:   parts[2],
+			Active: parts[3] == "1",
+			Path:   path,
+		})
+	}
+	return windows
 }
 
 // Kill destroys a tmux session by exact name on the manager's configured
