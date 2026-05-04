@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -92,6 +93,86 @@ func TestUpdateCommand_ForceOnPinnedSHADoesNotMutateRef(t *testing.T) {
 	data, _ := os.ReadFile(stackPath)
 	if !regexp.MustCompile(`ref = "` + sha + `"`).Match(data) {
 		t.Fatalf("force update should not mutate ref:\n%s", string(data))
+	}
+}
+
+func TestUpdateCommand_CheckDetectsUpdatesWithoutMutatingCheckout(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(tmp, "opencode"))
+	t.Setenv("OCA_VISION_CONFIG_DIR", filepath.Join(tmp, "vision"))
+	t.Setenv("OCA_CACHE_DIR", filepath.Join(tmp, "cache"))
+
+	remote, work, checkout := initRemoteWorkCheckout(t, tmp)
+	initial := gitRevParseHead(t, checkout)
+	addCommitAndPush(t, work, "v2")
+	stackPath := filepath.Join(tmp, "stack.toml")
+	writeFile(t, stackPath, "[meta]\nversion = \"1.0.0\"\n\n[plugins.advance]\nsource = \""+remote+"\"\nref = \"master\"\ncheckout = \""+checkout+"\"\npath = \""+checkout+"\"\n")
+
+	var stdout, stderr bytes.Buffer
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"update", "--check", "--config", stackPath})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("update --check: %v stderr=%s", err, stderr.String())
+	}
+	if got := gitRevParseHead(t, checkout); got != initial {
+		t.Fatalf("update --check mutated checkout: got %s want %s", got, initial)
+	}
+	if !strings.Contains(stdout.String(), "update_available") || !strings.Contains(stdout.String(), "advance") {
+		t.Fatalf("unexpected stdout: %q", stdout.String())
+	}
+	if _, err := os.Stat(config.ResolvePaths().DriftCachePath()); err != nil {
+		t.Fatalf("expected drift cache: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(tmp, "opencode", "opencode.json")); err == nil {
+		t.Fatalf("update --check should not render opencode.json")
+	}
+}
+
+func TestUpdateCommand_CheckSelectedQuietAndJSON(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(tmp, "opencode"))
+	t.Setenv("OCA_VISION_CONFIG_DIR", filepath.Join(tmp, "vision"))
+	t.Setenv("OCA_CACHE_DIR", filepath.Join(tmp, "cache"))
+	advanceTmp := filepath.Join(tmp, "advance")
+	morphTmp := filepath.Join(tmp, "morph")
+	if err := os.MkdirAll(advanceTmp, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(morphTmp, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	advanceRemote, _, advanceCheckout := initRemoteWorkCheckout(t, advanceTmp)
+	morphRemote, _, morphCheckout := initRemoteWorkCheckout(t, morphTmp)
+	stackPath := filepath.Join(tmp, "stack.toml")
+	writeFile(t, stackPath, "[meta]\nversion = \"1.0.0\"\n\n[plugins.advance]\nsource = \""+advanceRemote+"\"\nref = \"master\"\ncheckout = \""+advanceCheckout+"\"\npath = \""+advanceCheckout+"\"\n\n[plugins.morph]\nsource = \""+morphRemote+"\"\nref = \"master\"\ncheckout = \""+morphCheckout+"\"\npath = \""+morphCheckout+"\"\n")
+
+	var stdout, stderr bytes.Buffer
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"--output", "json", "update", "--check", "advance", "--config", stackPath})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("update --check json selected: %v stderr=%s", err, stderr.String())
+	}
+	var payload struct {
+		Results []struct {
+			Name string `json:"name"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("json output invalid: %v\n%s", err, stdout.String())
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Name != "advance" {
+		t.Fatalf("json results = %+v", payload.Results)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	cmd = newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"--quiet", "update", "--check", "--config", stackPath})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("update --check quiet: %v stderr=%s", err, stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("quiet output = %q, want empty", stdout.String())
 	}
 }
 

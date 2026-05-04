@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/Sharper-Flow/Opencode-Advance/internal/config"
 	pluginpkg "github.com/Sharper-Flow/Opencode-Advance/internal/plugin"
@@ -16,6 +17,7 @@ var shaPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
 func newUpdateCmd(state *commandState) *cobra.Command {
 	var force bool
+	var check bool
 	cmd := &cobra.Command{
 		Use:   "update [plugin...]",
 		Short: "Update git plugins and re-apply plugin config",
@@ -27,6 +29,9 @@ func newUpdateCmd(state *commandState) *cobra.Command {
 			selected := map[string]bool{}
 			for _, arg := range args {
 				selected[arg] = true
+			}
+			if check {
+				return runUpdateCheck(cmd.Context(), state, stack, selected)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 60_000_000_000)
 			defer cancel()
@@ -102,5 +107,34 @@ func newUpdateCmd(state *commandState) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "Force update even when plugin ref is pinned to a SHA (does not mutate stack.toml ref)")
+	cmd.Flags().BoolVar(&check, "check", false, "Check for plugin updates without fetching, building, or applying")
 	return cmd
+}
+
+func runUpdateCheck(ctx context.Context, state *commandState, stack *config.Stack, selected map[string]bool) error {
+	paths := config.ResolvePaths()
+	opts := pluginpkg.ProbeOptions{
+		TimeoutPerPlugin: time.Duration(stack.UpdateProbe.TimeoutPerPluginMS) * time.Millisecond,
+		TimeoutGlobal:    time.Duration(stack.UpdateProbe.TimeoutGlobalMS) * time.Millisecond,
+		Parallelism:      4,
+	}
+	results, err := pluginpkg.ProbeAll(ctx, stack.Plugins, selected, opts)
+	if err != nil {
+		return newCLIError(3, "update check: %w", err)
+	}
+	if err := pluginpkg.WriteDriftCache(paths.DriftCachePath(), results); err != nil {
+		return newCLIError(3, "write drift cache: %w", err)
+	}
+	if state.quiet {
+		return nil
+	}
+	if state.output == "json" {
+		return printJSON(state.opts.Stdout, map[string]any{"results": results})
+	}
+	for _, res := range results {
+		if _, err := fmt.Fprintf(state.opts.Stdout, "%s\t%s\t%s\t%s\t%s\n", res.Status, res.Name, res.Ref, res.LocalSHA, res.RemoteSHA); err != nil {
+			return err
+		}
+	}
+	return nil
 }
