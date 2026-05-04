@@ -104,4 +104,47 @@ if (( ELAPSED > 200 )); then
 fi
 printf 'OK (%dms)\n' "$ELAPSED"
 
+# ── Occupancy segment tests ─────────────────────────────────
+
+printf 'occupancy: --status --pane returns ? for missing state... '
+OCA_BIN="$ROOT_DIR/oca"
+if [[ -x "$OCA_BIN" ]]; then
+  STATUS_OUTPUT=$(TMUX_PANE="%9999" timeout 0.5s "$OCA_BIN" occupancy --status --pane "%9999" 2>/dev/null || true)
+  if [[ "$STATUS_OUTPUT" != "?" ]]; then
+    printf 'FAIL: expected "?", got %q\n' "$STATUS_OUTPUT" >&2
+    exit 1
+  fi
+  printf 'OK\n'
+else
+  printf 'SKIP (oca binary not built)\n'
+fi
+
+printf 'occupancy: --status --pane returns ? without TMUX_PANE... '
+if [[ -x "$OCA_BIN" ]]; then
+  STATUS_OUTPUT=$(unset TMUX_PANE; timeout 0.5s "$OCA_BIN" occupancy --status 2>/dev/null || true)
+  if [[ "$STATUS_OUTPUT" != "?" ]]; then
+    printf 'FAIL: expected "?", got %q\n' "$STATUS_OUTPUT" >&2
+    exit 1
+  fi
+  printf 'OK\n'
+else
+  printf 'SKIP (oca binary not built)\n'
+fi
+
+printf 'occupancy: timeout kills slow invocation... '
+if [[ -x "$OCA_BIN" ]]; then
+  # 0.1s timeout should still return quickly
+  START=$(date +%s%N)
+  timeout 0.1s "$OCA_BIN" occupancy --status --pane "%1" 2>/dev/null || true
+  END=$(date +%s%N)
+  ELAPSED=$(( (END - START) / 1000000 ))
+  if (( ELAPSED > 500 )); then
+    printf 'FAIL: timeout did not kill after %dms\n' "$ELAPSED" >&2
+    exit 1
+  fi
+  printf 'OK (%dms)\n' "$ELAPSED"
+else
+  printf 'SKIP (oca binary not built)\n'
+fi
+
 printf '\nAll status_bar tests passed.\n'
