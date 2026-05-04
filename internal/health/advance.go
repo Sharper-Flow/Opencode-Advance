@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
 )
@@ -128,9 +130,82 @@ func CheckADVPlugin(ctx context.Context, stack *cfg.Stack, opts Options) ([]Chec
 		})
 	}
 
+	checks = append(checks, checkLocalADVState(opts))
+
 	return checks, nil
 }
 
 func isAdvancePlugin(source string) bool {
 	return normalizeGitURL(source) == "github.com/Sharper-Flow/Advance"
+}
+
+func checkLocalADVState(opts Options) Check {
+	root := opts.ProjectRoot
+	if root == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return Check{
+				Name:    "adv-local-state",
+				Status:  StatusWarn,
+				Message: "cannot resolve project root for local .adv scan",
+				Hint:    "run oca doctor from a project directory",
+			}
+		}
+		root = wd
+	}
+
+	advDir := filepath.Join(root, ".adv")
+	entries, err := os.ReadDir(advDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return Check{Name: "adv-local-state", Status: StatusPass, Message: "no repo-local .adv directory found"}
+		}
+		return Check{Name: "adv-local-state", Status: StatusWarn, Message: "cannot read repo-local .adv directory: " + err.Error(), Hint: "verify project permissions"}
+	}
+
+	var residue []string
+	for _, entry := range entries {
+		name := entry.Name()
+		switch {
+		case name == "specs":
+			continue
+		case name == "archive" && entry.IsDir():
+			residue = append(residue, archiveResidue(filepath.Join(advDir, name))...)
+		case name == "changes" || name == "db" || strings.HasPrefix(name, "agenda"):
+			residue = append(residue, name)
+		}
+	}
+
+	if len(residue) == 0 {
+		return Check{Name: "adv-local-state", Status: StatusPass, Message: "repo-local .adv state contains only valid specs/archive bundle artifacts"}
+	}
+	sort.Strings(residue)
+	return Check{
+		Name:    "adv-local-state",
+		Status:  StatusWarn,
+		Message: "repo-local .adv contains legacy or non-bundle mutable state: " + strings.Join(residue, ", "),
+		Hint:    "from an ADV-capable session, run adv_migrate_cleanup dryRun:true before any approved cleanup; preserve .adv/specs and valid .adv/archive bundles",
+	}
+}
+
+func archiveResidue(archiveDir string) []string {
+	entries, err := os.ReadDir(archiveDir)
+	if err != nil {
+		return []string{"archive (unreadable)"}
+	}
+	if len(entries) == 0 {
+		return []string{"archive (empty)"}
+	}
+
+	var residue []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() {
+			if _, err := os.Stat(filepath.Join(archiveDir, name, "change.json")); err == nil {
+				continue
+			}
+		}
+		residue = append(residue, filepath.ToSlash(filepath.Join("archive", name)))
+	}
+	return residue
 }

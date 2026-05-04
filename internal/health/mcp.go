@@ -26,6 +26,7 @@ type Options struct {
 	SkillsAssetsRoot string // Root of OCA-owned skill source directories
 	SkillsTargetDir  string // Target directory where skills are deployed
 	ConfigDir        string // Root OpenCode config directory (e.g. ~/.config/opencode)
+	ProjectRoot      string // Current project root for repo-local checks
 }
 
 type versionResponse struct {
