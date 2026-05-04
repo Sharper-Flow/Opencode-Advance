@@ -2,7 +2,7 @@
 
 This document separates the **implemented CLI** from the broader **planned v1.0 command surface**.
 
-Phase 1 shipped `oca version`, `oca apply --target mcp`, `oca doctor --scope mcp`, and `oca debug`. Phase 2 extended the surface with plugin/instructions targets on `apply`, added new `oca pin` and `oca update` commands, and extended `oca doctor` with a `plugins` scope and a `--network` flag. Phases 3–3.5 extended apply/diff/doctor. Phase 4 shipped session lifecycle. Phase 5 shipped temporal config. Phase 5.5 shipped slot groups. Phase 6 shipped `oca install`, `oca uninstall`, and `oca completion`. Phase 6.5 shipped `oca temporal` dev-server supervision subcommands. Phase 7 shipped `adv-plugin` and `cross` doctor scopes. The worktree occupancy visibility change added `oca occupancy`.
+Phase 1 shipped `oca version`, `oca apply --target mcp`, `oca doctor --scope mcp`, and `oca debug`. Phase 2 extended the surface with plugin/instructions targets on `apply`, added new `oca pin` and `oca update` commands, and extended `oca doctor` with a `plugins` scope and a `--network` flag. Phases 3–3.5 extended apply/diff/doctor. Phase 4 shipped session lifecycle. Phase 5 shipped temporal config. Phase 5.5 shipped slot groups. Phase 6 shipped `oca install`, `oca uninstall`, and `oca completion`. Phase 6.5 shipped `oca temporal` dev-server supervision subcommands. Phase 7 shipped `adv-plugin` and `cross` doctor scopes. The worktree occupancy visibility change added `oca occupancy`. The standalone maintenance change adds `oca maintain` for offline verified merges, plugin rebuilds, and safe cleanup when no OpenCode/ADV runtime is active.
 
 ## Shipped in Phase 1
 
@@ -71,6 +71,31 @@ Emit the Phase 1 render plan as JSON.
 ### `oca debug validate`
 
 Run config load/resolve/validate and print the result without writing files.
+
+## `oca maintain`
+
+Plan and optionally execute offline OCA/ADV maintenance. This command is designed for use after closing OpenCode sessions so host-loaded plugin code, Temporal workers, and ADV state are not mutated under a live runtime.
+
+Flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--dry-run` | Show the maintenance plan without mutation (default) |
+| `--execute` | Execute safe actions after hard active-session gates pass |
+| `--include-merge` | Include verified completed ADV change branches |
+| `--include-rebuild` | Include plugin rebuild actions for missing/stale build markers |
+| `--include-cleanup` | Include conservative merged/clean/process-free worktree cleanup |
+| `--project <path>` | Project root to inspect |
+
+Behavior:
+
+- hard-refuses `--execute` when OpenCode/OCA/ADV runtime processes are active
+- consumes Advance `scripts/maintenance/inspect.mjs` output and plans merges only for archived changes with `release` gate `done`
+- uses `git merge --ff-only` for verified merge actions
+- rebuilds plugins through declared `build` commands and writes `dist/oca-build.json` with source git SHA/build metadata
+- removes only merged, clean, process-free, session-free worktrees
+- calls Advance `scripts/maintenance/reconcile-worktree.mjs` when available; otherwise it does not directly mutate ADV state
+- Temporal recovery remains report-only in this surface unless a future standalone Advance script provides an explicit safe executor
 
 ## Shipped in Phase 2
 
