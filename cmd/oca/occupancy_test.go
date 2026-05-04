@@ -138,6 +138,101 @@ func TestOccupancyStatusCompactNoBranch(t *testing.T) {
 	}
 }
 
+// --- Human output tests ---
+
+func TestPrintOccupancyHumanBasic(t *testing.T) {
+	var buf strings.Builder
+	records := []occupancy.ClassifiedRecord{
+		{
+			PaneRecord: occupancy.PaneRecord{
+				SessionID:   "s1",
+				Directory:   "/home/user/proj",
+				ProjectID:   "abc12345",
+				WorktreePath: "/home/user/proj",
+				WorktreeBranch: "trunk",
+				PaneID:      "%1",
+				Agent:       "adv",
+				LastSeenAt:  time.Now().Add(-5 * time.Second).UnixMilli(),
+			},
+			Liveness: occupancy.Active,
+		},
+	}
+	warnings := []occupancy.OccupancyWarning{}
+	err := printOccupancyHuman(&buf, records, warnings, 0, 0)
+	if err != nil {
+		t.Fatalf("printOccupancyHuman error: %v", err)
+	}
+	output := buf.String()
+	if !strings.Contains(output, "Project:") {
+		t.Error("human output should contain 'Project:'")
+	}
+	if !strings.Contains(output, "trunk") {
+		t.Error("human output should contain branch 'trunk'")
+	}
+	if !strings.Contains(output, "✓") {
+		t.Error("active record should show ✓ icon")
+	}
+}
+
+func TestPrintOccupancyHumanWithWarning(t *testing.T) {
+	var buf strings.Builder
+	records := []occupancy.ClassifiedRecord{
+		{
+			PaneRecord: occupancy.PaneRecord{SessionID: "s1", WorktreePath: "/a", PaneID: "%1", Agent: "adv"},
+			Liveness: occupancy.Active,
+		},
+		{
+			PaneRecord: occupancy.PaneRecord{SessionID: "s2", WorktreePath: "/a", PaneID: "%2", Agent: "build"},
+			Liveness: occupancy.Active,
+		},
+	}
+	warnings := occupancy.OccupancyWarnings(records)
+	err := printOccupancyHuman(&buf, records, warnings, 0, 0)
+	if err != nil {
+		t.Fatalf("printOccupancyHuman error: %v", err)
+	}
+	output := buf.String()
+	if !strings.Contains(output, "warning:") {
+		t.Error("human output should contain warning")
+	}
+	if !strings.Contains(output, "2 active sessions share") {
+		t.Error("warning should mention 2 active sessions")
+	}
+}
+
+func TestPrintOccupancyHumanMalformedStaleFooter(t *testing.T) {
+	var buf strings.Builder
+	err := printOccupancyHuman(&buf, nil, nil, 1, 2)
+	if err != nil {
+		t.Fatalf("printOccupancyHuman error: %v", err)
+	}
+	output := buf.String()
+	if !strings.Contains(output, "1 malformed") {
+		t.Error("footer should mention malformed count")
+	}
+	if !strings.Contains(output, "2 stale") {
+		t.Error("footer should mention stale count")
+	}
+	if !strings.Contains(output, "--all") {
+		t.Error("footer should mention --all flag")
+	}
+}
+
+func TestPrintOccupancyJSONEmpty(t *testing.T) {
+	var buf strings.Builder
+	err := printOccupancyJSON(&buf, nil, nil, 0, 0)
+	if err != nil {
+		t.Fatalf("printOccupancyJSON error: %v", err)
+	}
+	var got occupancyJSONOutput
+	if err := json.Unmarshal([]byte(buf.String()), &got); err != nil {
+		t.Fatalf("json parse: %v", err)
+	}
+	if len(got.Groups) != 0 {
+		t.Errorf("empty should have 0 groups, got %d", len(got.Groups))
+	}
+}
+
 // --- listPaneSockets ---
 
 func TestListPaneSockets(t *testing.T) {
