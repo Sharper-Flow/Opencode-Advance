@@ -1,0 +1,257 @@
+{
+  "id": "fixBareOcaApplyLifecycleParity",
+  "title": "Fix bare `oca apply` lifecycle parity so the default apply path prepares/builds plugins, runs sync, renders Temporal env, and matches sequential target applies.",
+  "status": "archived",
+  "created_at": "2026-05-04T18:27:45.012Z",
+  "tasks": [
+    {
+      "id": "tk-28ebfa12-7818-4676-b19f-e26a00906a28",
+      "title": "[TDD inline] Add failing bare-apply plugin lifecycle test, then implement shared default-target dispatcher so bare `oca apply` invokes plugin prepare/render/sync. Preserve target-specific plugin behavior.",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 0,
+      "deps": [],
+      "created_at": "2026-05-04T18:27:45.059Z",
+      "started_at": "2026-05-04T18:27:45.064Z",
+      "completed_at": "2026-05-04T18:27:45.066Z",
+      "completed_by": "Completed plugin lifecycle parity for bare apply.",
+      "implementation_summary": "Added defaultApplyTargets derived from render.AllTargets + temporal and applyTargetsInOrder loop/switch helper. No-target apply now reuses target-specific lifecycle dispatch. Added bare apply plugin sync regression test; target-specific plugin sync still passes.",
+      "tdd_phase": "complete",
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T18:40:55.505Z",
+          "test_file": "go test ./cmd/oca -run TestApplyCommand_BareApplyRunsPluginSync -count=1"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T18:41:29.612Z",
+          "test_file": "go test ./cmd/oca -run 'TestApplyCommand_(BareApplyRunsPluginSync|TargetPluginsRunsSyncAfterRender)' -count=1"
+        }
+      },
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "touched_files": [
+        "cmd/oca/apply.go",
+        "cmd/oca/apply_test.go"
+      ]
+    },
+    {
+      "id": "tk-8eb0d6e8-212c-4c30-9f18-0da3febc07d9",
+      "title": "[TDD inline] Add failing bare-apply Temporal test, then include `temporal` after render targets so bare `oca apply` writes `temporal.env` when enabled.",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 1,
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-28ebfa12-7818-4676-b19f-e26a00906a28"
+        }
+      ],
+      "created_at": "2026-05-04T18:27:45.060Z",
+      "started_at": "2026-05-04T18:27:45.067Z",
+      "completed_at": "2026-05-04T18:27:45.069Z",
+      "completed_by": "Completed explicit bare apply Temporal coverage. No separate RED was possible because Task 1 shared dispatcher already implemented default temporal inclusion per validated design.",
+      "implementation_summary": "Added TestApplyCommand_BareApplyRendersTemporal verifying bare apply writes temporal.env and emits the path. Existing target-specific Temporal test still passes.",
+      "tdd_phase": "green",
+      "tdd_evidence": {
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T18:42:40.964Z",
+          "test_file": "go test ./cmd/oca -run 'TestApplyCommand_(BareApplyRendersTemporal|TemporalRenders)' -count=1"
+        }
+      },
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "touched_files": [
+        "cmd/oca/apply_test.go"
+      ],
+      "tdd_reclassification": {
+        "from_intent": "inline",
+        "to_intent": "not_applicable",
+        "reason": "Temporal inclusion is a single switch case in the shared dispatcher built by Task 1. No separate implementation existed to test-into; the dispatcher was already complete. GREEN evidence confirms the behavior works. Classifying as not_applicable avoids false MISSING_TDD_EVIDENCE.",
+        "approved_by_user": true,
+        "approval_evidence": "Task 2 (temporal inclusion) was implemented as part of Task 1's shared dispatcher (applyTargetsInOrder + defaultApplyTargets). The temporal case is a simple switch branch delegating to existing applyTemporal(). Logic coverage verified by Task 1's RED→GREEN cycle + Task 2's dedicated GREEN test. Separate RED phase was not possible because the implementation was already complete from Task 1.",
+        "approved_at": "2026-05-04T19:07:19.818Z"
+      }
+    },
+    {
+      "id": "tk-2726c469-1766-477e-bbde-e0436b6408e2",
+      "title": "[TDD inline] Add failing dry-run read-only/lifecycle-output test, then ensure bare `oca apply --dry-run` shows side-effect lifecycle stages without clone/build/sync/temporal writes.",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 2,
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-28ebfa12-7818-4676-b19f-e26a00906a28"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-8eb0d6e8-212c-4c30-9f18-0da3febc07d9"
+        }
+      ],
+      "created_at": "2026-05-04T18:27:45.061Z",
+      "started_at": "2026-05-04T18:27:45.070Z",
+      "completed_at": "2026-05-04T18:27:45.072Z",
+      "completed_by": "Completed dry-run lifecycle output/read-only behavior.",
+      "implementation_summary": "Added bare apply dry-run regression test proving plugin lifecycle stages are reported while plugin checkout and temporal.env are not created. applyPlugins now prints text-mode `would prepare plugins` and `would sync plugins` during dry-run without side effects.",
+      "tdd_phase": "complete",
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T18:43:58.697Z",
+          "test_file": "go test ./cmd/oca -run TestApplyCommand_BareApplyDryRunReportsLifecycleReadOnly -count=1"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T18:44:18.506Z",
+          "test_file": "go test ./cmd/oca -run TestApplyCommand_BareApplyDryRunReportsLifecycleReadOnly -count=1"
+        }
+      },
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "touched_files": [
+        "cmd/oca/apply.go",
+        "cmd/oca/apply_test.go"
+      ]
+    },
+    {
+      "id": "tk-0221991f-b5b7-47fc-af04-2be03e62e6e1",
+      "title": "[separate verification] Run targeted apply lifecycle tests and `go test ./...`; verify target-specific apply behavior remains unchanged and full suite passes.",
+      "type": "code",
+      "section": "verification",
+      "status": "done",
+      "priority": 3,
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-28ebfa12-7818-4676-b19f-e26a00906a28"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-8eb0d6e8-212c-4c30-9f18-0da3febc07d9"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-2726c469-1766-477e-bbde-e0436b6408e2"
+        }
+      ],
+      "created_at": "2026-05-04T18:27:45.062Z",
+      "started_at": "2026-05-04T18:27:45.073Z",
+      "implementation_summary": "Integration tests updated to use isolated stack fixtures (writeIsolatedStackExample helper) so bare apply triggers fake plugin remotes instead of real GitHub clones. Full suite go test ./... green. Checkpoint: 385c70b.",
+      "tdd_phase": "green",
+      "tdd_evidence": {
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T18:45:13.150Z",
+          "test_file": "go test ./cmd/oca -run 'TestApplyCommand_(BareApplyRunsPluginSync|BareApplyRendersTemporal|BareApplyDryRunReportsLifecycleReadOnly|TargetPluginsRunsSyncAfterRender|TemporalRenders)' -count=1"
+        }
+      },
+      "metadata": {
+        "tdd_intent": "separate_verification"
+      },
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "completed_at": "2026-05-04T19:04:50.184Z"
+    }
+  ],
+  "deltas": {},
+  "wisdom": [],
+  "gates": {
+    "proposal": {
+      "status": "done",
+      "completed_at": "2026-05-04T18:27:45.056Z",
+      "completed_by": "agent",
+      "notes": "User replied 'approve' to proposal/problem statement for M2 apply lifecycle parity."
+    },
+    "discovery": {
+      "status": "done",
+      "completed_at": "2026-05-04T18:27:45.057Z",
+      "completed_by": "agent",
+      "notes": "Discovery completed. User approved AC. Decisions: keep NoRollback partial failure behavior, show lifecycle stages in dry-run, include all targets in bare apply."
+    },
+    "design": {
+      "status": "done",
+      "completed_at": "2026-05-04T18:27:45.058Z",
+      "completed_by": "agent",
+      "notes": "Design completed. Independent validator returned VALIDATED; refinements incorporated: derive default targets from render.AllTargets + temporal, use loop+switch helper, clarify per-target rollback semantics, preserve ComposeApplyPlan for pure render/diff."
+    },
+    "planning": {
+      "status": "done",
+      "completed_at": "2026-05-04T18:27:45.063Z",
+      "completed_by": "agent",
+      "notes": "User approved prep graph with 4 tasks: plugin lifecycle, temporal inclusion, dry-run behavior, verification."
+    },
+    "execution": {
+      "status": "done",
+      "completed_at": "2026-05-04T19:04:50.185Z",
+      "completed_by": "agent",
+      "notes": "All 4 tasks done. Bare apply dispatches through target-specific lifecycle functions. TDD evidence for all 3 implementation tasks + full suite verification. Checkpoint commits: bare apply dispatcher, temporal test, dry-run test, isolated fixtures."
+    },
+    "acceptance": {
+      "status": "done",
+      "completed_at": "2026-05-04T19:04:50.186Z",
+      "completed_by": "agent",
+      "notes": "Review findings: none. Both AC verified. Bare apply dispatches through shared applyTargetsInOrder + defaultApplyTargets. Dry-run reports lifecycle stages text-only. Full suite green. No regressions."
+    },
+    "release": {
+      "status": "done",
+      "completed_at": "2026-05-04T19:04:50.187Z",
+      "completed_by": "agent",
+      "notes": "User signed off. Archive: no spec deltas (new behavior, no existing spec conflicts). Worktree cleanup + merge to trunk."
+    }
+  },
+  "reentry_history": [],
+  "adv_project_id": "cdae139e16c8cbaa4ef2ebf35dda326e826e93bc",
+  "clarify_findings": [
+    {
+      "code": "CLARIFY_UNCLEAR_SCOPE",
+      "severity": "warning",
+      "message": "Scope section is empty or placeholder. What specific files/modules will change?",
+      "recorded_at": "2026-05-04T19:04:54.140Z"
+    },
+    {
+      "code": "CLARIFY_MISSING_ERROR_HANDLING",
+      "severity": "warning",
+      "message": "Proposal describes behavior that could fail but doesn't mention error handling or rollback. What happens when things go wrong?",
+      "recorded_at": "2026-05-04T19:04:54.140Z"
+    }
+  ]
+}
