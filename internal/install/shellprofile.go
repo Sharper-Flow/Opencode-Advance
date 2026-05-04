@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Sharper-Flow/Opencode-Advance/internal/config"
 	"github.com/Sharper-Flow/Opencode-Advance/internal/render"
 )
 
@@ -29,7 +30,60 @@ case ":$PATH:" in
     *":$_oca_bindir:"*) ;;
     *) export PATH="$_oca_bindir:$PATH" ;;
 esac
-unset _oca_bindir`
+unset _oca_bindir
+
+# OCA shell auto-refresh (interactive shells only)
+case $- in
+    *i*) ;;
+    *) return 0 2>/dev/null || true ;;
+esac
+
+_oca_env_file={{.OCAEnvPath}}
+_oca_env_stamp={{.EnvStampPath}}
+
+if [ -r "$_oca_env_file" ]; then
+    . "$_oca_env_file"
+fi
+
+: "${OCA_SHELL_AUTO_REFRESH:=true}"
+: "${OCA_SHELL_AUTO_REFRESH_NOTICE:=off}"
+
+_oca_auto_refresh_hook() {
+    [ "${OCA_SHELL_AUTO_REFRESH:-true}" = "false" ] && return 0
+    [ -r "$_oca_env_stamp" ] || return 0
+
+    _oca_stamp_mtime="$(stat -c %Y "$_oca_env_stamp" 2>/dev/null || stat -f %m "$_oca_env_stamp" 2>/dev/null || true)"
+    [ -n "$_oca_stamp_mtime" ] || return 0
+    [ "${_oca_last_env_stamp:-}" != "$_oca_stamp_mtime" ] || return 0
+
+    _oca_last_env_stamp="$_oca_stamp_mtime"
+    if [ -r "$_oca_env_file" ]; then
+        . "$_oca_env_file"
+    fi
+
+    case "${OCA_SHELL_AUTO_REFRESH_NOTICE:-off}" in
+        every)
+            printf '%s\n' "oca: shell environment refreshed"
+            ;;
+        once)
+            if [ -z "${_oca_auto_refresh_notice_shown:-}" ]; then
+                _oca_auto_refresh_notice_shown=1
+                printf '%s\n' "oca: shell environment refreshed"
+            fi
+            ;;
+    esac
+}
+
+if [ -n "${ZSH_VERSION:-}" ]; then
+    autoload -Uz add-zsh-hook 2>/dev/null || true
+    add-zsh-hook -d precmd _oca_auto_refresh_hook 2>/dev/null || true
+    add-zsh-hook precmd _oca_auto_refresh_hook 2>/dev/null || true
+elif [ -n "${BASH_VERSION:-}" ]; then
+    case ";${PROMPT_COMMAND:-};" in
+        *";_oca_auto_refresh_hook;"*) ;;
+        *) PROMPT_COMMAND="_oca_auto_refresh_hook${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
+    esac
+fi`
 
 // ReadBlock extracts the managed block content (between sentinels) from a file.
 // Returns ("", nil) if file doesn't exist or has no block.
@@ -206,6 +260,7 @@ func RemoveBlock(path string) error {
 // directory path. The returned string includes sentinel markers.
 func RenderShellProfile(ocaBinPath string) string {
 	binDir := filepath.Dir(ocaBinPath)
+	paths := config.ResolvePaths()
 	tmpl, err := template.New("shell_profile").Parse(shellProfileTemplate)
 	if err != nil {
 		// Template is a compile-time constant — this should never fail
@@ -213,10 +268,19 @@ func RenderShellProfile(ocaBinPath string) string {
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, map[string]string{"OCABinDir": binDir}); err != nil {
+	data := map[string]string{
+		"OCABinDir":    binDir,
+		"OCAEnvPath":   shellQuote(paths.OCAEnvPath()),
+		"EnvStampPath": shellQuote(paths.EnvStampPath()),
+	}
+	if err := tmpl.Execute(&buf, data); err != nil {
 		panic(fmt.Sprintf("execute shell profile template: %v", err))
 	}
 	return buf.String()
+}
+
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
 // unifiedDiff produces a minimal line-based diff between two strings.

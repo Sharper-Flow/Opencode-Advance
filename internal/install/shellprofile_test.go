@@ -422,6 +422,41 @@ func TestRenderShellProfile(t *testing.T) {
 			t.Error("should contain case statement for PATH idempotency")
 		}
 	})
+
+	t.Run("contains auto-refresh hook with interactive guard", func(t *testing.T) {
+		root := t.TempDir()
+		t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(root, "opencode"))
+		t.Setenv("OCA_CACHE_DIR", filepath.Join(root, "cache"))
+		got := RenderShellProfile("/opt/oca/bin/oca")
+
+		for _, want := range []string{
+			"case $- in",
+			"OCA_SHELL_AUTO_REFRESH",
+			filepath.Join(root, "oca", "env.sh"),
+			filepath.Join(root, "cache", "env.stamp"),
+			"_oca_auto_refresh_hook",
+			"add-zsh-hook precmd _oca_auto_refresh_hook",
+			"PROMPT_COMMAND",
+		} {
+			if !strings.Contains(got, want) {
+				t.Fatalf("RenderShellProfile missing %q in:\n%s", want, got)
+			}
+		}
+	})
+
+	t.Run("contains notice modes and once guard", func(t *testing.T) {
+		got := RenderShellProfile("/opt/oca/bin/oca")
+		for _, want := range []string{
+			"OCA_SHELL_AUTO_REFRESH_NOTICE",
+			"once",
+			"every",
+			"_oca_auto_refresh_notice_shown",
+		} {
+			if !strings.Contains(got, want) {
+				t.Fatalf("RenderShellProfile missing %q in:\n%s", want, got)
+			}
+		}
+	})
 }
 
 func min(a, b int) int {
