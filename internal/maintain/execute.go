@@ -3,6 +3,8 @@ package maintain
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -35,7 +37,51 @@ func ExecutePlan(ctx context.Context, opts Options, plan Plan) error {
 			if err := executeRebuild(ctx, stack, action); err != nil {
 				return err
 			}
+		case "cleanup":
+			if err := executeCleanup(ctx, stack, opts.ProjectRoot, action); err != nil {
+				return err
+			}
 		}
+	}
+	return nil
+}
+
+func executeCleanup(ctx context.Context, stack *cfg.Stack, projectRoot string, action Action) error {
+	if action.Path == "" || action.Branch == "" {
+		return fmt.Errorf("cleanup action %s missing path or branch", action.ID)
+	}
+	if err := requireCleanGitTree(ctx, action.Path); err != nil {
+		return err
+	}
+	if _, err := gitCommand(ctx, projectRoot, "merge-base", "--is-ancestor", action.Branch, "trunk"); err != nil {
+		return fmt.Errorf("cleanup branch %s is not merged into trunk", action.Branch)
+	}
+	if _, err := gitCommand(ctx, projectRoot, "worktree", "remove", action.Path); err != nil {
+		return fmt.Errorf("remove worktree %s: %w", action.Path, err)
+	}
+	if _, err := gitCommand(ctx, projectRoot, "branch", "-d", action.Branch); err != nil {
+		return fmt.Errorf("delete branch %s: %w", action.Branch, err)
+	}
+	return runAdvanceReconcile(ctx, stack, action.Branch)
+}
+
+func runAdvanceReconcile(ctx context.Context, stack *cfg.Stack, branch string) error {
+	advance, ok := stack.Plugins["advance"]
+	if !ok || advance.Checkout == "" {
+		return nil
+	}
+	script := filepath.Join(advance.Checkout, "scripts", "maintenance", "reconcile-worktree.mjs")
+	if _, err := os.Stat(script); err != nil {
+		return nil
+	}
+	res, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    "node",
+		Args:    []string{script, "--branch", branch},
+		Dir:     advance.Checkout,
+		Timeout: 30 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("advance worktree reconcile failed: %w\noutput:\n%s", err, strings.TrimSpace(string(res.Output)))
 	}
 	return nil
 }

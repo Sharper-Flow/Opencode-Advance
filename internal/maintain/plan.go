@@ -60,6 +60,7 @@ type Action struct {
 	Kind           string    `json:"kind"`
 	Target         string    `json:"target,omitempty"`
 	Branch         string    `json:"branch,omitempty"`
+	Path           string    `json:"path,omitempty"`
 	WouldRun       bool      `json:"would_run"`
 	ExecuteAllowed bool      `json:"execute_allowed"`
 	BlockedBy      []Blocker `json:"blocked_by,omitempty"`
@@ -104,6 +105,7 @@ type Planner struct {
 	LoadStack      func(string) (*cfg.Stack, error)
 	InspectAdvance func(context.Context, cfg.Plugin) (AdvanceInspectReport, error)
 	DriftCheck     func(context.Context, string, cfg.Plugin) (PluginDriftReport, error)
+	ListWorktrees  func(context.Context, string, string) ([]WorktreeInfo, error)
 }
 
 func NewPlanner() Planner {
@@ -113,6 +115,7 @@ func NewPlanner() Planner {
 		LoadStack:      cfg.Load,
 		InspectAdvance: InspectAdvancePlugin,
 		DriftCheck:     DetectPluginDrift,
+		ListWorktrees:  ListWorktrees,
 	}
 }
 
@@ -167,6 +170,11 @@ func (p Planner) Build(ctx context.Context, opts Options) (Plan, error) {
 			}
 		}
 	}
+	if opts.IncludeCleanup {
+		if err := p.addCleanupCandidates(ctx, &plan, opts); err != nil {
+			return plan, err
+		}
+	}
 	return plan, nil
 }
 
@@ -211,6 +219,39 @@ func (p Planner) addMergeCandidates(ctx context.Context, plan *Plan, stack *cfg.
 			})
 		}
 	}
+	return nil
+}
+
+func (p Planner) addCleanupCandidates(ctx context.Context, plan *Plan, opts Options) error {
+	listWorktrees := p.ListWorktrees
+	if listWorktrees == nil {
+		listWorktrees = ListWorktrees
+	}
+	worktrees, err := listWorktrees(ctx, plan.ProjectRoot, plan.DefaultBranch)
+	if err != nil {
+		return err
+	}
+	for _, wt := range worktrees {
+		candidate := CleanupCandidate{Branch: wt.Branch, Path: wt.Path, Eligible: wt.Eligible()}
+		if !candidate.Eligible {
+			candidate.Reason = wt.IneligibleReason()
+		}
+		plan.CleanupCandidates = append(plan.CleanupCandidates, candidate)
+		if candidate.Eligible {
+			blocked := plan.SessionGate.Status == GateStatusBlocked
+			plan.Actions = append(plan.Actions, Action{
+				ID:             "cleanup:" + wt.Branch,
+				Kind:           "cleanup",
+				Branch:         wt.Branch,
+				Path:           wt.Path,
+				WouldRun:       true,
+				ExecuteAllowed: !blocked,
+				BlockedBy:      plan.SessionGate.Blockers,
+				Evidence:       []string{"merged", "clean", "process-free", "session-free"},
+			})
+		}
+	}
+	_ = opts
 	return nil
 }
 
