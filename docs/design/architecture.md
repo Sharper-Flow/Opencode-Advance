@@ -276,6 +276,14 @@ Default production paths remain:
 
 Tests and local dev runs use temporary override directories instead.
 
+## Shell auto-refresh + update awareness
+
+Mutating OCA flows write `~/.config/oca/env.sh` atomically, then touch `$OCA_CACHE_DIR/env.stamp`. The managed shell block checks `env.stamp` at prompt time and sources only the OCA-owned env file; it does not re-source `.bashrc`, `.zshrc`, or other user-owned code.
+
+Plugin update awareness is read-only. `oca update --check` uses `git ls-remote` with git transport hardening and `GIT_TERMINAL_PROMPT=0`, then persists results to `$OCA_CACHE_DIR/drift_cache.json`. The shell drift surfacer reads that cache in passive mode and only runs `oca update --check --quiet` automatically when `[update_probe].default = "warn"`.
+
+The local plugin doctor remains the owner for checkout/build/ref health. The update probe adds remote comparison and shares status vocabulary instead of duplicating doctor semantics.
+
 ## Phase 2 subsystems (shipped)
 
 Phase 2 added three internal packages and one render primitive. All external commands route through `internal/subprocess`; no `exec.Command` calls live outside that package.

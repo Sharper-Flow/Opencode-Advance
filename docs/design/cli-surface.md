@@ -111,6 +111,8 @@ Behavior:
 
 Fetches, checks out, builds, and (if configured) syncs git-source plugins.
 
+`oca update --check [plugin...]` is the read-only update-awareness mode. It runs `git ls-remote` for enabled git-source plugins, writes `$OCA_CACHE_DIR/drift_cache.json`, and reports `up_to_date`, `update_available`, or `pinned` without `git fetch`, checkout mutation, build, apply, or sync. Available updates are a successful check result, not an error exit.
+
 Flags:
 
 | Flag | Purpose |

@@ -23,8 +23,46 @@ This document is the canonical reference for the `stack.toml` schema. A complete
 | `[formatters.*]`   | no       | Custom code formatters rendered into `opencode.json` `.formatter` |
 | `[commands.*]`     | no       | Custom slash commands rendered into `opencode.json` `.command`    |
 | `[opencode]`       | no       | OpenCode-level toggles (default_agent, sharing, updates, compaction, provider lists) |
+| `[shell]`          | no       | OCA-managed interactive shell auto-refresh controls |
+| `[update_probe]`   | no       | Read-only plugin update awareness and drift-cache settings |
 
 Missing optional tables mean "use defaults" — OCA ships sane defaults for each.
+
+---
+
+## `[shell]`
+
+Controls OCA-owned shell refresh behavior. The managed shell block sources `~/.config/oca/env.sh` and checks `$OCA_CACHE_DIR/env.stamp`; it never re-sources user-owned rc files.
+
+```toml
+[shell]
+auto_refresh        = true
+auto_refresh_notice = "off" # off | once | every
+```
+
+| Field | Type | Required | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `auto_refresh` | boolean | no | `true` | Enables prompt-time env refresh from OCA-owned `env.sh`. |
+| `auto_refresh_notice` | string | no | `"off"` | `off`, `once`, or `every`. Controls shell notice after refresh. |
+
+## `[update_probe]`
+
+Controls read-only plugin update checks used by `oca update --check` and the shell drift surfacer.
+
+```toml
+[update_probe]
+default               = "passive" # off | passive | warn
+timeout_per_plugin_ms = 3000
+timeout_global_ms     = 10000
+cache_ttl_minutes     = 5
+```
+
+| Field | Type | Required | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `default` | string | no | `"passive"` | `off` disables shell surfacing, `passive` reads cached results only, `warn` may run `oca update --check --quiet` on cache miss/stale. |
+| `timeout_per_plugin_ms` | integer | no | `3000` | Per-plugin `git ls-remote` budget. Explicit non-positive values are invalid. |
+| `timeout_global_ms` | integer | no | `10000` | Whole-batch probe budget. Explicit non-positive values are invalid. |
+| `cache_ttl_minutes` | integer | no | `5` | Freshness window for `$OCA_CACHE_DIR/drift_cache.json`. Explicit non-positive values are invalid. |
 
 ---
 
