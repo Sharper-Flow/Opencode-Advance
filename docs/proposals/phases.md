@@ -22,7 +22,7 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 
 All five proposal drafts pre-flight-verified 2026-05-04 — see [`../notes/2026-05-04-m-queue-preflight-verification.md`](../notes/2026-05-04-m-queue-preflight-verification.md). Filing-ready.
 
-**Then (Session & Resource Architecture):** OCA #1 Pattern B (in delivery) → OCA #2 hibernation → OCA #3 tmux-resurrect polish → ADV #4 idle-worker reaper → ADV #5 peer-session topology distinction.
+**Then (Session & Resource Architecture):** OCA #1 Pattern B (archived `patternBSessionTopologyOne`) → OCA #2 hibernation → OCA #3 tmux-resurrect polish → ADV #4 idle-worker reaper → ADV #5 peer-session topology distinction.
 
 **Backlog (SHOULD):** S1 runtime doctor canaries → S2 context budget audit → S3 permission-first agent config → S4 MCP suite profiles → S5 legacy-state doctor warning → S6 resume-hint outer terminal.
 
@@ -695,7 +695,7 @@ ADV caveat: the proposals are drafted but not created as live ADV changes in thi
 
 ## Post-v1: Session & Resource Architecture
 
-**Status:** Decision-locked 2026-05-03. **Seven change proposals drafted** (one added 2026-05-03 post-reconnaissance). **ADV #6 filed in ADV-plugin repo 2026-05-04** as `syncglobalpromptrefsinglefile` (cross-project from OCA, source draft preserved as provenance). OCA #0 = M3 in the reliability queue above. Broad implementation of OCA #1–3 + ADV #4–5 starts after the ADV provider prompt blocker is fixed and the OCA reliability MUST queue above has shipped.
+**Status:** Decision-locked 2026-05-03. **Seven change proposals drafted** (one added 2026-05-03 post-reconnaissance). **ADV #6 filed in ADV-plugin repo 2026-05-04** as `syncglobalpromptrefsinglefile` (cross-project from OCA, source draft preserved as provenance). **OCA #1 Pattern B archived 2026-05-04 as `patternBSessionTopologyOne`; broad implementation of OCA #2–3 + ADV #4–5 continues** after the ADV provider prompt blocker is fixed and the OCA reliability MUST queue above has shipped.
 
 **Goal:** adapt OCA's session topology and resource-sharing model for the operator's actual workload — 8+ concurrent agents per project, 4–5 active projects, on a 42 GB WSL2 ceiling. Replace per-invocation tmux sessions (Pattern A) with session-per-project (Pattern B), surface per-window ADV status markers in the tmux status bar, and add graceful opencode hibernation as the dominant RAM lever (~16 GB savings at 50% idle of 40 agents).
 
@@ -709,15 +709,15 @@ ADV caveat: the proposals are drafted but not created as live ADV changes in thi
 
 Work splits into **7 ADV changes across 2 repositories** (OCA + ADV plugin), plus the existing in-flight Operator Dashboard track. The split grew from 5 to 7 during 2026-05-03 reconnaissance: ADV #6 surfaced as a blocker (multi-`{file:...}` prompt-ref expansion failure in OpenCode 1.14.33), and OCA #0 surfaced as a prerequisite (the OCA umbrella plugin is not registered in the operator's opencode.json today).
 
-| #     | Change                                                  | Repo            | Effort       | Proposal file                                                                                                  |
-| ----- | ------------------------------------------------------- | --------------- | ------------ | -------------------------------------------------------------------------------------------------------------- |
-| **6** | **sync-global.sh single-ref prompt fix (BLOCKER)**      | **ADV plugin**  | 1–2 hours    | [`./2026-05-03-adv-sync-prompt-ref-fix.md`](./2026-05-03-adv-sync-prompt-ref-fix.md)                           |
-| **0** | **OCA umbrella plugin install (PREREQ for #1, #2)**     | **OCA**         | 1–2 hours    | [`./2026-05-03-oca-plugin-install.md`](./2026-05-03-oca-plugin-install.md)                                     |
-| 1     | Pattern B + per-window status decode + smart `oca` entry | OCA             | 3–6 days     | [`./2026-05-03-pattern-b-session-topology.md`](./2026-05-03-pattern-b-session-topology.md)                     |
-| 2     | Graceful opencode session hibernation                   | OCA             | 2–4 days     | [`./2026-05-03-graceful-hibernation.md`](./2026-05-03-graceful-hibernation.md)                                 |
-| 3     | tmux-resurrect (manual) + concurrency warning polish    | OCA             | ~1 day       | [`./2026-05-03-tmux-resurrect-warning-polish.md`](./2026-05-03-tmux-resurrect-warning-polish.md)               |
-| 4     | Idle Temporal worker reaper                             | ADV plugin      | 1–2 days     | [`./2026-05-03-adv-idle-worker-reaper.md`](./2026-05-03-adv-idle-worker-reaper.md)                             |
-| 5     | Peer-session topology distinction (rescoped from coordinated marker reframe) | ADV plugin | 1–2 hours | [`./2026-05-03-adv-coordinated-session-marker.md`](./2026-05-03-adv-coordinated-session-marker.md) |
+| #     | Change                                                  | Repo            | Effort       | Proposal file                                                                                                  | Status                              |
+| ----- | ------------------------------------------------------- | --------------- | ------------ | -------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| **6** | **sync-global.sh single-ref prompt fix (BLOCKER)**      | **ADV plugin**  | 1–2 hours    | [`./2026-05-03-adv-sync-prompt-ref-fix.md`](./2026-05-03-adv-sync-prompt-ref-fix.md)                           | Filed in ADV repo as `syncglobalpromptrefsinglefile` |
+| **0** | **OCA umbrella plugin install (PREREQ for #1, #2)**     | **OCA**         | 1–2 hours    | [`./2026-05-03-oca-plugin-install.md`](./2026-05-03-oca-plugin-install.md)                                     | Prereq for hibernation              |
+| 1     | Pattern B + per-window status decode + smart `oca` entry | OCA             | 3–6 days     | [`./2026-05-03-pattern-b-session-topology.md`](./2026-05-03-pattern-b-session-topology.md)                     | **Archived `patternBSessionTopologyOne`** |
+| 2     | Graceful opencode session hibernation                   | OCA             | 2–4 days     | [`./2026-05-03-graceful-hibernation.md`](./2026-05-03-graceful-hibernation.md)                                 |                                     |
+| 3     | tmux-resurrect (manual) + concurrency warning polish    | OCA             | ~1 day       | [`./2026-05-03-tmux-resurrect-warning-polish.md`](./2026-05-03-tmux-resurrect-warning-polish.md)               |                                     |
+| 4     | Idle Temporal worker reaper                             | ADV plugin      | 1–2 days     | [`./2026-05-03-adv-idle-worker-reaper.md`](./2026-05-03-adv-idle-worker-reaper.md)                             |                                     |
+| 5     | Peer-session topology distinction (rescoped from coordinated marker reframe) | ADV plugin | 1–2 hours | [`./2026-05-03-adv-coordinated-session-marker.md`](./2026-05-03-adv-coordinated-session-marker.md) |                                     |
 
 **Reconnaissance findings 2026-05-03 (post-decision-lock):**
 
@@ -728,15 +728,15 @@ ADV-repo proposals (#4, #5, #6) are drafted in this OCA repo for split coherence
 
 ### Sequencing
 
-| Order | Change                                          | Reason                                                                                                          |
-| ----- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 1     | **ADV #6** — sync-global single-ref prompt fix   | BLOCKER. OpenCode 1.14.33 does not expand multi-`{file:...}` refs in `agent.X.prompt`; ADV provider variants run in degraded persona until fixed. Must ship before any other change can run `/adv-proposal` cleanly. **Status (2026-05-04):** filed in ADV-plugin repo as `syncglobalpromptrefsinglefile` (cross-project from OCA, source draft preserved at `docs/proposals/2026-05-03-adv-sync-prompt-ref-fix.md`). Operator workaround D in effect until archive. |
-| 2     | **OCA reliability MUST queue** — M3 → M2 → M4/M5/M6 | PREREQ before broad OCA session architecture. M3 is the umbrella plugin install / Session Architecture #0; M2/M4/M5/M6 make apply/assets/generated stacks/skills trustworthy before larger changes. **Pre-flight verified 2026-05-04:** see [`../notes/2026-05-04-m-queue-preflight-verification.md`](../notes/2026-05-04-m-queue-preflight-verification.md) — M3/M2/M5 ready as drafted; M4 needs README expansion (4 live files missing); M6 should drop the worktree-skill claim (already fixed) and focus on README + mcp-selection. |
-| 3     | OCA #1 — Pattern B                              | Highest UX value at 8-agent scale; unblocks #2's status surface and the rest of the OCA work.                  |
-| 4     | OCA #2 — Hibernation                            | Dominant RAM lever (~16 GB headroom). Depends on #1's status bar to surface 💤 marker.                          |
-| 5     | OCA #3 — tmux-resurrect + warning polish        | Small composable; can run in parallel with #2.                                                                  |
-| 6     | ADV #4 — Idle worker reaper                     | ADV-repo work; parallelizable with OCA. Lands once worker-singleton handover is verified at 8-agent scale.      |
-| 7     | ADV #5 — Peer-session topology distinction      | Quality-of-life enhancement on existing peer-session detection; lands any time after Pattern B is in operator hands. |
+| Order | Change                                          | Reason                                                                                                          | Status                          |
+| ----- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| 1     | **ADV #6** — sync-global single-ref prompt fix   | BLOCKER. OpenCode 1.14.33 does not expand multi-`{file:...}` refs in `agent.X.prompt`; ADV provider variants run in degraded persona until fixed. Must ship before any other change can run `/adv-proposal` cleanly. **Status (2026-05-04):** filed in ADV-plugin repo as `syncglobalpromptrefsinglefile`. | Filed in ADV repo |
+| 2     | **OCA reliability MUST queue** — M3 → M2 → M4/M5/M6 | PREREQ before broad OCA session architecture. M3 is the umbrella plugin install / Session Architecture #0; M2/M4/M5/M6 make apply/assets/generated stacks/skills trustworthy before larger changes. |                                  |
+| 3     | OCA #1 — Pattern B                              | Highest UX value at 8-agent scale; unblocks #2's status surface and the rest of the OCA work.                  | **Archived `patternBSessionTopologyOne`** |
+| 4     | OCA #2 — Hibernation                            | Dominant RAM lever (~16 GB headroom). Depends on #1's status bar to surface 💤 marker.                          |                                  |
+| 5     | OCA #3 — tmux-resurrect + warning polish        | Small composable; can run in parallel with #2.                                                                  |                                  |
+| 6     | ADV #4 — Idle worker reaper                     | ADV-repo work; parallelizable with OCA. Lands once worker-singleton handover is verified at 8-agent scale.      |                                  |
+| 7     | ADV #5 — Peer-session topology distinction      | Quality-of-life enhancement on existing peer-session detection; lands any time after Pattern B is in operator hands. |                                  |
 
 ### Provider prompt workaround note
 

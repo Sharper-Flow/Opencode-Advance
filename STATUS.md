@@ -52,6 +52,7 @@ OpenCode Advance currently has **completed Phases 0, 1, 2, 3, 3.5, 4, 5, 5.5, 6,
 - Phase 6 installer/shell profile/completion shipped
 - Phase 6.5 Temporal dev-server supervision shipped (`oca temporal status/start/stop/restart/logs`)
 - Phase 7 migration + doctor expansion shipped (`oca migrate from-open-chad`, `oca migrate init`, `adv-plugin`, and `cross` doctor scopes)
+- Phase 8 Pattern B session topology shipped (`patternBSessionTopologyOne` archived 2026-05-04) — one-command `oca`/`oc` resume by project/window, project-mode session management, `oca session ensure-window`/`reconcile`, pane state v2, compact 10+ window status glyphs, ADV trunk guard, worktree lease, OCA→ADV hook integration
 
 ## What is not done
 
