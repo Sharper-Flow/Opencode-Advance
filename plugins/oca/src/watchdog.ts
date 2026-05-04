@@ -13,9 +13,27 @@ interface WatchdogState {
 }
 
 interface PaneState {
+  // v1 fields (always present)
   sessionID: string;
   directory: string;
   ts: number;
+
+  // v2 fields (optional — preserved on write-back)
+  schemaVersion?: number;
+  startedAt?: number;
+  lastSeenAt?: number;
+  paneID?: string;
+  socket?: string;
+  agent?: string;
+  gitRoot?: string;
+  worktreePath?: string;
+  gitCommonDir?: string;
+  projectId?: string;
+  worktreeBranch?: string;
+  changeID?: string;
+  role?: string;
+
+  // Watchdog-specific state
   watchdog?: WatchdogState;
 }
 

@@ -17,6 +17,16 @@ function stateFilePath(input: { directory?: string } | null): string | null {
  * Build v2 pane state enrichment. Best-effort: fields derived from env
  * are only included when the source data is available.
  */
+/**
+ * Derive the ADV change ID from a git branch name.
+ * Returns the change ID if branch is "change/{id}", empty string otherwise.
+ */
+export function deriveChangeID(branch: string): string {
+  if (!branch || !branch.startsWith("change/")) return "";
+  const id = branch.slice("change/".length);
+  return id || "";
+}
+
 function buildV2State(info: { id: string; directory?: string }): Record<string, unknown> {
   const now = Date.now();
   const state: Record<string, unknown> = {
@@ -70,9 +80,16 @@ function buildV2State(info: { id: string; directory?: string }): Record<string, 
       const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
       if (branch && branch !== "HEAD") {
         state.worktreeBranch = branch;
+        // Derive changeID from ADV worktree branch convention.
+        const cid = deriveChangeID(branch);
+        if (cid) state.changeID = cid;
       }
     } catch { /* best-effort: ignore permission/ENOENT */ }
   }
+
+  // Role: explicit from env, or derived from agent.
+  const role = process.env.OCA_PANE_ROLE || agent;
+  if (role) state.role = role;
 
   return state;
 }

@@ -16,10 +16,70 @@ import (
 )
 
 // paneState is the JSON shape written by the OCA plugin.
+// v1: SessionID, Directory, Ts only.
+// v2: all fields, identified by schemaVersion == 2.
 type paneState struct {
+	// v1 fields (always present)
 	SessionID string `json:"sessionID"`
 	Directory string `json:"directory"`
 	Ts        int64  `json:"ts"`
+
+	// v2 fields (optional — zero-valued when absent)
+	SchemaVersion  int    `json:"schemaVersion,omitempty"`
+	StartedAt      int64  `json:"startedAt,omitempty"`
+	LastSeenAt     int64  `json:"lastSeenAt,omitempty"`
+	PaneID         string `json:"paneID,omitempty"`
+	Socket         string `json:"socket,omitempty"`
+	Agent          string `json:"agent,omitempty"`
+	GitRoot        string `json:"gitRoot,omitempty"`
+	WorktreePath   string `json:"worktreePath,omitempty"`
+	GitCommonDir   string `json:"gitCommonDir,omitempty"`
+	ProjectID      string `json:"projectId,omitempty"`
+	WorktreeBranch string `json:"worktreeBranch,omitempty"`
+	ChangeID       string `json:"changeID,omitempty"`
+	Role           string `json:"role,omitempty"`
+}
+
+// paneContext holds derived context computed from a paneState at read time.
+// These fields are NOT persisted — they are computed on demand.
+type paneContext struct {
+	ChangeID    string // from explicit changeID or worktreeBranch "change/*"
+	ProjectRoot string // gitRoot
+	ProjectID   string // projectId
+	IsWorktree  bool   // worktreePath differs from gitRoot
+	Role        string // explicit role or agent name
+	Agent       string // agent name
+}
+
+// derivePaneContext computes derived context from a paneState without
+// persisting stale window/project fields. Pure function, no side effects.
+func derivePaneContext(ps *paneState) *paneContext {
+	ctx := &paneContext{
+		ProjectRoot: ps.GitRoot,
+		ProjectID:   ps.ProjectID,
+		Agent:       ps.Agent,
+		Role:        ps.Role,
+	}
+
+	// Detect worktree: worktreePath is set and differs from gitRoot.
+	ctx.IsWorktree = ps.WorktreePath != "" && ps.WorktreePath != ps.GitRoot
+
+	// Derive changeID: prefer explicit field, then extract from branch.
+	if ps.ChangeID != "" {
+		ctx.ChangeID = ps.ChangeID
+	} else if strings.HasPrefix(ps.WorktreeBranch, "change/") {
+		id := strings.TrimPrefix(ps.WorktreeBranch, "change/")
+		if id != "" {
+			ctx.ChangeID = id
+		}
+	}
+
+	// Role defaults to agent when not explicitly set.
+	if ctx.Role == "" {
+		ctx.Role = ctx.Agent
+	}
+
+	return ctx
 }
 
 func newPaneCmd(state *commandState) *cobra.Command {

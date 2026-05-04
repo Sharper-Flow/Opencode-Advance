@@ -4,6 +4,7 @@ import {
   initWatchdog,
 } from "./watchdog";
 import * as stateFile from "./state-file";
+import * as path from "path";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -146,5 +147,58 @@ describe("initWatchdog", () => {
       globalThis.setInterval = originalSetInterval;
       globalThis.clearInterval = originalClearInterval;
     }
+  });
+});
+
+// ── V2 field preservation tests ────────────────────────────────────────────
+
+describe("PaneState v2 field preservation", () => {
+  beforeEach(clearWatchdogEnv);
+
+  test("v2 fields survive read-modify-write cycle", () => {
+    const tmpDir = require("fs").mkdtempSync(path.join(require("os").tmpdir(), "oca-test-"));
+    const filePath = path.join(tmpDir, "pane.json");
+
+    // Write v2 state
+    const v2State = {
+      schemaVersion: 2,
+      sessionID: "ses_v2",
+      directory: "/home/user/project",
+      ts: 1700000000,
+      startedAt: 1699999999,
+      lastSeenAt: 1700000000,
+      paneID: "%42",
+      socket: "oca",
+      agent: "adv",
+      gitRoot: "/home/user/project",
+      worktreePath: "/home/user/.local/share/opencode/worktree/abc/change/xyz",
+      gitCommonDir: "/home/user/project/.git",
+      projectId: "abc123def",
+      worktreeBranch: "change/xyz",
+      changeID: "xyz",
+      role: "adv",
+    };
+    stateFile.atomicWriteJSON(filePath, v2State);
+
+    // Simulate watchdog read-modify-write (adds watchdog field)
+    const readBack = stateFile.readJSON(filePath);
+    readBack.watchdog = {
+      enabled: true,
+      bump_count: 0,
+      last_bump_at: 0,
+      last_activity_at: Date.now(),
+      status: "active",
+    };
+    stateFile.atomicWriteJSON(filePath, readBack);
+
+    // Verify v2 fields preserved
+    const final = stateFile.readJSON(filePath);
+    expect(final.schemaVersion).toBe(2);
+    expect(final.changeID).toBe("xyz");
+    expect(final.role).toBe("adv");
+    expect(final.projectId).toBe("abc123def");
+    expect(final.worktreeBranch).toBe("change/xyz");
+    expect(final.watchdog).toBeDefined();
+    expect(final.watchdog.status).toBe("active");
   });
 });
