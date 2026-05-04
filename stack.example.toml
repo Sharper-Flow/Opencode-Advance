@@ -162,6 +162,9 @@ source = "npm:@franlol/opencode-md-table-formatter@latest"
 [plugins.anthropic-auth]
 source = "npm:@ex-machina/opencode-anthropic-auth@latest"
 
+[plugins.oca]
+path = "~/dev/opencodeadvance/plugins/oca"
+
 [temporal]
 enabled      = true                    # Enable ADV workflow persistence via Temporal server
 address      = "127.0.0.1:7233"        # Temporal gRPC frontend address (local dev server default)
