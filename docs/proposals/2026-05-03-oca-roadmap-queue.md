@@ -45,8 +45,9 @@ Suggested order: M3 → M2 → M4/M5/M6.
 | S4 | `2026-05-03-mcp-tool-suite-profiles.md` | Manage MCP as per-agent tool suites, not only server installs. |
 | S5 | `2026-05-03-legacy-adv-state-doctor-warning.md` | Warn about legacy `.adv/{changes,db,agenda*}` and non-bundle archive residue while preserving `.adv/specs` and valid archive bundles. |
 | S6 | `2026-05-04-oca-resume-hint-outer-terminal.md` | `/exit` resume hint prints inside dying tmux pane; outer terminal sees nothing. Fix: `bin/oc` captures and reprints after tmux exits. |
+| S7 | `2026-05-04-oca-advance-self-update-handoff.md` | OCA owns the deterministic rebuild + fresh-session handoff for Advance self-updates (`Opencode-Advance#9`); ADV owns runtime provenance diagnostics. |
 
-Suggested order: S1/S2 → S3/S4 → S5/S6.
+Suggested order: S1/S2 → S3/S4 → S5/S6/S7.
 
 ---
 
@@ -59,6 +60,10 @@ OCA work should account for the Advance queue:
   sessions for new ADV workflows.
 - `2026-05-03-agent-permission-first-config.md` may create an ADV companion if
   ADV-owned agent frontmatter/config still needs migration after OCA work.
+- `2026-05-04-oca-advance-self-update-handoff.md` composes with
+  Advance issue `Sharper-Flow/Advance#40` and OCA issue
+  `Sharper-Flow/Opencode-Advance#9`. Keep runtime provenance in Advance; keep
+  rebuild/session lifecycle in OCA.
 
 ---
 
@@ -90,6 +95,8 @@ Validation summary:
 | S3 | `2026-05-03-agent-permission-first-config.md` | Accepted | OpenCode agent docs mark `tools` as deprecated and prefer `permission`; current runtime debug output still shows legacy `tools`. |
 | S4 | `2026-05-03-mcp-tool-suite-profiles.md` | Accepted | OpenCode permissions support wildcard gating for built-ins and MCP tools; OCA currently models servers more strongly than per-agent tool exposure. |
 | S5 | `2026-05-03-legacy-adv-state-doctor-warning.md` | Accepted | Project has `.adv/changes` and archive entries alongside valid `.adv/specs`; OCA should warn only on legacy/non-bundle residue and point to Advance cleanup tooling, not delete directly. |
+| S6 | `2026-05-04-oca-resume-hint-outer-terminal.md` | Accepted | `/exit` pane death hides the resume hint from the outer terminal; OCA shell wrapper is the correct layer to capture/reprint it. |
+| S7 | `2026-05-04-oca-advance-self-update-handoff.md` | Accepted | Advance can report loaded plugin provenance, but only OCA owns plugin rebuild/update wiring and project/worktree session launch. |
 
 Operational caveat: ADV change creation was not performed in this review session
 because provider ADV runtime prompt resolution still needs a fresh OpenCode

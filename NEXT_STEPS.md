@@ -9,7 +9,7 @@ Three tracks, in priority order:
 | Priority | Track | What | Blocked by |
 |---|---|---|---|
 | 1 | **Finish v1.0** | Phase 8 release-candidate validation + tag publication. Phase 8 work is RC-shipped; remaining is smoke test and `git tag v1.0.0`. See `docs/proposals/phases.md` § "Phase 8: Extras + Polish". | Nothing |
-| 2 | **Post-v1 OCA reliability queue** | Reviewed/accepted 2026-05-03. File and ship OCA MUST proposals in order: M3 OCA plugin install → M2 bare apply lifecycle parity → M4/M5/M6 instruction assets, starter/migration validity, skill refresh. Then SHOULD proposals: S1/S2 → S3/S4 → S5. See `docs/proposals/phases.md` § "Post-v1: OCA Reliability + Runtime Correctness Queue" and `docs/proposals/2026-05-03-oca-roadmap-queue.md`. | Fresh OpenCode restart + runtime canary proving selected ADV provider agent no longer resolves to `[ADV:PROVIDER_STUB_UNEXPANDED]`. |
+| 2 | **Post-v1 OCA reliability queue** | Reviewed/accepted 2026-05-03; extended 2026-05-04 with Advance self-update handoff. File and ship OCA MUST proposals in order: M3 OCA plugin install → M2 bare apply lifecycle parity → M4/M5/M6 instruction assets, starter/migration validity, skill refresh. Then SHOULD proposals: S1/S2 → S3/S4 → S5/S6/S7. See `docs/proposals/phases.md` § "Post-v1: OCA Reliability + Runtime Correctness Queue" and `docs/proposals/2026-05-03-oca-roadmap-queue.md`. | Fresh OpenCode restart + runtime canary proving selected ADV provider agent no longer resolves to `[ADV:PROVIDER_STUB_UNEXPANDED]`. |
 | 3 | **Post-v1 session architecture** | 7-change split decision-locked 2026-05-03. Pattern B session topology + graceful hibernation + tmux-resurrect on the OCA side; idle worker reaper + peer-session topology + sync-global prompt-ref fix on the ADV side; OCA umbrella plugin install is now M3 in the OCA reliability queue. See `docs/proposals/phases.md` § "Post-v1: Session & Resource Architecture" + `docs/proposals/2026-05-03-session-and-resource-architecture.md` for the parent decision lock. | ADV prompt runtime canary + OCA reliability MUST queue. |
 
 If asked "what's next" without further context: confirm v1.0 finalization (track 1) before starting post-v1 OCA reliability or session-architecture work.
@@ -24,7 +24,7 @@ If asked "what's next" without further context: confirm v1.0 finalization (track
 - CI and local verification cover Go tests, vet, builds, and race runs for shipped phases
 - **Current focus:** Phase 8 extras/polish
 - **Dependency watch:** Advance has in-progress Temporal migration repair work. See `docs/notes/2026-05-02-advance-plugin-impact-check.md` before cleanup or release prep.
-- **Post-v1 staged (2026-05-03):** Session & resource architecture work decision-locked. Seven change proposals drafted in `docs/proposals/2026-05-03-*.md`. OCA reliability/runtime correctness queue reviewed and accepted into the roadmap (M3 → M2 → M4/M5/M6, then S1/S2 → S3/S4 → S5). File proposals only after a fresh OpenCode restart and runtime canary prove a non-stub ADV provider agent.
+- **Post-v1 staged (2026-05-03; updated 2026-05-04):** Session & resource architecture work decision-locked. Seven change proposals drafted in `docs/proposals/2026-05-03-*.md`. OCA reliability/runtime correctness queue reviewed and accepted into the roadmap (M3 → M2 → M4/M5/M6, then S1/S2 → S3/S4 → S5/S6/S7). S7 is OCA issue `#9`, companion to Advance `#40`: deterministic Advance rebuild + fresh-session/worktree handoff. File proposals only after a fresh OpenCode restart and runtime canary prove a non-stub ADV provider agent.
 
 ## Resume from here
 
@@ -73,6 +73,8 @@ OCA-owned MUST/SHOULD queue accepted into the roadmap. Proposal files are ready 
 | 8 | S3 | Permission-first agent configuration | `docs/proposals/2026-05-03-agent-permission-first-config.md` |
 | 9 | S4 | MCP tool suite profiles and per-agent exposure | `docs/proposals/2026-05-03-mcp-tool-suite-profiles.md` |
 | 10 | S5 | Legacy in-repo ADV state doctor warning | `docs/proposals/2026-05-03-legacy-adv-state-doctor-warning.md` |
+| 11 | S6 | Resume hint reprint in outer terminal | `docs/proposals/2026-05-04-oca-resume-hint-outer-terminal.md` |
+| 12 | S7 | Advance self-update rebuild/session handoff | `docs/proposals/2026-05-04-oca-advance-self-update-handoff.md` |
 
 ## Post-v1 staged session/resource work (2026-05-03)
 

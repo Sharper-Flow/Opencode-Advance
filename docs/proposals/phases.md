@@ -684,10 +684,12 @@ Full details, open questions, and reference implementations in the [research not
 | 8 | **S3** | Permission-first agent configuration | [`./2026-05-03-agent-permission-first-config.md`](./2026-05-03-agent-permission-first-config.md) | Aligns OCA agent config with current OpenCode permission guidance. |
 | 9 | **S4** | MCP tool suite profiles and per-agent exposure | [`./2026-05-03-mcp-tool-suite-profiles.md`](./2026-05-03-mcp-tool-suite-profiles.md) | Makes MCP tool exposure explicit per agent/profile. |
 | 10 | **S5** | Legacy in-repo ADV state doctor warning | [`./2026-05-03-legacy-adv-state-doctor-warning.md`](./2026-05-03-legacy-adv-state-doctor-warning.md) | Warns about legacy mutable `.adv` state while preserving `.adv/specs`. |
+| 11 | **S6** | Resume hint reprint in outer terminal | [`./2026-05-04-oca-resume-hint-outer-terminal.md`](./2026-05-04-oca-resume-hint-outer-terminal.md) | Reprints dying-pane `/exit` resume hints from the outer shell wrapper. |
+| 12 | **S7** | Advance self-update rebuild/session handoff | [`./2026-05-04-oca-advance-self-update-handoff.md`](./2026-05-04-oca-advance-self-update-handoff.md) | OCA-owned issue `#9`, companion to Advance `#40`; rebuilds Advance and guides fresh session/window handoff after self-updates. |
 
 ### Sequencing rule
 
-Run the MUST queue in order **M3 → M2 → M4/M5/M6** before starting broad OCA session-architecture implementation beyond the plugin prerequisite. Then run SHOULD items as capacity allows: **S1/S2 → S3/S4 → S5**. S1 is especially valuable immediately because runtime prompt-resolution failures can pass static config checks.
+Run the MUST queue in order **M3 → M2 → M4/M5/M6** before starting broad OCA session-architecture implementation beyond the plugin prerequisite. Then run SHOULD items as capacity allows: **S1/S2 → S3/S4 → S5/S6/S7**. S1 is especially valuable immediately because runtime prompt-resolution failures can pass static config checks. S7 composes with Advance `#40`: Advance reports loaded runtime provenance; OCA owns rebuild/update/session handoff.
 
 ADV caveat: the proposals are drafted but not created as live ADV changes in this review pass. Start them with `/adv-proposal` only after a fresh OpenCode session verifies that the selected ADV provider agent no longer resolves to `[ADV:PROVIDER_STUB_UNEXPANDED]`.
 
