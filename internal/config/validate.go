@@ -136,6 +136,10 @@ func (s *Stack) Validate() error {
 	// [temporal] — Phase 5
 	errs = append(errs, validateTemporal(s)...)
 
+	// Shell auto-refresh + update awareness
+	errs = append(errs, validateShell(s)...)
+	errs = append(errs, validateUpdateProbe(s)...)
+
 	// Deferred sections — classify as known-but-deferred (ok) or
 	// truly unknown (error).
 	for name := range s.DeferredSections {
@@ -918,6 +922,61 @@ func validateOpenCode(s *Stack) ValidationErrors {
 		}
 	}
 
+	return errs
+}
+
+var validShellAutoRefreshNotices = map[string]bool{
+	"off":   true,
+	"once":  true,
+	"every": true,
+}
+
+func validateShell(s *Stack) ValidationErrors {
+	var errs ValidationErrors
+	if s.Shell.AutoRefreshNotice == "" {
+		s.Shell.AutoRefreshNotice = "off"
+	}
+	if !validShellAutoRefreshNotices[s.Shell.AutoRefreshNotice] {
+		errs = append(errs, ValidationError{
+			Path:    "shell.auto_refresh_notice",
+			Message: fmt.Sprintf("unknown value %q (allowed: off, once, every)", s.Shell.AutoRefreshNotice),
+		})
+	}
+	return errs
+}
+
+var validUpdateProbeModes = map[string]bool{
+	"off":     true,
+	"passive": true,
+	"warn":    true,
+}
+
+func validateUpdateProbe(s *Stack) ValidationErrors {
+	var errs ValidationErrors
+	if s.UpdateProbe.Default == "" {
+		s.UpdateProbe.Default = "passive"
+	}
+	if !validUpdateProbeModes[s.UpdateProbe.Default] {
+		errs = append(errs, ValidationError{
+			Path:    "update_probe.default",
+			Message: fmt.Sprintf("unknown value %q (allowed: off, passive, warn)", s.UpdateProbe.Default),
+		})
+	}
+	if !s.UpdateProbe.timeoutPerPluginSet {
+		s.UpdateProbe.TimeoutPerPluginMS = 3000
+	} else if s.UpdateProbe.TimeoutPerPluginMS <= 0 {
+		errs = append(errs, ValidationError{Path: "update_probe.timeout_per_plugin_ms", Message: "must be > 0"})
+	}
+	if !s.UpdateProbe.timeoutGlobalSet {
+		s.UpdateProbe.TimeoutGlobalMS = 10000
+	} else if s.UpdateProbe.TimeoutGlobalMS <= 0 {
+		errs = append(errs, ValidationError{Path: "update_probe.timeout_global_ms", Message: "must be > 0"})
+	}
+	if !s.UpdateProbe.cacheTTLSet {
+		s.UpdateProbe.CacheTTLMinutes = 5
+	} else if s.UpdateProbe.CacheTTLMinutes <= 0 {
+		errs = append(errs, ValidationError{Path: "update_probe.cache_ttl_minutes", Message: "must be > 0"})
+	}
 	return errs
 }
 

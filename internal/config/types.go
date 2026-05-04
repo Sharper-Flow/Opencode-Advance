@@ -47,6 +47,12 @@ type Stack struct {
 	// Discord typed section (promoted from deferred)
 	Discord *DiscordSection `toml:"discord,omitempty"`
 
+	// Shell controls OCA-managed interactive shell behavior.
+	Shell ShellSection `toml:"shell,omitempty"`
+
+	// UpdateProbe controls read-only plugin update awareness.
+	UpdateProbe UpdateProbeSection `toml:"update_probe,omitempty"`
+
 	// DeferredSections holds known-but-unimplemented top-level sections
 	// verbatim so that a complete stack.toml (including future-phase
 	// sections) round-trips through Phase 1 without errors. Entries are
@@ -286,6 +292,78 @@ type TemporalSection struct {
 	Namespace   string `toml:"namespace,omitempty"`    // default "default"
 	AllowRemote *bool  `toml:"allow_remote,omitempty"` // must be true for non-loopback
 	NodePath    string `toml:"node_path,omitempty"`    // optional override for node binary
+}
+
+// ShellSection is the [shell] table. It governs OCA's managed shell block
+// behavior without re-sourcing user-owned rc files.
+type ShellSection struct {
+	AutoRefresh       *bool  `toml:"auto_refresh,omitempty"`
+	AutoRefreshNotice string `toml:"auto_refresh_notice,omitempty"`
+}
+
+// IsAutoRefreshEnabled returns the effective shell auto-refresh setting.
+// Absent means enabled; explicit false disables hook registration.
+func (s ShellSection) IsAutoRefreshEnabled() bool {
+	if s.AutoRefresh == nil {
+		return true
+	}
+	return *s.AutoRefresh
+}
+
+// UpdateProbeSection is the [update_probe] table. It powers both
+// `oca update --check` and the shell drift surfacer.
+type UpdateProbeSection struct {
+	Default            string `toml:"default,omitempty"`
+	TimeoutPerPluginMS int    `toml:"timeout_per_plugin_ms,omitempty"`
+	TimeoutGlobalMS    int    `toml:"timeout_global_ms,omitempty"`
+	CacheTTLMinutes    int    `toml:"cache_ttl_minutes,omitempty"`
+
+	timeoutPerPluginSet bool
+	timeoutGlobalSet    bool
+	cacheTTLSet         bool
+}
+
+// UnmarshalTOML captures whether numeric fields were present so validation can
+// distinguish "absent, apply default" from "explicit zero, invalid".
+func (u *UpdateProbeSection) UnmarshalTOML(value any) error {
+	m, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("expected table for update_probe, got %T", value)
+	}
+	for k, v := range m {
+		switch k {
+		case "default":
+			s, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("default: expected string, got %T", v)
+			}
+			u.Default = s
+		case "timeout_per_plugin_ms":
+			i, ok := tomlInt(v)
+			if !ok {
+				return fmt.Errorf("timeout_per_plugin_ms: expected integer, got %T", v)
+			}
+			u.TimeoutPerPluginMS = i
+			u.timeoutPerPluginSet = true
+		case "timeout_global_ms":
+			i, ok := tomlInt(v)
+			if !ok {
+				return fmt.Errorf("timeout_global_ms: expected integer, got %T", v)
+			}
+			u.TimeoutGlobalMS = i
+			u.timeoutGlobalSet = true
+		case "cache_ttl_minutes":
+			i, ok := tomlInt(v)
+			if !ok {
+				return fmt.Errorf("cache_ttl_minutes: expected integer, got %T", v)
+			}
+			u.CacheTTLMinutes = i
+			u.cacheTTLSet = true
+		default:
+			return fmt.Errorf("unknown field %q", k)
+		}
+	}
+	return nil
 }
 
 // IsEnabled returns the effective enabled state. Nil means true.

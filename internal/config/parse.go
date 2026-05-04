@@ -27,17 +27,19 @@ var knownSections = map[string]bool{
 	"instructions": true,
 	"temporal":     true, // advisory tolerance — parsed but validation handled by validateTemporal
 	// Phase 2+ — parsed as deferred raw maps
-	"providers":   true,
-	"agents":      true,
-	"permissions": true,
-	"watcher":     true,
-	"lsp":         true,
-	"session":     true,
-	"discord":     true,
-	"skills":      true,
-	"formatters":  true,
-	"commands":    true,
-	"opencode":    true,
+	"providers":    true,
+	"agents":       true,
+	"permissions":  true,
+	"watcher":      true,
+	"lsp":          true,
+	"session":      true,
+	"discord":      true,
+	"skills":       true,
+	"formatters":   true,
+	"commands":     true,
+	"opencode":     true,
+	"shell":        true,
+	"update_probe": true,
 }
 
 // ParseError wraps a TOML decode error with the source path for better
@@ -244,6 +246,20 @@ func Parse(data []byte) (*Stack, error) {
 				return nil, &ParseError{Err: fmt.Errorf("[discord]: %w", err)}
 			}
 			stack.Discord = ds
+
+		case "shell":
+			sh := ShellSection{}
+			if err := decodeInto(v, &sh); err != nil {
+				return nil, &ParseError{Err: fmt.Errorf("[shell]: %w", err)}
+			}
+			stack.Shell = sh
+
+		case "update_probe":
+			up := UpdateProbeSection{}
+			if err := decodeInto(v, &up); err != nil {
+				return nil, &ParseError{Err: fmt.Errorf("[update_probe]: %w", err)}
+			}
+			stack.UpdateProbe = up
 
 		default:
 			// Known-but-unimplemented OR truly unknown — defer the

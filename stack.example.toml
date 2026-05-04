@@ -169,6 +169,18 @@ namespace    = "default"               # Temporal namespace for ADV workflows
 allow_remote = false                   # Set true only when targeting a remote/production Temporal cluster
 # node_path  = "/usr/local/bin/node"  # Uncomment when Bun hosts the ADV worker — Node subprocess path
 
+# ─── Shell auto-refresh + update awareness ──────────────────────────────────
+
+[shell]
+auto_refresh        = true   # Source OCA-owned env.sh on prompt when env.stamp changes
+auto_refresh_notice = "off"  # off | once | every
+
+[update_probe]
+default               = "passive" # off | passive | warn
+timeout_per_plugin_ms = 3000
+timeout_global_ms     = 10000
+cache_ttl_minutes     = 5
+
 # ─── Instructions ────────────────────────────────────────────────────────────
 # Loaded in declared order. Plugin-provided instructions append automatically.
 
