@@ -530,6 +530,115 @@ fi
 rm -rf "$WORK_DIR"
 printf 'OK\n'
 
+printf 'workspace glyph: setup_failed wins over active regardless order... '
+WORK_DIR=$(mktemp -d)
+export OCA_CACHE_DIR="$WORK_DIR/cache"
+export XDG_DATA_HOME="$WORK_DIR/xdg-data"
+mkdir -p "$OCA_CACHE_DIR"
+PROJECT_ID="testproj09"
+mkdir -p "$XDG_DATA_HOME/opencode/plugins/advance/$PROJECT_ID"
+cat > "$XDG_DATA_HOME/opencode/plugins/advance/$PROJECT_ID/snapshot.json" <<'EOF'
+{
+  "worktree_registry": {
+    "change/activeFirst": {
+      "branch": "change/activeFirst",
+      "materialized": true,
+      "changeId": "activeFirst",
+      "status": "active",
+      "setupReady": true
+    },
+    "change/brokenSecond": {
+      "branch": "change/brokenSecond",
+      "materialized": true,
+      "changeId": "brokenSecond",
+      "status": "setup_failed",
+      "setupReady": false
+    }
+  }
+}
+EOF
+OUTPUT=$(oca_status_workspace_state "$PROJECT_ID" 2>/dev/null || true)
+PLAIN=$(_strip_tmux_escapes "$OUTPUT")
+if [[ "$PLAIN" != *"✗"* ]]; then
+  printf 'FAIL: expected ✗ even when active entry appears first, got %q\n' "$PLAIN" >&2
+  rm -rf "$WORK_DIR"
+  exit 1
+fi
+rm -rf "$WORK_DIR"
+printf 'OK\n'
+
+printf 'branch safety: terminal-only states do not warn... '
+WORK_DIR=$(mktemp -d)
+export OCA_CACHE_DIR="$WORK_DIR/cache"
+export XDG_DATA_HOME="$WORK_DIR/xdg-data"
+mkdir -p "$OCA_CACHE_DIR"
+PROJECT_ID="testproj10"
+mkdir -p "$XDG_DATA_HOME/opencode/plugins/advance/$PROJECT_ID"
+cat > "$XDG_DATA_HOME/opencode/plugins/advance/$PROJECT_ID/snapshot.json" <<'EOF'
+{
+  "worktree_registry": {
+    "change/mergedChange": { "branch": "change/mergedChange", "status": "merged" },
+    "change/staleChange": { "branch": "change/staleChange", "status": "stale" },
+    "change/deletedChange": { "branch": "change/deletedChange", "status": "deleted" }
+  }
+}
+EOF
+GIT_DIR=$(mktemp -d)
+cd "$GIT_DIR" && git init && git config user.email "t@t" && git config user.name "T"
+touch a && git add a && git commit -m "init" >/dev/null 2>&1
+OUTPUT=$(oca_status_branch_safety "$GIT_DIR" "$PROJECT_ID" 2>/dev/null || true)
+PLAIN=$(_strip_tmux_escapes "$OUTPUT")
+if [[ "$PLAIN" == *"⚡"* ]]; then
+  printf 'FAIL: terminal states should not trigger ⚡, got %q\n' "$PLAIN" >&2
+  rm -rf "$GIT_DIR" "$WORK_DIR"
+  exit 1
+fi
+rm -rf "$GIT_DIR" "$WORK_DIR"
+printf 'OK\n'
+
+printf 'window glyphs: row1 production path enriches workspace state... '
+WORK_DIR=$(mktemp -d)
+export OCA_CACHE_DIR="$WORK_DIR/cache"
+export XDG_DATA_HOME="$WORK_DIR/xdg-data"
+mkdir -p "$OCA_CACHE_DIR"
+GIT_DIR=$(mktemp -d)
+cd "$GIT_DIR" && git init && git config user.email "t@t" && git config user.name "T"
+touch a && git add a && git commit -m "init" >/dev/null 2>&1
+PROJECT_ID=$(git -C "$GIT_DIR" rev-list --max-parents=0 HEAD)
+mkdir -p "$XDG_DATA_HOME/opencode/plugins/advance/$PROJECT_ID"
+cat > "$XDG_DATA_HOME/opencode/plugins/advance/$PROJECT_ID/snapshot.json" <<'EOF'
+{
+  "worktree_registry": {
+    "change/brokenWT": {
+      "branch": "change/brokenWT",
+      "changeId": "brokenWT",
+      "status": "setup_failed",
+      "setupReady": false
+    }
+  }
+}
+EOF
+FAKE_BIN_DIR=$(mktemp -d)
+cat > "$FAKE_BIN_DIR/tmux" <<'EOF'
+#!/usr/bin/env bash
+printf '1:trunk:0\n2:change/brokenWT:1\n'
+EOF
+chmod +x "$FAKE_BIN_DIR/tmux"
+OLD_PATH="$PATH"
+PATH="$FAKE_BIN_DIR:$PATH"
+hash -r
+OUTPUT=$(TMUX="/tmp/tmux-$(id -u)/oca,123,0" oca_status_row1_windows "session" "$GIT_DIR")
+PATH="$OLD_PATH"
+hash -r
+PLAIN=$(_strip_tmux_escapes "$OUTPUT")
+if [[ "$PLAIN" != *"✗"* ]]; then
+  printf 'FAIL: production row1 path should pass project id and show ✗, got %q\n' "$PLAIN" >&2
+  rm -rf "$FAKE_BIN_DIR" "$GIT_DIR" "$WORK_DIR"
+  exit 1
+fi
+rm -rf "$FAKE_BIN_DIR" "$GIT_DIR" "$WORK_DIR"
+printf 'OK\n'
+
 # ── Restore env for remaining tests ──
 unset XDG_DATA_HOME OCA_CACHE_DIR
 

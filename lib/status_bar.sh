@@ -182,6 +182,7 @@ _oca_status_window_glyphs_from_list() {
 oca_status_window_glyphs() {
   local session_name="$1"
   local budget="${2:-120}"  # Default 120 to leave room for gauges/date
+  local project_id="${3:-}"
 
   if [[ -z "$TMUX" ]]; then
     return 0
@@ -193,7 +194,7 @@ oca_status_window_glyphs() {
   local window_list
   window_list=$(tmux -L "$socket" list-windows -t "$session_name" -F '#{window_index}:#{window_name}:#{window_active}' 2>/dev/null) || return 0
 
-  _oca_status_window_glyphs_from_list "$window_list" "$budget"
+  _oca_status_window_glyphs_from_list "$window_list" "$budget" "$project_id"
 }
 
 # ── Row Builders ───────────────────────────────────────────
@@ -309,7 +310,9 @@ oca_status_row1_windows() {
   # Compact window glyphs (left side)
   if [[ -n "$session_name" && -n "$TMUX" ]]; then
     local glyphs
-    glyphs=$(oca_status_window_glyphs "$session_name" 120)
+    local project_id
+    project_id=$(_oca_status_resolve_project_id "$pane_path")
+    glyphs=$(oca_status_window_glyphs "$session_name" 120 "$project_id")
     if [[ -n "$glyphs" ]]; then
       printf '%s' "$glyphs"
     fi

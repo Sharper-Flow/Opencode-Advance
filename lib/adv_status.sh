@@ -298,8 +298,9 @@ _oca_adv_snapshot_read() {
   cat "$snapshot"
 }
 
-# _oca_adv_has_active_changes — Check if snapshot has any non-archived worktree
-# records (active, idle, setup_failed, etc.).
+# _oca_adv_has_active_changes — Check if snapshot has any actionable worktree
+# records. Terminal/non-actionable records (merged, stale, deleted) must not
+# trigger trunk warnings.
 # Returns "true" or "false".
 _oca_adv_has_active_changes() {
   local project_id="$1"
@@ -310,7 +311,12 @@ _oca_adv_has_active_changes() {
     return 0
   fi
   local count
-  count=$(printf '%s' "$snapshot" | jq -r '.worktree_registry // {} | to_entries | length' 2>/dev/null || echo 0)
+  count=$(printf '%s' "$snapshot" | jq -r '
+    .worktree_registry // {} | to_entries |
+    map(.value.status // "") |
+    map(select(. == "active" or . == "idle" or . == "materializing" or . == "setup_failed" or . == "pending_delete" or . == "unmaterialized")) |
+    length
+  ' 2>/dev/null || echo 0)
   if (( count > 0 )); then
     printf 'true'
   else
@@ -373,10 +379,16 @@ oca_status_workspace_state() {
     return 0
   fi
 
-  # Find the first worktree with a notable status
-  local status change_id
+  # Find the highest-priority noteworthy status. Do not rely on object order:
+  # an active record must not mask setup_failed/stale/pending_delete entries.
+  local status
   status=$(printf '%s' "$snapshot" | jq -r '
-    [.worktree_registry // {} | to_entries[]][0].value.status // empty
+    [.worktree_registry // {} | to_entries[] | .value.status // empty] as $statuses |
+    if any($statuses[]; . == "setup_failed") then "setup_failed"
+    elif any($statuses[]; . == "stale") then "stale"
+    elif any($statuses[]; . == "pending_delete") then "pending_delete"
+    elif any($statuses[]; . == "merged") then "merged"
+    else empty end
   ' 2>/dev/null) || return 0
 
   if [[ -z "$status" ]]; then
