@@ -73,6 +73,102 @@ _oca_discord_update() {
   fi
 }
 
+# ── tmux Helpers ───────────────────────────────────────────
+
+# Extract socket name from $TMUX env (format: /tmp/tmux-UID/NAME,PID)
+parseSocketFromTmux() {
+  local tmux_env="${1:-}"
+  if [[ -z "$tmux_env" ]]; then
+    printf 'oca'
+    return 0
+  fi
+  local path="${tmux_env%%,*}"
+  local basename="${path##*/}"
+  if [[ -z "$basename" || "$basename" == "." ]]; then
+    printf 'oca'
+  else
+    printf '%s' "$basename"
+  fi
+}
+
+# ── Window Glyph Renderer ───────────────────────────────────
+
+# _oca_status_window_glyphs_from_list — Pure function: compact window glyph
+# renderer. Takes tmux list-windows output and column budget.
+# Input format: "index:name:active" per line (active=1 for current window)
+# Output: compact "N:glyph" pairs with tmux color escapes, truncated to budget.
+_oca_status_window_glyphs_from_list() {
+  local window_list="$1"
+  local budget="${2:-160}"
+
+  local result=""
+  local result_len=0
+  local truncated=0
+
+  while IFS=: read -r idx name active; do
+    [[ -n "$idx" ]] || continue
+
+    # Map window name to glyph
+    local glyph=""
+    if [[ "$name" == "trunk" || "$name" == "main" ]]; then
+      glyph="T"
+    elif [[ "$name" == change/* ]]; then
+      # Extract change ID, abbreviate to 4 chars
+      local change_id="${name#change/}"
+      glyph="${change_id:0:4}"
+    else
+      # Plain window name, truncate to 4 chars
+      glyph="${name:0:4}"
+    fi
+
+    # Build segment: "N:glyph " (trailing space)
+    local segment="${idx}:${glyph}"
+    local seg_len=$(( ${#segment} + 1 ))  # +1 for separator space
+
+    # Check budget
+    local new_len=$(( result_len + seg_len ))
+    if (( new_len > budget )); then
+      truncated=1
+      break
+    fi
+
+    # Color: indigo for active, muted for inactive
+    local color_reset="$(_oca_status_reset)"
+    if [[ "$active" == "1" ]]; then
+      result="${result}$(_oca_status_color '#6C7AB8')${segment}${color_reset} "
+    else
+      result="${result}$(_oca_status_color '#A8A6A3')${segment}${color_reset} "
+    fi
+    result_len=$new_len
+  done <<< "$window_list"
+
+  # Append truncation marker if needed
+  if (( truncated )); then
+    result="${result}$(_oca_status_color '#A8A6A3')…$(_oca_status_reset)"
+  fi
+
+  printf '%s' "$result"
+}
+
+# oca_status_window_glyphs — Production wrapper: reads current tmux session
+# windows and renders compact glyph display.
+oca_status_window_glyphs() {
+  local session_name="$1"
+  local budget="${2:-120}"  # Default 120 to leave room for gauges/date
+
+  if [[ -z "$TMUX" ]]; then
+    return 0
+  fi
+
+  local socket
+  socket=$(parseSocketFromTmux "$TMUX" 2>/dev/null || echo "oca")
+
+  local window_list
+  window_list=$(tmux -L "$socket" list-windows -t "$session_name" -F '#{window_index}:#{window_name}:#{window_active}' 2>/dev/null) || return 0
+
+  _oca_status_window_glyphs_from_list "$window_list" "$budget"
+}
+
 # ── Row Builders ───────────────────────────────────────────
 
 # Row 0: [session_name] │ [git branch] │ [ADV state] │ [host] [time]
@@ -134,12 +230,28 @@ oca_status_row0() {
   printf ' %s' "$(_oca_status_color '#A8A6A3')$(_oca_status_clock)$(_oca_status_reset)"
 }
 
-# Row 1: [window list] │ [LLM gauges] │ [date]
+# Row 1: window glyphs | LLM gauges | date
 oca_status_row1() {
   local pane_path="$1"
+  # Row 1 now delegates to row1-windows for unified rendering
+  oca_status_row1_windows "" "$pane_path"
+}
 
-  # Window list is handled by tmux's built-in #{W:...} format
-  # We just provide the right side content
+# Row 1 variant: compact window glyphs (Pattern B) | LLM gauges | date
+oca_status_row1_windows() {
+  local session_name="$1"
+  local pane_path="$2"
+
+  # Compact window glyphs (left side)
+  if [[ -n "$session_name" && -n "$TMUX" ]]; then
+    local glyphs
+    glyphs=$(oca_status_window_glyphs "$session_name" 120)
+    if [[ -n "$glyphs" ]]; then
+      printf '%s' "$glyphs"
+    fi
+  fi
+
+  # Right side
   printf '%s' "#[align=right]"
 
   # LLM gauges
@@ -162,6 +274,9 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
       ;;
     row1)
       oca_status_row1 "${2:-}"
+      ;;
+    row1-windows)
+      oca_status_row1_windows "${2:-}" "${3:-}"
       ;;
     *)
       printf 'usage: %s {row0|row1} [args]\n' "$(basename "$0")" >&2

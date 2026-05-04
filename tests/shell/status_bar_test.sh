@@ -30,6 +30,12 @@ assert_not_contains() {
   fi
 }
 
+# Strip tmux format escapes: #[...] sequences
+_strip_tmux_escapes() {
+  local input="$1"
+  printf '%s' "$input" | sed 's/#\[[^]]*\]//g'
+}
+
 # ── Tests ──────────────────────────────────────────────────
 
 printf 'status_bar: row0 includes session name... '
@@ -171,5 +177,111 @@ if [[ -x "$OCA_BIN" ]]; then
 else
   printf 'SKIP (oca binary not built)\n'
 fi
+
+# ── Compact Window Glyph Tests ───────────────────────────────
+
+printf 'window glyphs: renders 11 windows within 160-column budget... '
+MOCK_WINDOWS="1:trunk:0
+2:change/abc123def:0
+3:change/def456ghi:0
+4:change/ghi789jkl:1
+5:change/jkl012mno:0
+6:change/mno345pqr:0
+7:change/pqr678stu:0
+8:change/stu901vwx:0
+9:change/vwx234yza:0
+10:change/yza567bcd:0
+11:change/bcd890efg:0"
+OUTPUT=$(_oca_status_window_glyphs_from_list "$MOCK_WINDOWS" 160)
+# Strip tmux escape sequences for length check
+PLAIN=$(_strip_tmux_escapes "$OUTPUT")
+LEN=${#PLAIN}
+if (( LEN > 160 )); then
+  printf 'FAIL: output %d chars exceeds 160 budget\n' "$LEN" >&2
+  exit 1
+fi
+# Must contain at least 11 window indices
+for i in 1 2 3 4 5 6 7 8 9 10 11; do
+  if [[ "$PLAIN" != *"$i:"* ]]; then
+    printf 'FAIL: missing window index %d\n' "$i" >&2
+    exit 1
+  fi
+done
+printf 'OK (%d chars for 11 windows)\n' "$LEN"
+
+printf 'window glyphs: maps trunk to T glyph... '
+MOCK_WINDOWS="1:trunk:0
+2:change/abc:1"
+OUTPUT=$(_oca_status_window_glyphs_from_list "$MOCK_WINDOWS" 160)
+PLAIN=$(_strip_tmux_escapes "$OUTPUT")
+if [[ "$PLAIN" != *"1:T"* ]]; then
+  printf 'FAIL: expected "1:T" in output, got %q\n' "$PLAIN" >&2
+  exit 1
+fi
+printf 'OK\n'
+
+printf 'window glyphs: maps change windows to abbreviated ID... '
+MOCK_WINDOWS="1:trunk:0
+2:change/patternBSessionTopologyOne:1"
+OUTPUT=$(_oca_status_window_glyphs_from_list "$MOCK_WINDOWS" 160)
+PLAIN=$(_strip_tmux_escapes "$OUTPUT")
+if [[ "$PLAIN" != *"2:patt"* ]]; then
+  printf 'FAIL: expected "2:patt" (abbreviated change ID) in output, got %q\n' "$PLAIN" >&2
+  exit 1
+fi
+printf 'OK\n'
+
+printf 'window glyphs: highlights active window with indigo... '
+MOCK_WINDOWS="1:trunk:0
+2:change/abc:1"
+OUTPUT=$(_oca_status_window_glyphs_from_list "$MOCK_WINDOWS" 160)
+if [[ "$OUTPUT" != *"6C7AB8"* ]]; then
+  printf 'FAIL: active window should have indigo (#6C7AB8) color, got %q\n' "$OUTPUT" >&2
+  exit 1
+fi
+printf 'OK\n'
+
+printf 'window glyphs: truncates when budget exceeded... '
+# 30 windows with long names, small budget
+MOCK_WINDOWS=""
+for i in $(seq 1 30); do
+  ACTIVE=0
+  if (( i == 15 )); then ACTIVE=1; fi
+  MOCK_WINDOWS="${MOCK_WINDOWS}${i}:change/veryLongChangeName${i}:${ACTIVE}"$'\n'
+done
+OUTPUT=$(_oca_status_window_glyphs_from_list "$MOCK_WINDOWS" 80)
+PLAIN=$(_strip_tmux_escapes "$OUTPUT")
+LEN=${#PLAIN}
+if (( LEN > 80 )); then
+  printf 'FAIL: output %d chars exceeds 80 budget\n' "$LEN" >&2
+  exit 1
+fi
+# Should end with truncation marker
+if [[ "$PLAIN" != *"…" ]]; then
+  printf 'FAIL: expected truncation marker … at end, got %q\n' "$PLAIN" >&2
+  exit 1
+fi
+printf 'OK (%d chars, truncated)\n' "$LEN"
+
+printf 'window glyphs: single trunk window renders cleanly... '
+MOCK_WINDOWS="1:trunk:1"
+OUTPUT=$(_oca_status_window_glyphs_from_list "$MOCK_WINDOWS" 160)
+PLAIN=$(_strip_tmux_escapes "$OUTPUT")
+if [[ "$PLAIN" != *"1:T"* ]]; then
+  printf 'FAIL: expected "1:T" for single trunk, got %q\n' "$PLAIN" >&2
+  exit 1
+fi
+printf 'OK\n'
+
+printf 'window glyphs: handles windows with plain names... '
+MOCK_WINDOWS="1:bash:0
+2:editor:1"
+OUTPUT=$(_oca_status_window_glyphs_from_list "$MOCK_WINDOWS" 160)
+PLAIN=$(_strip_tmux_escapes "$OUTPUT")
+if [[ "$PLAIN" != *"1:bash"* ]]; then
+  printf 'FAIL: expected "1:bash" for plain name, got %q\n' "$PLAIN" >&2
+  exit 1
+fi
+printf 'OK\n'
 
 printf '\nAll status_bar tests passed.\n'
