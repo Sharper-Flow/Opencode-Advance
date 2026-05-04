@@ -103,6 +103,19 @@ oca_status_row0() {
     printf ' %s' "$(_oca_status_color '#6C7AB8')$adv_state$(_oca_status_reset)"
   fi
 
+  # Occupancy (compact status from oca occupancy --status --pane)
+  local occupancy_seg
+  occupancy_seg=$(timeout 0.5s oca occupancy --status --pane "${TMUX_PANE:-}" 2>/dev/null)
+  if [[ -n "$occupancy_seg" ]]; then
+    printf ' %s' "$(_oca_status_color '#2D3138')│$(_oca_status_reset)"
+    # Color warning (multiple occupants) differently
+    if [[ "$occupancy_seg" == *"⚠"* ]]; then
+      printf ' %s' "$(_oca_status_color '#E5A649')$occupancy_seg$(_oca_status_reset)"
+    else
+      printf ' %s' "$(_oca_status_color '#A8A6A3')$occupancy_seg$(_oca_status_reset)"
+    fi
+  fi
+
   # Temporal health
   local temporal_health
   temporal_health=$(oca_adv_temporal_health 2>/dev/null)
