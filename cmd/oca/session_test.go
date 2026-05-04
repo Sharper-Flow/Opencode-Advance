@@ -143,3 +143,117 @@ func TestSessionCommandsInHelp(t *testing.T) {
 		}
 	}
 }
+
+func TestSessionEnsureWindowCreatesMissingWindow(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	worktree := filepath.Join(t.TempDir(), "change-one")
+	if err := os.MkdirAll(worktree, 0o755); err != nil {
+		t.Fatalf("MkdirAll(worktree): %v", err)
+	}
+	tmuxPath, tmuxLog := fakeTmuxForCLIWithWindows(t, "", "")
+	prependPATH(t, filepath.Dir(tmuxPath))
+
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Version: VersionInfo{Version: "0.1.0-test"}, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"session", "ensure-window", "--session", "opencodeadvance", "--name", "change-one", "--cwd", worktree})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v (stderr: %s)", err, stderr.String())
+	}
+	log := readTextFile(t, tmuxLog)
+	if !strings.Contains(log, "new-window -t opencodeadvance -n change-one -c "+worktree) {
+		t.Fatalf("tmux log missing ensure-window create:\n%s", log)
+	}
+	if !strings.Contains(stdout.String(), "window change-one ensured") {
+		t.Fatalf("stdout missing ensure message: %q", stdout.String())
+	}
+}
+
+func TestSessionEnsureWindowReusesExistingWindow(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	worktree := filepath.Join(t.TempDir(), "change-one")
+	if err := os.MkdirAll(worktree, 0o755); err != nil {
+		t.Fatalf("MkdirAll(worktree): %v", err)
+	}
+	windowOutput := "%2\t1\tchange-one\t0\t" + worktree
+	tmuxPath, tmuxLog := fakeTmuxForCLIWithWindows(t, "", windowOutput)
+	prependPATH(t, filepath.Dir(tmuxPath))
+
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Version: VersionInfo{Version: "0.1.0-test"}, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"session", "ensure-window", "--session", "opencodeadvance", "--name", "change-one", "--cwd", worktree})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v (stderr: %s)", err, stderr.String())
+	}
+	log := readTextFile(t, tmuxLog)
+	if strings.Contains(log, "new-window") {
+		t.Fatalf("tmux log created duplicate window:\n%s", log)
+	}
+	if !strings.Contains(stdout.String(), "already existed") {
+		t.Fatalf("stdout missing reuse status: %q", stdout.String())
+	}
+}
+
+func TestSessionEnsureWindowRejectsMissingCwd(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	missing := filepath.Join(t.TempDir(), "missing")
+	tmuxPath, _ := fakeTmuxForCLIWithWindows(t, "", "")
+	prependPATH(t, filepath.Dir(tmuxPath))
+
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Version: VersionInfo{Version: "0.1.0-test"}, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"session", "ensure-window", "--session", "opencodeadvance", "--name", "change-one", "--cwd", missing})
+	if err := cmd.Execute(); err == nil {
+		t.Fatal("Execute() error = nil, want missing cwd error")
+	}
+}
+
+func TestSessionEnsureWindowRecreatesStaleCwd(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	worktree := filepath.Join(t.TempDir(), "change-one")
+	if err := os.MkdirAll(worktree, 0o755); err != nil {
+		t.Fatalf("MkdirAll(worktree): %v", err)
+	}
+	stale := filepath.Join(t.TempDir(), "missing")
+	windowOutput := "%2\t1\tchange-one\t0\t" + stale
+	tmuxPath, tmuxLog := fakeTmuxForCLIWithWindows(t, "", windowOutput)
+	prependPATH(t, filepath.Dir(tmuxPath))
+
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Version: VersionInfo{Version: "0.1.0-test"}, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"session", "ensure-window", "--session", "opencodeadvance", "--name", "change-one", "--cwd", worktree})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v (stderr: %s)", err, stderr.String())
+	}
+	log := readTextFile(t, tmuxLog)
+	if !strings.Contains(log, "kill-window -t opencodeadvance:%2") || !strings.Contains(log, "new-window -t opencodeadvance -n change-one -c "+worktree) {
+		t.Fatalf("tmux log missing stale recreate commands:\n%s", log)
+	}
+}
+
+func TestSessionReconcileScansADVWorktreeLayout(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	root := newGitRepo(t, "opencodeadvance")
+	withWorkingDir(t, root)
+	xdg := t.TempDir()
+	changeDir := filepath.Join(xdg, "opencode", "worktree", "project-id", "change", "change-one")
+	if err := os.MkdirAll(changeDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(changeDir): %v", err)
+	}
+	t.Setenv("XDG_DATA_HOME", xdg)
+	tmuxPath, tmuxLog := fakeTmuxForCLIWithWindows(t, "", "")
+	prependPATH(t, filepath.Dir(tmuxPath))
+
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Version: VersionInfo{Version: "0.1.0-test"}, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"session", "reconcile"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v (stderr: %s)", err, stderr.String())
+	}
+	log := readTextFile(t, tmuxLog)
+	if !strings.Contains(log, "new-window -t opencodeadvance -n change-one -c "+changeDir) {
+		t.Fatalf("tmux log missing reconcile window create:\n%s", log)
+	}
+	if !strings.Contains(stdout.String(), "reconciled 1 window") {
+		t.Fatalf("stdout missing reconcile count: %q", stdout.String())
+	}
+}

@@ -232,6 +232,10 @@ func writeStackConfig(t *testing.T, dir, mode string) string {
 }
 
 func fakeTmuxForCLI(t *testing.T, sessionOutput string) (string, string) {
+	return fakeTmuxForCLIWithWindows(t, sessionOutput, "")
+}
+
+func fakeTmuxForCLIWithWindows(t *testing.T, sessionOutput, windowOutput string) (string, string) {
 	t.Helper()
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "tmux.log")
@@ -241,7 +245,7 @@ printf '%%s\n' "$*" >> %s
 cmd=""
 for arg in "$@"; do
   case "$arg" in
-    list-sessions|new-session|setenv)
+    list-sessions|new-session|list-windows|new-window|kill-window|setenv)
       cmd="$arg"
       break
       ;;
@@ -251,14 +255,17 @@ case "$cmd" in
   list-sessions)
 %s
     ;;
-  new-session|setenv)
+  list-windows)
+%s
+    ;;
+  new-session|new-window|kill-window|setenv)
     exit 0
     ;;
   *)
     exit 0
     ;;
 esac
-`, shellQuoteForTest(logPath), fakeTmuxCLIOutputClause(sessionOutput))
+`, shellQuoteForTest(logPath), fakeTmuxCLIOutputClause(sessionOutput), fakeTmuxCLIOutputClause(windowOutput))
 	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
 		t.Fatalf("WriteFile(fake tmux): %v", err)
 	}

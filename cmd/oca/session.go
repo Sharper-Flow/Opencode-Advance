@@ -42,6 +42,8 @@ func newSessionCmd(state *commandState) *cobra.Command {
 	cmd.AddCommand(newSessionKillallCmd(state))
 	cmd.AddCommand(newSessionRestartCmd(state))
 	cmd.AddCommand(newSessionReapCmd(state))
+	cmd.AddCommand(newSessionEnsureWindowCmd(state))
+	cmd.AddCommand(newSessionReconcileCmd(state))
 	cmd.AddCommand(newSessionDoctorCmd(state))
 	return cmd
 }
@@ -545,6 +547,168 @@ func newSessionReapCmd(state *commandState) *cobra.Command {
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be reaped without killing")
 	cmd.Flags().DurationVar(&ageThreshold, "age", 30*time.Minute, "Minimum age to consider stale (5m floor enforced)")
 	return cmd
+}
+
+func newSessionEnsureWindowCmd(state *commandState) *cobra.Command {
+	var sessionName string
+	var windowName string
+	var workingDir string
+	cmd := &cobra.Command{
+		Use:   "ensure-window",
+		Short: "Ensure a Pattern B project window exists",
+		Long:  "Create or reuse a named window in a Pattern B project tmux session with cwd set to a worktree path.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := validateOutputMode(state.output); err != nil {
+				return err
+			}
+			if workingDir == "" {
+				wd, err := os.Getwd()
+				if err != nil {
+					return newCLIError(1, "get working directory: %v", err)
+				}
+				workingDir = wd
+			}
+			if windowName == "" {
+				windowName = filepath.Base(workingDir)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			if sessionName == "" {
+				projectRoot, err := session.ProjectRoot(ctx, workingDir)
+				if err != nil {
+					return newCLIError(2, "infer project session: %v", err)
+				}
+				name, err := session.ProjectSessionName(projectRoot)
+				if err != nil {
+					return newCLIError(2, "infer project session name: %v", err)
+				}
+				sessionName = name
+			}
+
+			mgr, err := session.NewManager(sessionSocket())
+			if err != nil {
+				return newCLIError(1, "session manager: %v", err)
+			}
+			w, created, err := mgr.EnsureWindow(ctx, sessionName, windowName, workingDir)
+			if err != nil {
+				return newCLIError(1, "ensure window: %v", err)
+			}
+			status := "existing"
+			if created {
+				status = "created"
+			}
+			if state.output == "json" {
+				return printJSON(cmd.OutOrStdout(), map[string]any{"session": sessionName, "window": w, "status": status})
+			}
+			if created {
+				fmt.Fprintf(cmd.OutOrStdout(), "window %s ensured in session %s (created)\n", windowName, sessionName)
+			} else {
+				fmt.Fprintf(cmd.OutOrStdout(), "window %s ensured in session %s (already existed)\n", windowName, sessionName)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&sessionName, "session", "", "Project session name (default: inferred from git root)")
+	cmd.Flags().StringVar(&windowName, "name", "", "Window name (default: cwd basename)")
+	cmd.Flags().StringVar(&workingDir, "cwd", "", "Window working directory (default: current directory)")
+	return cmd
+}
+
+func newSessionReconcileCmd(state *commandState) *cobra.Command {
+	var sessionName string
+	var worktreeRoot string
+	cmd := &cobra.Command{
+		Use:   "reconcile",
+		Short: "Ensure Pattern B windows for ADV worktrees",
+		Long:  "Scan the ADV worktree layout and create missing project-session windows. No filesystem watcher is required.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := validateOutputMode(state.output); err != nil {
+				return err
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			if sessionName == "" {
+				wd, err := os.Getwd()
+				if err != nil {
+					return newCLIError(1, "get working directory: %v", err)
+				}
+				projectRoot, err := session.ProjectRoot(ctx, wd)
+				if err != nil {
+					return newCLIError(2, "infer project session: %v", err)
+				}
+				name, err := session.ProjectSessionName(projectRoot)
+				if err != nil {
+					return newCLIError(2, "infer project session name: %v", err)
+				}
+				sessionName = name
+			}
+
+			changeDirs, err := advChangeWorktreeDirs(worktreeRoot)
+			if err != nil {
+				return newCLIError(1, "scan ADV worktrees: %v", err)
+			}
+			mgr, err := session.NewManager(sessionSocket())
+			if err != nil {
+				return newCLIError(1, "session manager: %v", err)
+			}
+
+			type ensuredWindow struct {
+				Name   string `json:"name"`
+				Path   string `json:"path"`
+				Status string `json:"status"`
+			}
+			ensured := make([]ensuredWindow, 0, len(changeDirs))
+			for _, dir := range changeDirs {
+				name := filepath.Base(dir)
+				_, created, err := mgr.EnsureWindow(ctx, sessionName, name, dir)
+				if err != nil {
+					return newCLIError(1, "ensure %s: %v", name, err)
+				}
+				status := "existing"
+				if created {
+					status = "created"
+				}
+				ensured = append(ensured, ensuredWindow{Name: name, Path: dir, Status: status})
+			}
+
+			if state.output == "json" {
+				return printJSON(cmd.OutOrStdout(), map[string]any{"session": sessionName, "windows": ensured})
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "reconciled %d window(s) in session %s\n", len(ensured), sessionName)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&sessionName, "session", "", "Project session name (default: inferred from git root)")
+	cmd.Flags().StringVar(&worktreeRoot, "worktree-root", "", "ADV worktree root (default: $XDG_DATA_HOME/opencode/worktree)")
+	return cmd
+}
+
+func advChangeWorktreeDirs(worktreeRoot string) ([]string, error) {
+	if worktreeRoot == "" {
+		xdg := os.Getenv("XDG_DATA_HOME")
+		if xdg == "" {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return nil, fmt.Errorf("resolve home directory: %w", err)
+			}
+			xdg = filepath.Join(home, ".local", "share")
+		}
+		worktreeRoot = filepath.Join(xdg, "opencode", "worktree")
+	}
+	matches, err := filepath.Glob(filepath.Join(worktreeRoot, "*", "change", "*"))
+	if err != nil {
+		return nil, err
+	}
+	dirs := make([]string, 0, len(matches))
+	for _, match := range matches {
+		info, err := os.Stat(match)
+		if err != nil || !info.IsDir() {
+			continue
+		}
+		dirs = append(dirs, match)
+	}
+	return dirs, nil
 }
 
 // printReapResult renders the reap output for both dry-run and production
