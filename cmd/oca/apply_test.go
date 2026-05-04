@@ -134,6 +134,35 @@ func TestApplyCommand_TargetPluginsRunsSyncAfterRender(t *testing.T) {
 	}
 }
 
+func TestApplyCommand_BareApplyRunsPluginSync(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(tmp, "opencode"))
+	t.Setenv("OCA_VISION_CONFIG_DIR", filepath.Join(tmp, "vision"))
+	t.Setenv("OCA_CACHE_DIR", filepath.Join(tmp, "cache"))
+	t.Setenv("OCA_PLUGIN_CHECKOUT_ROOT", filepath.Join(tmp, "checkouts"))
+
+	remote := initPluginRemote(t)
+	stackPath := filepath.Join(tmp, "stack.toml")
+	writeFile(t, stackPath, "[meta]\nversion = \"1.0.0\"\n\n[plugins.advance]\nsource = \""+remote+"\"\nref = \"master\"\ncheckout = \""+filepath.Join(tmp, "checkouts", "advance")+"\"\npath = \"{checkout}\"\nsync = \"{checkout}/sync.sh\"\n")
+
+	var stdout, stderr bytes.Buffer
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"apply", "--config", stackPath})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("bare apply plugin sync: %v stderr=%s stdout=%s", err, stderr.String(), stdout.String())
+	}
+
+	marker := filepath.Join(tmp, "checkouts", "advance", "sync-ran.txt")
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("sync marker missing for bare apply: %v", err)
+	}
+	root := readJSONFile(t, filepath.Join(tmp, "opencode", "opencode.json"))
+	plugins := jsonStringArray(t, root, "plugin")
+	if len(plugins) != 1 || !strings.Contains(plugins[0], filepath.Join(tmp, "checkouts", "advance")) {
+		t.Fatalf("plugin entries=%#v", plugins)
+	}
+}
+
 func TestApplyCommand_TemporalNoOp(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(tmp, "opencode"))

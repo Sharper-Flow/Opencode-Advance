@@ -30,10 +30,6 @@ func newApplyCmd(state *commandState) *cobra.Command {
 			ctx, cancel := withContext()
 			defer cancel()
 
-			// No-target: compose all in-scope targets (providers/permissions/watcher/lsp
-			// plus the Phase 1+ targets) in dependency order with NoRollback.
-			// Chains Before/After bytes through a running in-memory doc so later
-			// targets don't clobber earlier ones.
 			if len(targets) == 0 {
 				stack, err := loadStack(state)
 				if err != nil {
@@ -48,17 +44,7 @@ func newApplyCmd(state *commandState) *cobra.Command {
 						return err
 					}
 				}
-				plan, err := render.ComposeApplyPlan(stack, paths, state.configPath, render.AllTargets)
-				if err != nil {
-					return newCLIError(3, "compose plan: %w", err)
-				}
-				applyOpts := render.ApplyOptions{
-					DryRun:     false,
-					MaxBackups: 3,
-					LockPath:   plan.LockPath,
-					NoRollback: true, // leave earlier targets on disk if later ones fail
-				}
-				return emitPlanOrApplyWithOpts(state, plan, dryRun, "apply all targets", applyOpts)
+				return applyTargetsInOrder(ctx, state, stack, paths, dryRun, defaultApplyTargets())
 			}
 
 			// Validate all targets before applying any.
@@ -85,59 +71,7 @@ func newApplyCmd(state *commandState) *cobra.Command {
 				}
 			}
 
-			for _, target := range targets {
-				switch target {
-				case "mcp":
-					if err := applyMCP(ctx, state, stack, paths, dryRun); err != nil {
-						return err
-					}
-				case "plugins":
-					if err := applyPlugins(ctx, state, stack, paths, dryRun); err != nil {
-						return err
-					}
-				case "instructions":
-					if err := applyInstructions(ctx, state, stack, paths, dryRun); err != nil {
-						return err
-					}
-				case "providers":
-					if err := applyProviders(ctx, state, stack, paths, dryRun); err != nil {
-						return err
-					}
-				case "permissions":
-					if err := applyPermissions(ctx, state, stack, paths, dryRun); err != nil {
-						return err
-					}
-				case "watcher":
-					if err := applyWatcher(ctx, state, stack, paths, dryRun); err != nil {
-						return err
-					}
-				case "lsp":
-					if err := applyLSP(ctx, state, stack, paths, dryRun); err != nil {
-						return err
-					}
-				case "skills":
-					if err := applySkills(ctx, state, stack, paths, dryRun); err != nil {
-						return err
-					}
-				case "commands":
-					if err := applyCommands(ctx, state, stack, paths, dryRun); err != nil {
-						return err
-					}
-				case "formatters":
-					if err := applyFormatters(ctx, state, stack, paths, dryRun); err != nil {
-						return err
-					}
-				case "toggles":
-					if err := applyToggles(ctx, state, stack, paths, dryRun); err != nil {
-						return err
-					}
-				case "temporal":
-					if err := applyTemporal(state, stack, dryRun); err != nil {
-						return err
-					}
-				}
-			}
-			return nil
+			return applyTargetsInOrder(ctx, state, stack, paths, dryRun, targets)
 		},
 	}
 	cmd.Flags().StringArrayVar(&targets, "target", nil, "Target(s) to apply (supported: mcp, plugins, instructions, providers, permissions, watcher, lsp, skills, commands, formatters, toggles, temporal)")
@@ -146,6 +80,70 @@ func newApplyCmd(state *commandState) *cobra.Command {
 		return []string{"mcp", "plugins", "instructions", "providers", "permissions", "watcher", "lsp", "skills", "commands", "formatters", "toggles", "temporal"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	return cmd
+}
+
+func defaultApplyTargets() []string {
+	targets := make([]string, 0, len(render.AllTargets)+1)
+	for _, target := range render.AllTargets {
+		targets = append(targets, string(target))
+	}
+	return append(targets, "temporal")
+}
+
+func applyTargetsInOrder(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool, targets []string) error {
+	for _, target := range targets {
+		switch target {
+		case "mcp":
+			if err := applyMCP(ctx, state, stack, paths, dryRun); err != nil {
+				return err
+			}
+		case "plugins":
+			if err := applyPlugins(ctx, state, stack, paths, dryRun); err != nil {
+				return err
+			}
+		case "instructions":
+			if err := applyInstructions(ctx, state, stack, paths, dryRun); err != nil {
+				return err
+			}
+		case "providers":
+			if err := applyProviders(ctx, state, stack, paths, dryRun); err != nil {
+				return err
+			}
+		case "permissions":
+			if err := applyPermissions(ctx, state, stack, paths, dryRun); err != nil {
+				return err
+			}
+		case "watcher":
+			if err := applyWatcher(ctx, state, stack, paths, dryRun); err != nil {
+				return err
+			}
+		case "lsp":
+			if err := applyLSP(ctx, state, stack, paths, dryRun); err != nil {
+				return err
+			}
+		case "skills":
+			if err := applySkills(ctx, state, stack, paths, dryRun); err != nil {
+				return err
+			}
+		case "commands":
+			if err := applyCommands(ctx, state, stack, paths, dryRun); err != nil {
+				return err
+			}
+		case "formatters":
+			if err := applyFormatters(ctx, state, stack, paths, dryRun); err != nil {
+				return err
+			}
+		case "toggles":
+			if err := applyToggles(ctx, state, stack, paths, dryRun); err != nil {
+				return err
+			}
+		case "temporal":
+			if err := applyTemporal(state, stack, dryRun); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func applyMCP(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool) error {
