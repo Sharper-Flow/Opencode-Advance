@@ -163,6 +163,7 @@ source = "npm:@franlol/opencode-md-table-formatter@latest"
 source = "npm:@ex-machina/opencode-anthropic-auth@latest"
 
 [plugins.oca]
+source = "local:~/dev/opencodeadvance/plugins/oca"
 path = "~/dev/opencodeadvance/plugins/oca"
 
 [temporal]

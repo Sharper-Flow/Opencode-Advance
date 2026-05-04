@@ -25,6 +25,11 @@ func Prepare(ctx context.Context, p config.Plugin) error {
 		return nil
 	}
 
+	// Skip local-source plugins — already on disk, no clone/build needed.
+	if p.IsLocalSource() {
+		return nil
+	}
+
 	// Skip disabled plugins.
 	if !p.IsEnabled() {
 		return nil
