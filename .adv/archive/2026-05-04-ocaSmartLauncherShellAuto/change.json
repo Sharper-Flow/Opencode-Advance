@@ -1,0 +1,611 @@
+{
+  "id": "ocaSmartLauncherShellAuto",
+  "title": "oca smart launcher + shell auto-refresh + update awareness",
+  "status": "archived",
+  "created_at": "2026-05-04T06:29:48.477Z",
+  "tasks": [
+    {
+      "id": "tk-ced69418-7268-4b8b-86c3-125438129f3d",
+      "title": "Add typed `[shell]` and `[update_probe]` config parsing/validation/defaults. Cover valid/invalid `auto_refresh_notice` (`off|once|every`), probe mode (`off|passive|warn`), timeout/cache defaulting, and isolated env override expectations in unit tests. Update `stack.example.toml` skeleton for both sections.",
+      "type": "code",
+      "section": "Config + schema",
+      "status": "done",
+      "priority": 0,
+      "created_at": "2026-05-04T06:29:48.510Z",
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T06:29:48.521Z",
+      "implementation_summary": "Added typed ShellSection and UpdateProbeSection, parsing for `[shell]` and `[update_probe]`, validation/defaulting for auto-refresh notice and probe settings, RED/GREEN tests, and stack.example.toml entries. Defaults: auto_refresh enabled, auto_refresh_notice=off, update_probe.default=passive, timeouts 3000/10000ms, cache TTL 5 minutes. Explicit non-positive numeric probe values reject while absent values default.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T07:20:07.404Z",
+          "test_file": "go test ./internal/config -run 'Test(Parse_ShellAndUpdateProbeSectionsTyped|Validate_ShellAndUpdateProbe)'"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T07:21:21.116Z",
+          "test_file": "go test ./internal/config -run 'Test(Parse_ShellAndUpdateProbeSectionsTyped|Validate_ShellAndUpdateProbe)'"
+        }
+      },
+      "touched_files": [
+        "internal/config/parse.go",
+        "internal/config/shell_update_probe_test.go",
+        "internal/config/types.go",
+        "internal/config/validate.go",
+        "stack.example.toml"
+      ],
+      "completed_at": "2026-05-04T06:29:48.523Z",
+      "completed_by": "Completed config/schema task in worktree. Checkpoint commit 388aa7c7702ba469b8ba089051c0ce442172a03d."
+    },
+    {
+      "id": "tk-a2bc2509-eba8-407f-9eb1-8f041b6d6ecb",
+      "title": "Add env-file + stamp render primitives. Implement `RenderShellEnv`, `RenderShellEnvWriteFile`, and `WriteStamp`; write `~/.config/oca/env.sh` atomically before touching `$OCA_CACHE_DIR/env.stamp`; prove `mtime(stamp) >= mtime(env.sh)` and no stamp update on env write failure.",
+      "type": "code",
+      "section": "Shell auto-refresh producers",
+      "status": "done",
+      "priority": 1,
+      "created_at": "2026-05-04T06:29:48.511Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-ced69418-7268-4b8b-86c3-125438129f3d"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T06:29:48.525Z",
+      "implementation_summary": "Added OCAConfigDir/OCAEnvPath/EnvStampPath path helpers, shell env rendering with safe single-quote escaping, atomic env.sh write, stamp touch primitive, and WriteShellEnvAndStamp ordering env write before stamp. Tests prove rendered paths, stamp mtime after env write, no stamp on env write failure, and repeated stamp touches advance mtime.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T07:23:14.132Z",
+          "test_file": "go test ./internal/render -run 'Test(RenderShellEnv|WriteShellEnvAndStamp|WriteStamp)'"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T07:23:43.823Z",
+          "test_file": "go test ./internal/render -run 'Test(RenderShellEnv|WriteShellEnvAndStamp|WriteStamp)'"
+        }
+      },
+      "touched_files": [
+        "internal/config/paths.go",
+        "internal/render/env_file.go",
+        "internal/render/env_file_test.go"
+      ],
+      "completed_at": "2026-05-04T06:29:48.527Z",
+      "completed_by": "Completed env-file + stamp primitives. Checkpoint commit ec9c03601d278d978780732c2f4d19b8f27bd0d7."
+    },
+    {
+      "id": "tk-1ee48add-a2dc-441b-b1c4-dc9713f0fa1a",
+      "title": "Wire stamp producers into mutating OCA flows: `oca apply` all/target flows, `oca install`, `oca update`, `oca pin`, and plugin rebuild path. Keep stamp write inside apply lock where applicable; ensure dry-run does not write env/stamp. Add coverage for successful writes and rollback/failure behavior.",
+      "type": "code",
+      "section": "Shell auto-refresh producers",
+      "status": "done",
+      "priority": 2,
+      "created_at": "2026-05-04T06:29:48.512Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-a2bc2509-eba8-407f-9eb1-8f041b6d6ecb"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T06:29:48.529Z",
+      "implementation_summary": "Wired WriteShellEnvAndStamp into successful apply render paths, temporal target writes, update after plugin update/sync, pin after stack ref mutation, and install after managed rc blocks. Added command/install tests proving apply/update/pin/install write env+stamp and apply dry-run does not. Existing pin tests now set isolated env overrides to avoid production writes.",
+      "error_recovery": {
+        "last_error": "Initial green run failed: TestApplyCommand_WritesShellEnvAndStamp did not find oca/env.sh because the common apply path lacked WriteShellEnvAndStamp; only temporal path was wired.",
+        "retry_count": 1,
+        "max_retries": 3,
+        "error_class": "SEMANTIC",
+        "next_strategy": "",
+        "attempts": [
+          {
+            "attempt_number": 1,
+            "error": "TestApplyCommand_WritesShellEnvAndStamp: read shell env: no such file or directory",
+            "diagnosis": "Implementation patched temporal target but missed common emitPlanOrApplyWithOpts path used by apply --target plugins.",
+            "fix_tried": "Added render.WriteShellEnvAndStamp(config.ResolvePaths()) after render.Apply succeeds in emitPlanOrApplyWithOpts.",
+            "strategy_label": "wire-common-apply-path",
+            "outcome": "succeeded",
+            "attempted_at": "2026-05-04T07:27:00Z"
+          }
+        ]
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T07:27:14.436Z",
+          "test_file": "go test ./cmd/oca ./internal/install -run 'Test(ApplyCommand_WritesShellEnvAndStamp|ApplyCommand_DryRunDoesNotWriteShellEnvOrStamp|UpdateCommand_TrackingRefFetchesLatestAndReapplies|PinCommand_PinsAllGitPluginsAndSkipsNPM|Install)'"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T07:30:12.426Z",
+          "test_file": "go test ./cmd/oca ./internal/install -run 'Test(ApplyCommand_WritesShellEnvAndStamp|ApplyCommand_DryRunDoesNotWriteShellEnvOrStamp|UpdateCommand_TrackingRefFetchesLatestAndReapplies|PinCommand_PinsAllGitPluginsAndSkipsNPM|Install)'"
+        }
+      },
+      "touched_files": [
+        "cmd/oca/apply.go",
+        "cmd/oca/env_stamp_test.go",
+        "cmd/oca/pin.go",
+        "cmd/oca/pin_test.go",
+        "cmd/oca/update.go",
+        "cmd/oca/update_test.go",
+        "internal/install/flow.go",
+        "internal/install/flow_test.go"
+      ],
+      "completed_at": "2026-05-04T06:29:48.531Z",
+      "completed_by": "Completed producer wiring. Checkpoint commit ac85f2b0263b41c93a78373d7404513c90ec048b. One green attempt initially failed because common apply path missed the stamp call; fixed by adding WriteShellEnvAndStamp after render.Apply."
+    },
+    {
+      "id": "tk-448af085-ca81-4e0e-92cc-3a81fc8cdc44",
+      "title": "Extend managed shell profile block for auto-refresh. Add top-level interactive guard, source OCA-owned `env.sh`, register zsh `precmd` and bash `PROMPT_COMMAND` hook idempotently, one-stat steady-state check of `env.stamp`, per-shell marker file, and `auto_refresh_notice` behavior (`off|once|every`). Cover bash/zsh existing-hook composition and uninstall removal.",
+      "type": "code",
+      "section": "Shell auto-refresh consumer",
+      "status": "done",
+      "priority": 3,
+      "created_at": "2026-05-04T06:29:48.513Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-a2bc2509-eba8-407f-9eb1-8f041b6d6ecb"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T06:29:48.533Z",
+      "implementation_summary": "Extended managed shell profile with interactive guard, OCA env.sh source, env.stamp polling hook, default auto-refresh/notice settings, once/every notice handling, zsh precmd registration with remove-then-add idempotence, and bash PROMPT_COMMAND dedup composition. Existing uninstall/remove block logic continues to remove full managed block.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T07:31:48.390Z",
+          "test_file": "go test ./internal/install -run TestRenderShellProfile"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T07:32:39.568Z",
+          "test_file": "go test ./internal/install -run TestRenderShellProfile"
+        }
+      },
+      "touched_files": [
+        "internal/install/shellprofile.go",
+        "internal/install/shellprofile_test.go"
+      ],
+      "completed_at": "2026-05-04T06:29:48.535Z",
+      "completed_by": "Completed shell auto-refresh consumer. Checkpoint commit 78ceb6dc9297d3b285a194ceea1d7a25b03a953b."
+    },
+    {
+      "id": "tk-bb11901b-c021-4b29-9326-d367764726e9",
+      "title": "Implement read-only plugin update probe core. Add `internal/plugin/probe.go` with `DriftStatus`, `DriftResult`, `Probe`, and `ProbeAll`; use `git ls-remote` with git hardening and `GIT_TERMINAL_PROMPT=0`; compare local HEAD/ref to remote without `git fetch`; enforce per-plugin/global timeouts and bounded parallelism. Add unit tests using fake subprocess hooks/local remotes proving no remote-tracking ref mutation.",
+      "type": "code",
+      "section": "Update probe core",
+      "status": "done",
+      "priority": 4,
+      "created_at": "2026-05-04T06:29:48.514Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-ced69418-7268-4b8b-86c3-125438129f3d"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T06:29:48.536Z",
+      "implementation_summary": "Added DriftStatus/DriftResult/ProbeOptions, Probe for one plugin using git ls-remote with hardening and GIT_TERMINAL_PROMPT=0, pinned-SHA skip status, ProbeAll with deterministic ordering, selected-plugin filtering, disabled/NPM skips, global timeout, and bounded parallelism. Tests prove update detection without mutating refs/remotes/origin/master.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T07:34:16.797Z",
+          "test_file": "go test ./internal/plugin -run 'TestProbe'"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T07:34:59.407Z",
+          "test_file": "go test ./internal/plugin -run 'TestProbe'"
+        }
+      },
+      "touched_files": [
+        "internal/plugin/probe.go",
+        "internal/plugin/probe_test.go"
+      ],
+      "completed_at": "2026-05-04T06:29:48.538Z",
+      "completed_by": "Completed read-only plugin update probe core. Checkpoint commit 28773f7c4e75e9dad5b444b9354fe46c6bb54a55."
+    },
+    {
+      "id": "tk-d6e32c84-3dd9-4ee2-baf5-6366ee55184d",
+      "title": "Add drift cache persistence for probe results. Write/read `$OCA_CACHE_DIR/drift_cache.json` atomically with timestamp, plugin result list, and TTL handling; tolerate missing/stale/corrupt cache with explicit statuses. Tests cover override path, cache freshness, corruption fallback, and file permissions.",
+      "type": "code",
+      "section": "Update probe cache",
+      "status": "done",
+      "priority": 5,
+      "created_at": "2026-05-04T06:29:48.515Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-bb11901b-c021-4b29-9326-d367764726e9"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T06:29:48.540Z",
+      "implementation_summary": "Added Paths.DriftCachePath, DriftCacheStatus, DriftCache, WriteDriftCache, and ReadDriftCache. Cache writes JSON atomically with generated_at and probe results, mode 0644. Reads return explicit statuses for fresh, missing, stale, and corrupt without treating missing/corrupt cache as operational errors.",
+      "error_recovery": {
+        "last_error": "Initial green run failed with import cycle: internal/plugin imported internal/render, while render imports plugin.",
+        "retry_count": 1,
+        "max_retries": 3,
+        "error_class": "SEMANTIC",
+        "next_strategy": "",
+        "attempts": [
+          {
+            "attempt_number": 1,
+            "error": "import cycle not allowed: internal/plugin -> internal/render -> internal/plugin",
+            "diagnosis": "Cache persistence reused render.WriteAtomic from plugin package, creating a package cycle.",
+            "fix_tried": "Replaced render.WriteAtomic dependency with small local atomic writer in probe_cache.go.",
+            "strategy_label": "remove-render-import-cycle",
+            "outcome": "succeeded",
+            "attempted_at": "2026-05-04T07:36:00Z"
+          }
+        ]
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T07:36:11.531Z",
+          "test_file": "go test ./internal/plugin -run 'Test(DriftCache|WriteAndReadFreshDriftCache|ReadDriftCache)'"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T07:37:07.855Z",
+          "test_file": "go test ./internal/plugin -run 'Test(DriftCache|WriteAndReadFreshDriftCache|ReadDriftCache)'"
+        }
+      },
+      "touched_files": [
+        "internal/config/paths.go",
+        "internal/plugin/probe_cache.go",
+        "internal/plugin/probe_cache_test.go"
+      ],
+      "completed_at": "2026-05-04T06:29:48.542Z",
+      "completed_by": "Completed drift cache persistence. Checkpoint commit 157ae939367863431db28dce7bdb7a63ab9d3b95. One green attempt initially failed due plugin→render import cycle; fixed with local atomic writer."
+    },
+    {
+      "id": "tk-ee3e795f-3e4e-4661-832e-fcbd8c99f7bf",
+      "title": "Extend `oca update` with `--check` mode. `oca update --check [plugin...]` runs the read-only probe, writes drift cache, renders text/JSON/quiet output, returns nonzero only for operational errors (not for 'updates available'), and skips fetch/build/apply/sync. Add CLI tests for pinned SHA, tracking ref, selected plugin filter, JSON shape, quiet mode, and no mutation.",
+      "type": "code",
+      "section": "Update probe CLI",
+      "status": "done",
+      "priority": 6,
+      "created_at": "2026-05-04T06:29:48.516Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-d6e32c84-3dd9-4ee2-baf5-6366ee55184d"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T06:29:48.543Z",
+      "implementation_summary": "Added `oca update --check [plugin...]` flag path that loads stack, runs ProbeAll with configured timeouts, writes `$OCA_CACHE_DIR/drift_cache.json`, supports selected plugin filtering, text output, JSON output, and global quiet mode. Tests prove check detects updates without mutating checkout or rendering opencode.json, selected JSON returns one plugin, and quiet mode emits no stdout.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T07:38:33.002Z",
+          "test_file": "go test ./cmd/oca -run 'TestUpdateCommand_Check'"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T07:39:10.284Z",
+          "test_file": "go test ./cmd/oca -run 'TestUpdateCommand_Check'"
+        }
+      },
+      "touched_files": [
+        "cmd/oca/update.go",
+        "cmd/oca/update_test.go"
+      ],
+      "completed_at": "2026-05-04T06:29:48.545Z",
+      "completed_by": "Completed update --check CLI. Checkpoint commit 50d75bc0cd4636d5b42b10c4cf1fe01a0f2c7f0b."
+    },
+    {
+      "id": "tk-0b4534db-88c7-4262-9838-1a9fe6124738",
+      "title": "Add shell drift surfacer. Managed hook reads `drift_cache.json` after stamp refresh; `off` suppresses, `passive` displays cached stale/update info only, `warn` runs `oca update --check --quiet` on cache miss/stale within configured timeout. Ensure no network call in default passive mode and no output in non-interactive shells. Add shell tests for cache states and once-per-shell warning guard.",
+      "type": "code",
+      "section": "Shell drift surfacer",
+      "status": "done",
+      "priority": 7,
+      "created_at": "2026-05-04T06:29:48.517Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-448af085-ca81-4e0e-92cc-3a81fc8cdc44"
+        },
+        {
+          "type": "blocked_by",
+          "target": "tk-ee3e795f-3e4e-4661-832e-fcbd8c99f7bf"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T06:29:48.546Z",
+      "implementation_summary": "Added _oca_drift_surfacer to managed hook. It reads `$OCA_CACHE_DIR/drift_cache.json`, prints once when cached update_available status exists, suppresses in off mode, stays passive by default with no network call, and in warn mode runs `oca update --check --quiet` on missing cache within timeout. Hook runs after env refresh and remains guarded by interactive-shell check.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T07:40:25.341Z",
+          "test_file": "go test ./internal/install -run TestRenderShellProfile"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T07:40:55.623Z",
+          "test_file": "go test ./internal/install -run TestRenderShellProfile"
+        }
+      },
+      "touched_files": [
+        "internal/install/shellprofile.go",
+        "internal/install/shellprofile_test.go"
+      ],
+      "completed_at": "2026-05-04T06:29:48.548Z",
+      "completed_by": "Completed shell drift surfacer. Checkpoint commit c308d32088dc85e85bccff22c97340e07ecc9b74."
+    },
+    {
+      "id": "tk-c68f1741-c3bb-4347-8763-5001e8c0e825",
+      "title": "Update docs and specs for shell auto-refresh and update probe. Add/refresh docs in `docs/design/stack-toml-schema.md`, `docs/design/cli-surface.md`, `docs/design/architecture.md`, and `.adv/specs` deltas for `oca-shell-auto-refresh` plus `oca-update-probe`; cross-reference existing plugin doctor requirement rather than duplicating local drift semantics.",
+      "type": "code",
+      "section": "Docs + specs",
+      "status": "done",
+      "priority": 8,
+      "created_at": "2026-05-04T06:29:48.518Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-0b4534db-88c7-4262-9838-1a9fe6124738"
+        }
+      ],
+      "tdd_phase": "complete",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "started_at": "2026-05-04T06:29:48.549Z",
+      "implementation_summary": "Updated stack.toml schema docs for `[shell]` and `[update_probe]`, CLI docs for `oca update --check`, architecture docs for env.stamp/drift_cache data flow, and added specs for `oca-shell-auto-refresh` plus `oca-update-probe` with requirements and plugin doctor cross-reference.",
+      "error_recovery": {
+        "last_error": "",
+        "retry_count": 0,
+        "max_retries": 3,
+        "error_class": "TRANSIENT",
+        "next_strategy": "",
+        "attempts": []
+      },
+      "tdd_evidence": {
+        "red": {
+          "exit_code": 1,
+          "recorded_at": "2026-05-04T07:42:16.148Z",
+          "test_file": "python3 - <<'PY'\nfrom pathlib import Path\nchecks = {\n  'docs/design/stack-toml-schema.md': ['[shell]', '[update_probe]', 'auto_refresh_notice', 'cache_ttl_minutes'],\n  'docs/design/cli-surface.md': ['oca update --check', 'drift_cache.json'],\n  'docs/design/architecture.md': ['env.stamp', 'drift_cache.json'],\n  '.adv/specs/oca-shell-auto-refresh.md': ['rq-shellAutoRefresh01', 'env.stamp'],\n  '.adv/specs/oca-update-probe.md': ['rq-updateProbe01', 'git ls-remote'],\n}\nmissing=[]\nfor file, terms in checks.items():\n    p=Path(file)\n    text=p.read_text() if p.exists() else ''\n    for term in terms:\n        if term not in text:\n            missing.append(f'{file}: {term}')\nif missing:\n    print('\\n'.join(missing))\n    raise SystemExit(1)\nPY"
+        },
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T07:43:18.303Z",
+          "test_file": "python3 - <<'PY'\nfrom pathlib import Path\nchecks = {\n  'docs/design/stack-toml-schema.md': ['[shell]', '[update_probe]', 'auto_refresh_notice', 'cache_ttl_minutes'],\n  'docs/design/cli-surface.md': ['oca update --check', 'drift_cache.json'],\n  'docs/design/architecture.md': ['env.stamp', 'drift_cache.json'],\n  '.adv/specs/oca-shell-auto-refresh/spec.md': ['rq-shellAutoRefresh01', 'env.stamp'],\n  '.adv/specs/oca-update-probe/spec.md': ['rq-updateProbe01', 'git ls-remote'],\n}\nmissing=[]\nfor file, terms in checks.items():\n    p=Path(file)\n    text=p.read_text() if p.exists() else ''\n    for term in terms:\n        if term not in text:\n            missing.append(f'{file}: {term}')\nif missing:\n    print('\\n'.join(missing))\n    raise SystemExit(1)\nPY"
+        }
+      },
+      "touched_files": [
+        ".adv/specs/oca-shell-auto-refresh/spec.md",
+        ".adv/specs/oca-update-probe/spec.md",
+        "docs/design/architecture.md",
+        "docs/design/cli-surface.md",
+        "docs/design/stack-toml-schema.md"
+      ],
+      "completed_at": "2026-05-04T06:29:48.551Z",
+      "completed_by": "Completed docs/specs. Checkpoint commit 04ec59f3b59bbc68f18e53ac097332d9bc23c4a9."
+    },
+    {
+      "id": "tk-42786d2f-a682-4178-a261-a19b3295bb61",
+      "title": "Run end-to-end verification for integrated behavior. Cover install→apply→prompt-hook→update-check→uninstall in isolated config/cache dirs; verify no production config writes, no `cmd/oca/pane.go` or Pattern B surfaces changed, prompt steady-state stays one `stat(2)` with no fork/network, and full repo checks (`go test ./...`, `go vet ./...`, `gofmt -d .`) pass.",
+      "type": "code",
+      "section": "Integration verification",
+      "status": "done",
+      "priority": 9,
+      "created_at": "2026-05-04T06:29:48.519Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-c68f1741-c3bb-4347-8763-5001e8c0e825"
+        }
+      ],
+      "tdd_phase": "green",
+      "metadata": {
+        "tdd_intent": "separate_verification"
+      },
+      "tdd_reclassification": {
+        "from_intent": "inline",
+        "to_intent": "separate_verification",
+        "reason": "Task is explicitly verification-only: run end-to-end verification and full repo checks after implementation. It should record green verification evidence rather than create artificial red tests.",
+        "approved_by_user": true,
+        "approval_evidence": "User approved the prep graph containing this verification-only task with reply 'approve'.",
+        "approved_at": "2026-05-04T07:44:13.032Z"
+      },
+      "started_at": "2026-05-04T06:29:48.552Z",
+      "implementation_summary": "Verified integrated behavior end-to-end in isolated temp HOME/OCA_* dirs: install writes managed rc/env/stamp, apply writes temp config, prompt hook passive path does not invoke update-check, update --check writes drift_cache.json with update_available for a local git remote, uninstall removes managed shell blocks, Pattern B files remain untouched. Full repo checks passed: go test ./..., go vet ./..., gofmt empty, Pattern B diff clean.",
+      "error_recovery": {
+        "last_error": "adv_run_test host timed out after 35s despite timeoutMs=300000 while running full verification.",
+        "retry_count": 1,
+        "max_retries": 3,
+        "error_class": "ENVIRONMENTAL",
+        "next_strategy": "",
+        "attempts": [
+          {
+            "attempt_number": 1,
+            "error": "Tool 'adv_run_test' execution exceeded 35000ms timeout despite timeoutMs=300000.",
+            "diagnosis": "ADV test wrapper/host timeout occurred before command budget; command itself was safe to run directly.",
+            "fix_tried": "Reran verification via Bash and attached manual green evidence with adv_task_evidence.",
+            "strategy_label": "manual-evidence-fallback",
+            "outcome": "succeeded",
+            "attempted_at": "2026-05-04T07:45:39Z"
+          }
+        ]
+      },
+      "tdd_evidence": {
+        "green": {
+          "exit_code": 0,
+          "recorded_at": "2026-05-04T07:50:06.635Z",
+          "test_file": "isolated lifecycle + full repo verification"
+        }
+      },
+      "completed_at": "2026-05-04T06:29:48.553Z",
+      "completed_by": "Completed final verification. Checkpoint clean at 04ec59f3b59bbc68f18e53ac097332d9bc23c4a9."
+    }
+  ],
+  "deltas": {},
+  "wisdom": [
+    {
+      "id": "ws-5e92283e-4af3-4f5b-91b4-02a26e41af48",
+      "type": "pattern",
+      "content": "For config fields where absent should default but explicit zero should be invalid, keep public scalar fields and add unexported `...Set` booleans captured via `UnmarshalTOML`. Validation can then distinguish absent from explicit zero without pointer-heavy call sites.",
+      "source_task": "tk-ced69418-7268-4b8b-86c3-125438129f3d",
+      "recorded_at": "2026-05-04T06:29:48.524Z"
+    },
+    {
+      "id": "ws-d4519b9d-16bc-4571-847a-7f7b223d96ea",
+      "type": "pattern",
+      "content": "OCA-owned shell state can stay test-isolated without a new env var by deriving `~/.config/oca` as a sibling of `OCA_OPENCODE_CONFIG_DIR`. Tests override `OCA_OPENCODE_CONFIG_DIR=/tmp/.../opencode`, so env.sh lands at `/tmp/.../oca/env.sh` instead of production home.",
+      "source_task": "tk-a2bc2509-eba8-407f-9eb1-8f041b6d6ecb",
+      "recorded_at": "2026-05-04T06:29:48.528Z"
+    },
+    {
+      "id": "ws-09b3a9de-fd5f-45d8-bcf9-8ef04daf2703",
+      "type": "gotcha",
+      "content": "When adding post-apply behavior, patch the common `emitPlanOrApplyWithOpts` path, not only special targets like temporal. Target-specific tests can pass while `apply --target plugins` still skips the post-action if the common emitter is missed.",
+      "source_task": "tk-1ee48add-a2dc-441b-b1c4-dc9713f0fa1a",
+      "recorded_at": "2026-05-04T06:29:48.532Z"
+    },
+    {
+      "id": "ws-4ce7dd0c-83d8-4830-af80-7513745267ef",
+      "type": "success",
+      "content": "`git ls-remote -- <source> <ref>` with `GIT_TERMINAL_PROMPT=0` detects remote plugin updates without changing `refs/remotes/origin/*`; local bare-remotes make this property easy to prove in tests by comparing remote-tracking refs before/after.",
+      "source_task": "tk-bb11901b-c021-4b29-9326-d367764726e9",
+      "recorded_at": "2026-05-04T06:29:48.539Z"
+    }
+  ],
+  "gates": {
+    "proposal": {
+      "status": "done",
+      "completed_at": "2026-05-04T06:29:48.507Z",
+      "completed_by": "agent",
+      "notes": "User approved proposal via inline 'approve'. Three-capability scope: smart oca launcher, shell auto-refresh stamp, opt-in update probe."
+    },
+    "discovery": {
+      "status": "done",
+      "completed_at": "2026-05-04T06:29:48.508Z",
+      "completed_by": "agent",
+      "notes": "User approved AC inline. Pattern B conflict resolved (Capability 1 dropped). 14 ACs, 8 design questions resolved (3 by user, 5 by agent LBP), 2 new specs drafted (oca-shell-auto-refresh, oca-update-probe). Ambiguity scan: 0 CRITICAL, 0 HIGH (1 MEDIUM F1, 3 LOW). Investment tier: auto."
+    },
+    "design": {
+      "status": "done",
+      "completed_at": "2026-05-04T06:29:48.509Z",
+      "completed_by": "agent",
+      "notes": "Design persisted. Independent validator verdict CAUTION; technical cautions resolved in design: env file before stamp, git ls-remote read-only probe, update --check extends plugin doctor rather than duplicating it. No CONFLICT, no contract-compromise risk, no user-value tradeoff requiring design checkpoint."
+    },
+    "planning": {
+      "status": "done",
+      "completed_at": "2026-05-04T06:29:48.520Z",
+      "completed_by": "agent",
+      "notes": "User approved prep/task graph inline with 'approve'. 10 tasks created, dependency chain valid, first ready task is config/schema. Judgment calls: none unresolved; investment tier escalate advisory only."
+    },
+    "execution": {
+      "status": "done",
+      "completed_at": "2026-05-04T06:29:48.554Z",
+      "completed_by": "agent",
+      "notes": "Execution complete: all 10 tasks done. Verified with full repo checks and isolated lifecycle verification. Checkpoint commits through 04ec59f3b59bbc68f18e53ac097332d9bc23c4a9; final verification task clean checkpoint."
+    },
+    "acceptance": {
+      "status": "done",
+      "completed_at": "2026-05-04T06:29:48.555Z",
+      "completed_by": "agent",
+      "notes": "User accepted delivered implementation after review. Review fixes applied and verified: shell-quote OCA binary dir, robust drift-cache grep, named cancelled ProbeAll results, quiet git ls-remote. Verification passed: go test ./..., go vet ./..., gofmt empty, diff check clean, Pattern B diff clean, isolated lifecycle passed."
+    },
+    "release": {
+      "status": "done",
+      "completed_at": "2026-05-04T06:29:48.556Z",
+      "completed_by": "agent",
+      "notes": "User signed off release with 'sign off'. Strict validation passed with warnings only. Conformance status has no configured specs. Final verification passed after review-fix commit bd27d83: go test ./..., go vet ./..., gofmt empty, Pattern B diff clean, worktree clean."
+    }
+  },
+  "reentry_history": [],
+  "adv_project_id": "cdae139e16c8cbaa4ef2ebf35dda326e826e93bc",
+  "clarify_findings": [
+    {
+      "code": "CLARIFY_MISSING_SUCCESS_CRITERIA",
+      "severity": "warning",
+      "message": "Success criteria are placeholder or empty. What measurable outcomes define done?",
+      "recorded_at": "2026-05-04T06:58:59.418Z"
+    },
+    {
+      "code": "CLARIFY_UNCLEAR_SCOPE",
+      "severity": "warning",
+      "message": "Proposal has no Scope section. What files and modules will be affected?",
+      "recorded_at": "2026-05-04T06:58:59.418Z"
+    }
+  ],
+  "judgment_calls": []
+}

@@ -1,0 +1,33 @@
+{
+  "entries": [
+    {
+      "id": "ws-5e92283e-4af3-4f5b-91b4-02a26e41af48",
+      "type": "pattern",
+      "content": "For config fields where absent should default but explicit zero should be invalid, keep public scalar fields and add unexported `...Set` booleans captured via `UnmarshalTOML`. Validation can then distinguish absent from explicit zero without pointer-heavy call sites.",
+      "source_task": "tk-ced69418-7268-4b8b-86c3-125438129f3d",
+      "recorded_at": "2026-05-04T06:29:48.524Z"
+    },
+    {
+      "id": "ws-d4519b9d-16bc-4571-847a-7f7b223d96ea",
+      "type": "pattern",
+      "content": "OCA-owned shell state can stay test-isolated without a new env var by deriving `~/.config/oca` as a sibling of `OCA_OPENCODE_CONFIG_DIR`. Tests override `OCA_OPENCODE_CONFIG_DIR=/tmp/.../opencode`, so env.sh lands at `/tmp/.../oca/env.sh` instead of production home.",
+      "source_task": "tk-a2bc2509-eba8-407f-9eb1-8f041b6d6ecb",
+      "recorded_at": "2026-05-04T06:29:48.528Z"
+    },
+    {
+      "id": "ws-09b3a9de-fd5f-45d8-bcf9-8ef04daf2703",
+      "type": "gotcha",
+      "content": "When adding post-apply behavior, patch the common `emitPlanOrApplyWithOpts` path, not only special targets like temporal. Target-specific tests can pass while `apply --target plugins` still skips the post-action if the common emitter is missed.",
+      "source_task": "tk-1ee48add-a2dc-441b-b1c4-dc9713f0fa1a",
+      "recorded_at": "2026-05-04T06:29:48.532Z"
+    },
+    {
+      "id": "ws-4ce7dd0c-83d8-4830-af80-7513745267ef",
+      "type": "success",
+      "content": "`git ls-remote -- <source> <ref>` with `GIT_TERMINAL_PROMPT=0` detects remote plugin updates without changing `refs/remotes/origin/*`; local bare-remotes make this property easy to prove in tests by comparing remote-tracking refs before/after.",
+      "source_task": "tk-bb11901b-c021-4b29-9326-d367764726e9",
+      "recorded_at": "2026-05-04T06:29:48.539Z"
+    }
+  ],
+  "count": 4
+}
