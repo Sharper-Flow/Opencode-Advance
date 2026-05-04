@@ -29,4 +29,4 @@ The following instruction is owned by the Advance plugin. It is referenced in st
 
 ## Status
 
-Empty — populated in Phase 5 (installer phase) by copying from the current open-chad bundled instructions with a tone cleanup pass.
+Populated. Source files are the canonical OCA instruction definitions synced from the current live config.

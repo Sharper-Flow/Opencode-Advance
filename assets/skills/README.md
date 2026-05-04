@@ -24,12 +24,14 @@ The following skills are owned by the Advance plugin and synced via `advance/scr
 | Skill                          | Owned by |
 | ------------------------------ | -------- |
 | `adv-tron/`                      | Advance  |
-| `adv-review-methodology/`        | Advance  |
-| `adv-harden-methodology/`        | Advance  |
 | `adv-slop-detection/`            | Advance  |
-| `adv-discover-methodology/`      | Advance  |
-| `adv-prep-methodology/`          | Advance  |
-| `adv-apply-methodology/`         | Advance  |
+| `adv-cost-governance-methodology/` | Advance  |
+| `adv-worktree/`                   | Advance  |
+| `adv-arch-detection/`             | Advance  |
+| `adv-comp-research/`              | Advance  |
+| `adv-user-intuit/`                | Advance  |
+
+> **Note:** `adv-review-methodology`, `adv-harden-methodology`, `adv-apply-methodology`, `adv-discover-methodology`, `adv-prep-methodology` were inlined into their respective command files and deleted as standalone skills. Do not recreate them.
 
 OCA must never copy or overwrite skills from the Advance-owned list. The `[plugins.advance].provides = ["adv-skills"]` declaration causes `oca apply` to skip the `adv-*/` directories automatically.
 

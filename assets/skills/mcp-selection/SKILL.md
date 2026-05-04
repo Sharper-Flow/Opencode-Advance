@@ -15,20 +15,20 @@ Load this skill when you need to decide **which MCP tool** to use for a task. If
 ## MCP Server Management
 
 **Primary: Vision (`vision`)**
-- Use `vision_list` to see all available MCP servers and their status
-- Use `vision_add` to add new MCP servers dynamically
-- Use `vision_remove` to remove servers
-- Use `vision_status` to check daemon health and uptime
-- Use `vision_search` to find servers in the catalog
-- Use `vision_guidance` to get tool selection recommendations
+- Use `vision_vision_list` to see all available MCP servers and their status
+- Use `vision_vision_add` to add new MCP servers dynamically
+- Use `vision_vision_remove` to remove servers
+- Use `vision_vision_status` to check daemon health and uptime
+- Use `vision_vision_search` to find servers in the catalog
+- Use `vision_vision_guidance` to get tool selection recommendations
 
 **When to use**: Managing MCP server lifecycle, checking what tools are available, troubleshooting server issues
 
 ## Web Search & Research
 
 **Primary: Kagi (`kagimcp`)**
-- Use `kagi_search_fetch` for web searches, research, current information, news
-- Use `kagi_summarizer` for summarizing web pages and documents
+- Use `kagi_kagi_search_fetch` for web searches, research, current information, news
+- Use `kagi_kagi_summarizer` for summarizing web pages and documents
 - Fast, high-quality results without tracking
 
 **Avoid**: Using Playwright, Firecrawl, or general fetch tools for simple searches
@@ -36,8 +36,8 @@ Load this skill when you need to decide **which MCP tool** to use for a task. If
 ## Library & API Documentation
 
 **Primary: Context7 (`context7`)**
-- Use `resolve-library-id` first to find the library ID
-- Use `query-docs` to get documentation for specific questions
+- Use `context7_resolve-library-id` first to find the library ID
+- Use `context7_query-docs` to get documentation for specific questions
 - Best for: React, Next.js, TypeScript, Python libraries, etc.
 
 **Avoid**: Web searching for documentation that Context7 has indexed
@@ -54,9 +54,9 @@ Load this skill when you need to decide **which MCP tool** to use for a task. If
 ## Web Scraping & Data Extraction
 
 **Primary: Firecrawl (`firecrawl`) — always-on, no add needed**
-- Use `firecrawl_scrape` for single page content extraction
-- Use `firecrawl_crawl` for multi-page crawl (async — returns job ID)
-- Use `firecrawl_check_crawl_status` to poll crawl job results
+- Use `firecrawl_firecrawl_scrape` for single page content extraction
+- Use `firecrawl_firecrawl_crawl` for multi-page crawl (async — returns job ID)
+- Use `firecrawl_firecrawl_check_crawl_status` to poll crawl job results
 
 **When to use over Kagi**: When you need the full page content, structured data, or JS-rendered pages
 

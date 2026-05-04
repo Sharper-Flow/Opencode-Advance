@@ -47,8 +47,10 @@ description = "Library and API documentation lookup"
 [plugins.advance]
 source   = "https://github.com/Sharper-Flow/Advance.git"
 checkout = "{checkout}/advance"
+path     = "plugin"
 build    = ["cd plugin && pnpm install && pnpm build"]
 provides = ["adv-commands", "adv-agents", "adv-skills", "adv-overlays"]
+sync     = "scripts/sync-global.sh --fix"
 
 # ─── Instructions ────────────────────────────────────────────────────────────
 # OCA-owned instructions are copied from assets/instructions/.
