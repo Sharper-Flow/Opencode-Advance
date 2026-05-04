@@ -207,6 +207,143 @@ describe("session tracker hooks", () => {
   });
 });
 
+describe("v2 pane state enrichment", () => {
+  const tmpDir = path.join(os.tmpdir(), `oca-v2-test-${Date.now()}`);
+  const originalTmuxPane = process.env.TMUX_PANE;
+  const originalTmux = process.env.TMUX;
+  const originalXdg = process.env.XDG_STATE_HOME;
+  const originalAgent = process.env.OPENCODE_AGENT;
+
+  beforeEach(() => {
+    fs.mkdirSync(tmpDir, { recursive: true });
+    process.env.XDG_STATE_HOME = tmpDir;
+    process.env.TMUX_PANE = "%42";
+    process.env.TMUX = "/tmp/tmux-1000/oca,12345";
+    delete process.env.OCA_WATCHDOG_ENABLED;
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    process.env.TMUX_PANE = originalTmuxPane;
+    process.env.TMUX = originalTmux;
+    process.env.XDG_STATE_HOME = originalXdg;
+    if (originalAgent !== undefined) {
+      process.env.OPENCODE_AGENT = originalAgent;
+    } else {
+      delete process.env.OPENCODE_AGENT;
+    }
+  });
+
+  it("session.created writes v2 state with schemaVersion", async () => {
+    const mod = await import("../src/index");
+    const hooks = await mod.default({ $: {} } as any, {} as any);
+    await hooks.event!({
+      event: {
+        type: "session.created",
+        properties: { info: { id: "ses_v2", directory: "/home/user/project" } },
+      },
+    });
+
+    const stateFile = path.join(tmpDir, "oca", "panes", "oca", "42.json");
+    const got = readJSON(stateFile);
+    expect(got.schemaVersion).toBe(2);
+    expect(got.sessionID).toBe("ses_v2");
+    expect(got.directory).toBe("/home/user/project");
+    expect(typeof got.ts).toBe("number");
+    expect(typeof got.startedAt).toBe("number");
+    expect(typeof got.lastSeenAt).toBe("number");
+  });
+
+  it("v2 includes tmux metadata", async () => {
+    const mod = await import("../src/index");
+    const hooks = await mod.default({ $: {} } as any, {} as any);
+    await hooks.event!({
+      event: {
+        type: "session.created",
+        properties: { info: { id: "ses_tmux", directory: "/tmp" } },
+      },
+    });
+
+    const stateFile = path.join(tmpDir, "oca", "panes", "oca", "42.json");
+    const got = readJSON(stateFile);
+    expect(got.socket).toBe("oca");
+    expect(got.paneID).toBe("%42");
+  });
+
+  it("v2 includes agent from env when available", async () => {
+    process.env.OPENCODE_AGENT = "adv";
+
+    const mod = await import("../src/index");
+    const hooks = await mod.default({ $: {} } as any, {} as any);
+    await hooks.event!({
+      event: {
+        type: "session.created",
+        properties: { info: { id: "ses_agent", directory: "/tmp" } },
+      },
+    });
+
+    const stateFile = path.join(tmpDir, "oca", "panes", "oca", "42.json");
+    const got = readJSON(stateFile);
+    expect(got.agent).toBe("adv");
+  });
+
+  it("v2 omits agent when env not set", async () => {
+    delete process.env.OPENCODE_AGENT;
+
+    const mod = await import("../src/index");
+    const hooks = await mod.default({ $: {} } as any, {} as any);
+    await hooks.event!({
+      event: {
+        type: "session.created",
+        properties: { info: { id: "ses_noagent", directory: "/tmp" } },
+      },
+    });
+
+    const stateFile = path.join(tmpDir, "oca", "panes", "oca", "42.json");
+    const got = readJSON(stateFile);
+    expect(got.agent).toBeUndefined();
+  });
+
+  it("v2 session.deleted cleans up v2 state", async () => {
+    const mod = await import("../src/index");
+    const hooks = await mod.default({ $: {} } as any, {} as any);
+    await hooks.event!({
+      event: {
+        type: "session.created",
+        properties: { info: { id: "ses_del", directory: "/tmp" } },
+      },
+    });
+
+    const stateFile = path.join(tmpDir, "oca", "panes", "oca", "42.json");
+    expect(fs.existsSync(stateFile)).toBe(true);
+    const got = readJSON(stateFile);
+    expect(got.schemaVersion).toBe(2);
+
+    await hooks.event!({
+      event: {
+        type: "session.deleted",
+        properties: { info: { id: "ses_del" } },
+      },
+    });
+    expect(fs.existsSync(stateFile)).toBe(false);
+  });
+
+  it("v1 read still works (backwards compat)", async () => {
+    // Write v1-style data directly, then verify readJSON parses it
+    const stateFile = path.join(tmpDir, "oca", "panes", "oca", "42.json");
+    fs.mkdirSync(path.dirname(stateFile), { recursive: true });
+    fs.writeFileSync(stateFile, JSON.stringify({
+      sessionID: "ses_v1",
+      directory: "/old/project",
+      ts: 100,
+    }));
+
+    const got = readJSON(stateFile);
+    expect(got.sessionID).toBe("ses_v1");
+    expect(got.schemaVersion).toBeUndefined();
+  });
+});
+
 describe("watchdog lifecycle integration", () => {
   beforeEach(() => {
     __testClearTrackers();
