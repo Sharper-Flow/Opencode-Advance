@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
+	"github.com/Sharper-Flow/Opencode-Advance/internal/maintain"
 )
 
 func TestCheckPlugins_HappyPathAndUserAddedDrift(t *testing.T) {
@@ -70,6 +71,34 @@ func TestCheckPlugins_BuiltinRegistryPresentAfterReset(t *testing.T) {
 	}
 }
 
+func TestCheckPlugins_AdvanceBuildMarkerFresh(t *testing.T) {
+	opencodeDir := filepath.Join(t.TempDir(), "opencode")
+	if err := os.MkdirAll(opencodeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("OCA_OPENCODE_CONFIG_DIR", opencodeDir)
+
+	checkout, pluginPath := initPluginRepo(t)
+	if err := os.MkdirAll(filepath.Join(checkout, "dist"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	plugin := cfg.Plugin{Source: checkout, Checkout: checkout, Ref: "master", Path: pluginPath}
+	writeBuildMarker(t, plugin)
+	if err := os.WriteFile(filepath.Join(opencodeDir, "opencode.json"), []byte(`{"plugin":["`+pluginPath+`"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stack := &cfg.Stack{Plugins: cfg.PluginsSection{
+		"advance": plugin,
+	}}
+
+	checks, err := CheckPlugins(context.Background(), stack, Options{})
+	if err != nil {
+		t.Fatalf("CheckPlugins: %v", err)
+	}
+	assertCheckStatus(t, checks, "plugins.advance.build_marker", StatusPass)
+}
+
 func initPluginRepo(t *testing.T) (string, string) {
 	t.Helper()
 	repo := t.TempDir()
@@ -109,4 +138,11 @@ func assertCheckStatus(t *testing.T, checks []Check, name string, want Status) {
 		}
 	}
 	t.Fatalf("missing check %s in %#v", name, checks)
+}
+
+func writeBuildMarker(t *testing.T, plugin cfg.Plugin) {
+	t.Helper()
+	if _, err := maintain.WriteBuildMarker(context.Background(), "advance", plugin); err != nil {
+		t.Fatal(err)
+	}
 }

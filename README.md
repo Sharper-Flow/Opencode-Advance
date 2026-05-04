@@ -71,6 +71,7 @@ export OCA_CACHE_DIR="$PWD/.dev/cache"
 | `oca apply --dry-run` | Show planned writes without changing files |
 | `oca diff` | Show drift between desired and actual state |
 | `oca doctor` | Run health checks across config, plugins, MCP, Temporal, and Advance |
+| `oca maintain` | Offline maintenance plan for verified ADV merges, plugin rebuilds, and safe worktree cleanup |
 | `oca pin` | Capture pinned plugin revisions |
 | `oca update` | Update managed plugin checkouts safely |
 | `oca migrate init` | Create a starter `stack.toml` |

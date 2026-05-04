@@ -104,6 +104,7 @@ func newRootCmd(opts commandOptions) *cobra.Command {
 	cmd.AddCommand(newDiscordCmd(state))
 	cmd.AddCommand(newAdvCmd(state))
 	cmd.AddCommand(newOccupancyCmd(state))
+	cmd.AddCommand(newMaintainCmd(state))
 	return cmd
 }
 

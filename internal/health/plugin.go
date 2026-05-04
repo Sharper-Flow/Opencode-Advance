@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
+	"github.com/Sharper-Flow/Opencode-Advance/internal/maintain"
 	"github.com/Sharper-Flow/Opencode-Advance/internal/render"
 	"github.com/Sharper-Flow/Opencode-Advance/internal/subprocess"
 )
@@ -56,6 +57,9 @@ func CheckPlugins(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check,
 			checks = append(checks, statCheck("plugins."+name+".checkout_exists", plugin.Checkout, "checkout present", "checkout missing"))
 			checks = append(checks, statCheck("plugins."+name+".built_artifact", plugin.Path, "built artifact present", "built artifact missing"))
 			checks = append(checks, gitRefCheck(ctx, name, plugin))
+			if name == "advance" && shouldCheckBuildMarker(plugin) {
+				checks = append(checks, buildMarkerCheck(ctx, name, plugin))
+			}
 		}
 
 		if containsString(pluginEntries, fragment) {
@@ -86,6 +90,31 @@ func CheckPlugins(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check,
 	}
 
 	return checks, nil
+}
+
+func shouldCheckBuildMarker(plugin cfg.Plugin) bool {
+	if len(plugin.Build) > 0 {
+		return true
+	}
+	_, err := os.Stat(maintain.BuildMarkerPath(plugin))
+	return err == nil
+}
+
+func buildMarkerCheck(ctx context.Context, name string, plugin cfg.Plugin) Check {
+	drift, err := maintain.DetectPluginDrift(ctx, name, plugin)
+	if err != nil {
+		return Check{Name: "plugins." + name + ".build_marker", Status: StatusWarn, Message: "build marker check failed", Hint: err.Error()}
+	}
+	switch drift.Status {
+	case maintain.DriftStatusFresh:
+		return Check{Name: "plugins." + name + ".build_marker", Status: StatusPass, Message: "plugin build marker fresh", Hint: drift.MarkerPath}
+	case maintain.DriftStatusMissingMarker:
+		return Check{Name: "plugins." + name + ".build_marker", Status: StatusWarn, Message: "plugin build marker missing", Hint: drift.MarkerPath}
+	case maintain.DriftStatusStale:
+		return Check{Name: "plugins." + name + ".build_marker", Status: StatusWarn, Message: "plugin build marker stale", Hint: drift.Reason}
+	default:
+		return Check{Name: "plugins." + name + ".build_marker", Status: StatusWarn, Message: "plugin build marker status unknown", Hint: drift.Reason}
+	}
 }
 
 func readOpencodeArrays(path string) ([]string, []string, error) {
