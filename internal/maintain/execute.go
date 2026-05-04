@@ -94,6 +94,9 @@ func executeMerge(ctx context.Context, stack *cfg.Stack, action Action) error {
 	if plugin.Checkout == "" {
 		return fmt.Errorf("merge target plugin %q has no checkout", action.Target)
 	}
+	if err := requireExpectedBranch(ctx, plugin.Checkout, plugin.Ref); err != nil {
+		return err
+	}
 	if err := requireCleanGitTree(ctx, plugin.Checkout); err != nil {
 		return err
 	}
@@ -118,6 +121,20 @@ func executeRebuild(ctx context.Context, stack *cfg.Stack, action Action) error 
 	}
 	_, err := WriteBuildMarker(ctx, action.Target, plugin)
 	return err
+}
+
+func requireExpectedBranch(ctx context.Context, dir, expected string) error {
+	if expected == "" {
+		expected = "trunk"
+	}
+	current, err := gitCommand(ctx, dir, "branch", "--show-current")
+	if err != nil {
+		return err
+	}
+	if current != expected {
+		return fmt.Errorf("git checkout %s is on %s, want %s before merge", dir, current, expected)
+	}
+	return nil
 }
 
 func requireCleanGitTree(ctx context.Context, dir string) error {
