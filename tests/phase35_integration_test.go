@@ -12,15 +12,17 @@ import (
 // correctly into opencode.json and copies OCA-owned skills to the skills dir.
 func TestPhase35_ComposedApply(t *testing.T) {
 	root := repoRoot(t)
-	opDir := filepath.Join(t.TempDir(), "opencode")
+	base := t.TempDir()
+	opDir := filepath.Join(base, "opencode")
+	stackPath := writeIsolatedStackExample(t, root, base)
 	env := []string{
 		"OCA_OPENCODE_CONFIG_DIR=" + opDir,
-		"OCA_VISION_CONFIG_DIR=" + filepath.Join(t.TempDir(), "vision"),
-		"OCA_CACHE_DIR=" + filepath.Join(t.TempDir(), "cache"),
+		"OCA_VISION_CONFIG_DIR=" + filepath.Join(base, "vision"),
+		"OCA_CACHE_DIR=" + filepath.Join(base, "cache"),
 		"OCA_ASSETS_ROOT=" + filepath.Join(root, "assets"),
 	}
 
-	stdout, stderr, err := runOCA(t, root, env, "apply", "--config", "stack.example.toml")
+	stdout, stderr, err := runOCA(t, root, env, "apply", "--config", stackPath)
 	if err != nil {
 		t.Fatalf("composed apply failed:\nstdout=%s\nstderr=%s\nerr=%v", stdout, stderr, err)
 	}

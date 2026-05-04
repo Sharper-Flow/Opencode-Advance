@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -62,4 +63,35 @@ func ocaBinary(t *testing.T, root string) string {
 		t.Fatalf("build oca test binary: %v", ocaBuildErr)
 	}
 	return ocaBuildPath
+}
+
+func writeIsolatedStackExample(t *testing.T, root string, base string) string {
+	t.Helper()
+	advanceRemote := initPluginRemote(t, filepath.Join(base, "advance-src"), "advance")
+	morphRemote := initPluginRemote(t, filepath.Join(base, "morph-src"), "root")
+	visionRemote := initPluginRemote(t, filepath.Join(base, "vision-src"), "vision-subdir")
+
+	fixtureBytes, err := os.ReadFile(filepath.Join(root, "stack.example.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture := string(fixtureBytes)
+	fixture = strings.ReplaceAll(fixture, "https://github.com/Sharper-Flow/Advance.git", advanceRemote)
+	fixture = strings.ReplaceAll(fixture, "~/dev/oc-plugins/advance", filepath.Join(base, "checkouts", "advance"))
+	fixture = strings.ReplaceAll(fixture, "build        = [\"pnpm install\", \"pnpm build\"]", "build        = []")
+	fixture = strings.ReplaceAll(fixture, "build    = [\"pnpm install\", \"pnpm build\"]", "build    = []")
+	fixture = strings.ReplaceAll(fixture, "https://github.com/JRedeker/opencode-morph-fast-apply.git", morphRemote)
+	fixture = strings.ReplaceAll(fixture, "~/dev/oc-plugins/morph-fast-apply", filepath.Join(base, "checkouts", "morph-fast-apply"))
+	fixture = strings.ReplaceAll(fixture, "https://github.com/Sharper-Flow/vision.git", visionRemote)
+	fixture = strings.ReplaceAll(fixture, "~/dev/vision", filepath.Join(base, "checkouts", "vision"))
+	fixture = strings.ReplaceAll(fixture, `ref          = "trunk"`, `ref          = "master"`)
+	fixture = strings.ReplaceAll(fixture, `ref      = "trunk"`, `ref      = "master"`)
+	fixture = strings.ReplaceAll(fixture, `local:~/dev/opencodeadvance/plugins/oca`, `local:`+filepath.Join(root, "plugins", "oca"))
+	fixture = strings.ReplaceAll(fixture, `~/dev/opencodeadvance/plugins/oca`, filepath.Join(root, "plugins", "oca"))
+
+	stackPath := filepath.Join(base, "stack.example.toml")
+	if err := os.WriteFile(stackPath, []byte(fixture), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return stackPath
 }

@@ -12,21 +12,23 @@ import (
 // TestDiff_CleanExit verifies that `oca diff` returns exit 0 when there is no drift.
 func TestDiff_CleanExit(t *testing.T) {
 	root := repoRoot(t)
-	opDir := filepath.Join(t.TempDir(), "opencode")
+	base := t.TempDir()
+	opDir := filepath.Join(base, "opencode")
+	stackPath := writeIsolatedStackExample(t, root, base)
 	env := []string{
 		"OCA_OPENCODE_CONFIG_DIR=" + opDir,
-		"OCA_VISION_CONFIG_DIR=" + filepath.Join(t.TempDir(), "vision"),
-		"OCA_CACHE_DIR=" + filepath.Join(t.TempDir(), "cache"),
+		"OCA_VISION_CONFIG_DIR=" + filepath.Join(base, "vision"),
+		"OCA_CACHE_DIR=" + filepath.Join(base, "cache"),
 	}
 
 	// Apply so opencode.json matches stack.toml.
-	_, _, err := runOCA(t, root, env, "apply", "--config", "stack.example.toml")
+	_, _, err := runOCA(t, root, env, "apply", "--config", stackPath)
 	if err != nil {
 		t.Fatalf("setup apply failed: %v", err)
 	}
 
 	// Diff should return exit 0 (no drift).
-	_, stderr, err := runOCA(t, root, env, "diff", "--config", "stack.example.toml")
+	_, stderr, err := runOCA(t, root, env, "diff", "--config", stackPath)
 	var exitErr *exec.ExitError
 	if err != nil {
 		if errors.As(err, &exitErr) {
@@ -39,15 +41,17 @@ func TestDiff_CleanExit(t *testing.T) {
 // TestDiff_DriftExit verifies that `oca diff` returns exit 1 when opencode.json has drift.
 func TestDiff_DriftExit(t *testing.T) {
 	root := repoRoot(t)
-	opDir := filepath.Join(t.TempDir(), "opencode")
+	base := t.TempDir()
+	opDir := filepath.Join(base, "opencode")
+	stackPath := writeIsolatedStackExample(t, root, base)
 	env := []string{
 		"OCA_OPENCODE_CONFIG_DIR=" + opDir,
-		"OCA_VISION_CONFIG_DIR=" + filepath.Join(t.TempDir(), "vision"),
-		"OCA_CACHE_DIR=" + filepath.Join(t.TempDir(), "cache"),
+		"OCA_VISION_CONFIG_DIR=" + filepath.Join(base, "vision"),
+		"OCA_CACHE_DIR=" + filepath.Join(base, "cache"),
 	}
 
 	// Apply so opencode.json is in sync.
-	_, _, err := runOCA(t, root, env, "apply", "--config", "stack.example.toml")
+	_, _, err := runOCA(t, root, env, "apply", "--config", stackPath)
 	if err != nil {
 		t.Fatalf("setup apply failed: %v", err)
 	}
@@ -62,7 +66,7 @@ func TestDiff_DriftExit(t *testing.T) {
 	os.WriteFile(corruptPath, corrupt, 0o644)
 
 	// Diff should return exit 1 (drift detected).
-	_, stderr, err := runOCA(t, root, env, "diff", "--config", "stack.example.toml")
+	_, stderr, err := runOCA(t, root, env, "diff", "--config", stackPath)
 	if err == nil {
 		t.Fatal("expected error for drifted opencode.json")
 	}
@@ -105,20 +109,22 @@ func TestDiff_InvalidStackExit(t *testing.T) {
 // TestDiff_JSONOutput verifies that `oca diff --output json` produces valid JSON.
 func TestDiff_JSONOutput(t *testing.T) {
 	root := repoRoot(t)
-	opDir := filepath.Join(t.TempDir(), "opencode")
+	base := t.TempDir()
+	opDir := filepath.Join(base, "opencode")
+	stackPath := writeIsolatedStackExample(t, root, base)
 	env := []string{
 		"OCA_OPENCODE_CONFIG_DIR=" + opDir,
-		"OCA_VISION_CONFIG_DIR=" + filepath.Join(t.TempDir(), "vision"),
-		"OCA_CACHE_DIR=" + filepath.Join(t.TempDir(), "cache"),
+		"OCA_VISION_CONFIG_DIR=" + filepath.Join(base, "vision"),
+		"OCA_CACHE_DIR=" + filepath.Join(base, "cache"),
 	}
 
 	// Apply so opencode.json is in sync.
-	_, _, err := runOCA(t, root, env, "apply", "--config", "stack.example.toml")
+	_, _, err := runOCA(t, root, env, "apply", "--config", stackPath)
 	if err != nil {
 		t.Fatalf("setup apply failed: %v", err)
 	}
 
-	stdout, _, err := runOCA(t, root, env, "diff", "--output", "json", "--config", "stack.example.toml")
+	stdout, _, err := runOCA(t, root, env, "diff", "--output", "json", "--config", stackPath)
 	if err != nil {
 		t.Fatalf("oca diff --output json failed: %v", err)
 	}
@@ -141,21 +147,23 @@ func TestDiff_JSONOutput(t *testing.T) {
 // TestDiff_TargetFilter verifies that `--target` filters to a single target.
 func TestDiff_TargetFilter(t *testing.T) {
 	root := repoRoot(t)
-	opDir := filepath.Join(t.TempDir(), "opencode")
+	base := t.TempDir()
+	opDir := filepath.Join(base, "opencode")
+	stackPath := writeIsolatedStackExample(t, root, base)
 	env := []string{
 		"OCA_OPENCODE_CONFIG_DIR=" + opDir,
-		"OCA_VISION_CONFIG_DIR=" + filepath.Join(t.TempDir(), "vision"),
-		"OCA_CACHE_DIR=" + filepath.Join(t.TempDir(), "cache"),
+		"OCA_VISION_CONFIG_DIR=" + filepath.Join(base, "vision"),
+		"OCA_CACHE_DIR=" + filepath.Join(base, "cache"),
 	}
 
 	// Apply so opencode.json is in sync.
-	_, _, err := runOCA(t, root, env, "apply", "--config", "stack.example.toml")
+	_, _, err := runOCA(t, root, env, "apply", "--config", stackPath)
 	if err != nil {
 		t.Fatalf("setup apply failed: %v", err)
 	}
 
 	// Diff with --target providers should show only providers op.
-	stdout, _, err := runOCA(t, root, env, "diff", "--target", "providers", "--config", "stack.example.toml")
+	stdout, _, err := runOCA(t, root, env, "diff", "--target", "providers", "--config", stackPath)
 	if err != nil {
 		t.Fatalf("oca diff --target providers failed: %v", err)
 	}

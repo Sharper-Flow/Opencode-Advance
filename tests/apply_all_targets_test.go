@@ -18,15 +18,17 @@ import (
 // in a single apply run, then verifies idempotence.
 func TestComposeApply_AllTargets(t *testing.T) {
 	root := repoRoot(t)
-	opDir := filepath.Join(t.TempDir(), "opencode")
+	base := t.TempDir()
+	opDir := filepath.Join(base, "opencode")
+	stackPath := writeIsolatedStackExample(t, root, base)
 	env := []string{
 		"OCA_OPENCODE_CONFIG_DIR=" + opDir,
-		"OCA_VISION_CONFIG_DIR=" + filepath.Join(t.TempDir(), "vision"),
-		"OCA_CACHE_DIR=" + filepath.Join(t.TempDir(), "cache"),
+		"OCA_VISION_CONFIG_DIR=" + filepath.Join(base, "vision"),
+		"OCA_CACHE_DIR=" + filepath.Join(base, "cache"),
 	}
 
 	// First apply: all targets (no --target flag).
-	stdout, stderr, err := runOCA(t, root, env, "apply", "--config", "stack.example.toml")
+	stdout, stderr, err := runOCA(t, root, env, "apply", "--config", stackPath)
 	if err != nil {
 		t.Fatalf("oca apply all targets failed:\nstdout=%s\nstderr=%s\nerr=%v", stdout, stderr, err)
 	}
@@ -105,7 +107,10 @@ func TestComposeApply_AllTargets(t *testing.T) {
 	}
 
 	// Second apply: all targets should be noop.
-	stdout2, stderr2, err := runOCA(t, root, env, "apply", "--config", "stack.example.toml")
+	// The isolated Advance fixture sync writes a marker into its checkout so tests
+	// can prove sync ran; remove it before exercising prepare idempotence.
+	_ = os.Remove(filepath.Join(base, "checkouts", "advance", "sync-ran.txt"))
+	stdout2, stderr2, err := runOCA(t, root, env, "apply", "--config", stackPath)
 	if err != nil {
 		t.Fatalf("second oca apply all targets failed:\nstdout=%s\nstderr=%s\nerr=%v", stdout2, stderr2, err)
 	}
