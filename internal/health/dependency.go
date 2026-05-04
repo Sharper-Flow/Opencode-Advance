@@ -8,8 +8,9 @@ import (
 	"github.com/Sharper-Flow/Opencode-Advance/internal/temporal"
 )
 
-// CheckDependencies probes for Node.js and Temporal CLI installations.
-// It returns health checks for each dependency.
+// CheckDependencies probes for Node.js, Temporal CLI, and GitHub CLI
+// installations. GitHub CLI is optional for core OCA operation but enables ADV
+// agent mesh issue workflows.
 func CheckDependencies(ctx context.Context, _ *cfg.Stack, _ Options) ([]Check, error) {
 	checks := []Check{}
 
@@ -49,6 +50,22 @@ func CheckDependencies(ctx context.Context, _ *cfg.Stack, _ Options) ([]Check, e
 			Name:    "dependencies.temporal_cli",
 			Status:  StatusPass,
 			Message: fmt.Sprintf("Temporal CLI %s", cliRes.Version),
+		})
+	}
+
+	ghRes, err := temporal.DetectGH(ctx)
+	if err != nil {
+		checks = append(checks, Check{
+			Name:    "dependencies.gh_cli",
+			Status:  StatusWarn,
+			Message: fmt.Sprintf("GitHub CLI not found or not authenticated: %v", err),
+			Hint:    "install GitHub CLI and run 'gh auth login' to enable ADV agent mesh issue workflows",
+		})
+	} else {
+		checks = append(checks, Check{
+			Name:    "dependencies.gh_cli",
+			Status:  StatusPass,
+			Message: fmt.Sprintf("GitHub CLI authenticated: %s", ghRes.Version),
 		})
 	}
 

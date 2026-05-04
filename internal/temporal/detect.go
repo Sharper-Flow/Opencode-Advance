@@ -80,6 +80,39 @@ func DetectNode(ctx context.Context) (DetectResult, int, error) {
 	}, major, nil
 }
 
+// DetectGH searches for GitHub CLI on PATH and verifies auth status.
+// GitHub CLI is optional for core OCA operation but enables ADV agent mesh
+// issue workflows.
+func DetectGH(ctx context.Context) (DetectResult, error) {
+	name := "gh"
+	res, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    name,
+		Args:    []string{"--version"},
+		Timeout: detectTimeout,
+	})
+	if err != nil {
+		return DetectResult{}, fmt.Errorf("gh CLI: %w", err)
+	}
+	if res.ExitClass != subprocess.ExitSuccess {
+		return DetectResult{}, fmt.Errorf("gh CLI: %s: %s", res.ExitClass, string(res.Output))
+	}
+
+	version := firstNonEmptyLine(string(res.Output))
+	authRes, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    name,
+		Args:    []string{"auth", "status"},
+		Timeout: detectTimeout,
+	})
+	if err != nil {
+		return DetectResult{}, fmt.Errorf("gh auth status: %w", err)
+	}
+	if authRes.ExitClass != subprocess.ExitSuccess {
+		return DetectResult{}, fmt.Errorf("gh auth status: %s: %s", authRes.ExitClass, string(authRes.Output))
+	}
+
+	return DetectResult{Path: name, Version: version}, nil
+}
+
 // parseNodeMajorVersion extracts the major version from a node --version
 // output. Accepts formats like "v20.1.0", "v22.0.0-nightly", etc.
 func parseNodeMajorVersion(raw string) (int, error) {
@@ -98,4 +131,14 @@ func parseNodeMajorVersion(raw string) (int, error) {
 		return 0, fmt.Errorf("malformed major version in %q: %w", raw, err)
 	}
 	return major, nil
+}
+
+func firstNonEmptyLine(raw string) string {
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			return line
+		}
+	}
+	return strings.TrimSpace(raw)
 }
