@@ -2,6 +2,9 @@ package health
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,6 +33,47 @@ func TestCheckAdvRuntime_NoTemporalConfigSkipsGracefully(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("missing adv-runtime.temporal check")
+	}
+}
+
+func TestCheckAdvRuntime_StaleWorkerHeartbeatWarns(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	projectID := "proj-heartbeat"
+	stateDir := filepath.Join(dataHome, "opencode", "plugins", "advance", projectID)
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	lock := `{
+		"schema_version": 2,
+		"pid": 999999,
+		"worker_id": "worker-heartbeat",
+		"acquired_at": "2026-05-04T00:00:00Z",
+		"last_heartbeat": "2000-01-01T00:00:00Z"
+	}`
+	if err := os.WriteFile(filepath.Join(stateDir, "worker.lock"), []byte(lock), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	checks, err := CheckAdvRuntime(context.Background(), &cfg.Stack{}, Options{})
+	if err != nil {
+		t.Fatalf("CheckAdvRuntime: %v", err)
+	}
+
+	var found bool
+	for _, c := range checks {
+		if c.Name == "adv-runtime.worker-lock."+projectID {
+			found = true
+			if c.Status != StatusWarn {
+				t.Fatalf("worker lock status = %q, want warn", c.Status)
+			}
+			if !strings.Contains(c.Message, "worker lock") {
+				t.Fatalf("expected worker lock message, got %q", c.Message)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("missing worker lock warning in checks: %#v", checks)
 	}
 }
 

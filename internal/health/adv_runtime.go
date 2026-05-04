@@ -155,6 +155,24 @@ func CheckAdvRuntime(ctx context.Context, stack *cfg.Stack, opts Options) ([]Che
 		}
 	}
 
+	// --- Worker lock heartbeat scan ---
+	if advRoot != "" {
+		scanner := advruntime.NewWorkerLockScanner(advRoot, 0)
+		workerLocks, err := scanner.Scan(ctx)
+		if err != nil {
+			checks = append(checks, Check{
+				Name:    "adv-runtime.worker-lock",
+				Status:  StatusWarn,
+				Message: fmt.Sprintf("worker lock scan failed: %v", err),
+				Hint:    "verify ADV state root is readable",
+			})
+		} else {
+			for _, lock := range workerLocks {
+				checks = append(checks, mapWorkerLock(lock))
+			}
+		}
+	}
+
 	// --- Recovery plan synthesis (informational) ---
 	if len(checks) > 0 {
 		report := buildReportFromChecks(checks, config)
@@ -256,6 +274,23 @@ func mapWorktree(wt advruntime.WorktreeFinding) Check {
 		Status:  status,
 		Message: wt.Message,
 		Hint:    wt.Hint,
+	}
+}
+
+func mapWorkerLock(lock advruntime.WorkerLockFinding) Check {
+	status := StatusPass
+	if lock.Status == advruntime.StatusWarn {
+		status = StatusWarn
+	}
+	name := "adv-runtime.worker-lock"
+	if lock.ProjectID != "" {
+		name += "." + lock.ProjectID
+	}
+	return Check{
+		Name:    name,
+		Status:  status,
+		Message: lock.Message,
+		Hint:    lock.Hint,
 	}
 }
 
