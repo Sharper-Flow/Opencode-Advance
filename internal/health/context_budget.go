@@ -22,7 +22,7 @@ const tokenEstimateChars = 4
 
 // budgetThresholdBytes defines soft thresholds for instruction size warnings.
 const (
-	budgetWarnPerFileBytes = 50 * 1024 // 50KB per file
+	budgetWarnPerFileBytes = 50 * 1024  // 50KB per file
 	budgetWarnTotalBytes   = 200 * 1024 // 200KB total baseline
 )
 

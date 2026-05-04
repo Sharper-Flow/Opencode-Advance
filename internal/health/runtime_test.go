@@ -181,7 +181,7 @@ func TestCheckRuntime_VisionUnreachable(t *testing.T) {
 	stack := &cfg.Stack{}
 	opts := Options{
 		VisionAdminURL: "http://127.0.0.1:1", // unreachable port
-		Timeout:        1,                     // 1ns timeout for fast failure
+		Timeout:        1,                    // 1ns timeout for fast failure
 	}
 
 	checks, err := CheckRuntime(context.Background(), stack, opts)
