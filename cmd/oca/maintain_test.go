@@ -106,3 +106,50 @@ version = "1.0.0"
 		t.Fatalf("stdout=%q missing blocker code", stdout.String())
 	}
 }
+
+func TestMaintainCommand_ExecuteRunsAllowedActions(t *testing.T) {
+	tmp := t.TempDir()
+	stackPath := filepath.Join(tmp, "stack.toml")
+	writeFile(t, stackPath, `[meta]
+version = "1.0.0"
+`)
+
+	originalPlan := maintainPlanFunc
+	maintainPlanFunc = func(ctx context.Context, opts maintain.Options) (maintain.Plan, error) {
+		return maintain.Plan{
+			SchemaVersion: 1,
+			SessionGate:   maintain.GateReport{Status: maintain.GateStatusPass},
+			Actions: []maintain.Action{{
+				ID:             "merge:verifiedChange",
+				Kind:           "merge",
+				WouldRun:       true,
+				ExecuteAllowed: true,
+			}},
+		}, nil
+	}
+	t.Cleanup(func() { maintainPlanFunc = originalPlan })
+
+	called := false
+	originalExecute := maintainExecuteFunc
+	maintainExecuteFunc = func(ctx context.Context, opts maintain.Options, plan maintain.Plan) error {
+		called = true
+		if !opts.Execute {
+			t.Fatalf("execute function saw Execute=false")
+		}
+		if len(plan.Actions) != 1 || plan.Actions[0].ID != "merge:verifiedChange" {
+			t.Fatalf("plan actions=%#v", plan.Actions)
+		}
+		return nil
+	}
+	t.Cleanup(func() { maintainExecuteFunc = originalExecute })
+
+	var stdout, stderr bytes.Buffer
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"maintain", "--execute", "--config", stackPath})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("maintain --execute: %v stderr=%s", err, stderr.String())
+	}
+	if !called {
+		t.Fatal("maintainExecuteFunc was not called")
+	}
+}

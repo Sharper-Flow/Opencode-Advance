@@ -12,6 +12,7 @@ import (
 )
 
 var maintainPlanFunc = maintain.BuildPlan
+var maintainExecuteFunc = maintain.ExecutePlan
 
 func newMaintainCmd(state *commandState) *cobra.Command {
 	var (
@@ -72,6 +73,11 @@ func newMaintainCmd(state *commandState) *cobra.Command {
 			}
 			if opts.Execute && len(plan.Blockers) > 0 {
 				return newCLIError(3, "active maintenance blockers: %s", blockerCodes(plan.Blockers))
+			}
+			if opts.Execute {
+				if err := maintainExecuteFunc(ctx, opts, plan); err != nil {
+					return newCLIError(3, "maintain execute: %w", err)
+				}
 			}
 			return nil
 		},

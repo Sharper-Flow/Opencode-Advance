@@ -57,7 +57,7 @@ func CheckPlugins(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check,
 			checks = append(checks, statCheck("plugins."+name+".checkout_exists", plugin.Checkout, "checkout present", "checkout missing"))
 			checks = append(checks, statCheck("plugins."+name+".built_artifact", plugin.Path, "built artifact present", "built artifact missing"))
 			checks = append(checks, gitRefCheck(ctx, name, plugin))
-			if name == "advance" {
+			if name == "advance" && shouldCheckBuildMarker(plugin) {
 				checks = append(checks, buildMarkerCheck(ctx, name, plugin))
 			}
 		}
@@ -90,6 +90,14 @@ func CheckPlugins(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check,
 	}
 
 	return checks, nil
+}
+
+func shouldCheckBuildMarker(plugin cfg.Plugin) bool {
+	if len(plugin.Build) > 0 {
+		return true
+	}
+	_, err := os.Stat(maintain.BuildMarkerPath(plugin))
+	return err == nil
 }
 
 func buildMarkerCheck(ctx context.Context, name string, plugin cfg.Plugin) Check {
