@@ -1,9 +1,9 @@
 {
   "$schema": "https://opencode.ai/theme.json",
   "defs": {
-    "obsidian": "#1A1C20",
-    "slate": "#262932",
-    "graphite": "#2D3138",
+    "obsidian": "#1c1c1c",
+    "slate": "#282828",
+    "graphite": "#303030",
     "ivory": "#E8E6E3",
     "mutedIvory": "#A8A6A3",
     "dimIvory": "#6A6866",
