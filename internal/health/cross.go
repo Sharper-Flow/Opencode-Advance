@@ -140,6 +140,9 @@ func CheckCross(ctx context.Context, stack *cfg.Stack, opts Options) ([]Check, e
 			Status:  StatusPass,
 			Message: "Agent provider reference check not yet implemented",
 		})
+
+		// 5. Deprecated `tools` usage in agent frontmatter
+		checks = append(checks, checkAgentDeprecatedTools(agentsDir)...)
 	}
 
 	return checks, nil
@@ -200,4 +203,83 @@ func resolvePath(path string, opts Options) string {
 		}
 	}
 	return path
+}
+
+// checkAgentDeprecatedTools scans agent frontmatter files for the deprecated
+// `tools:` field. OpenCode recommends `permission:` instead. OCA-owned agents
+// should migrate; ADV-owned agents are out of scope (handled by Advance repo).
+func checkAgentDeprecatedTools(agentsDir string) []Check {
+	var checks []Check
+
+	entries, err := os.ReadDir(agentsDir)
+	if err != nil {
+		return nil
+	}
+
+	deprecatedCount := 0
+	permissionCount := 0
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+
+		fullPath := filepath.Join(agentsDir, entry.Name())
+		data, err := os.ReadFile(fullPath)
+		if err != nil {
+			continue
+		}
+
+		// Only scan YAML frontmatter (between --- delimiters)
+		content := string(data)
+		if !strings.HasPrefix(content, "---") {
+			continue
+		}
+		end := strings.Index(content[3:], "---")
+		if end < 0 {
+			continue
+		}
+		frontmatter := content[3 : end+3]
+
+		hasTools := false
+		hasPermission := false
+		for _, line := range strings.Split(frontmatter, "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "tools:") || strings.HasPrefix(trimmed, "tools :") {
+				hasTools = true
+			}
+			if strings.HasPrefix(trimmed, "permission:") || strings.HasPrefix(trimmed, "permission :") {
+				hasPermission = true
+			}
+		}
+
+		agentName := strings.TrimSuffix(entry.Name(), ".md")
+		if hasTools && !hasPermission {
+			deprecatedCount++
+			checks = append(checks, Check{
+				Name:    fmt.Sprintf("agent-deprecated-tools.%s", agentName),
+				Status:  StatusWarn,
+				Message: fmt.Sprintf("Agent %s uses deprecated 'tools:' field without 'permission:'", agentName),
+				Hint:    "migrate to 'permission:' field per OpenCode docs; see stack schema for reference",
+			})
+		} else if hasPermission {
+			permissionCount++
+		}
+	}
+
+	if deprecatedCount == 0 && permissionCount > 0 {
+		checks = append(checks, Check{
+			Name:    "agent-deprecated-tools",
+			Status:  StatusPass,
+			Message: fmt.Sprintf("All %d agent configs use permission-first configuration", permissionCount),
+		})
+	} else if deprecatedCount == 0 && permissionCount == 0 {
+		checks = append(checks, Check{
+			Name:    "agent-deprecated-tools",
+			Status:  StatusPass,
+			Message: "No agent configs with deprecated tools found",
+		})
+	}
+
+	return checks
 }

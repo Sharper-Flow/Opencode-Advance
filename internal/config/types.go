@@ -66,10 +66,30 @@ type Meta struct {
 }
 
 // MCPSection is the [mcp] table. Carries both regular servers and Vision
-// slot_groups (pools of identical servers behind a single virtual port).
+// slot_groups (pools of identical servers behind a single virtual port),
+// plus tool_suite definitions for per-agent MCP exposure profiles.
 type MCPSection struct {
 	Servers    map[string]Server    `toml:"servers"`
 	SlotGroups map[string]SlotGroup `toml:"slot_groups,omitempty"`
+	ToolSuites map[string]ToolSuite `toml:"tool_suites,omitempty"`
+}
+
+// ToolSuite defines a named group of MCP servers that can be included or
+// excluded in agent profiles. This allows OCA to manage per-agent MCP
+// exposure without manually listing every tool in agent frontmatter.
+//
+// Example stack.toml:
+//
+//	[mcp.tool_suites.research]
+//	servers = ["kagi", "context7", "firecrawl", "gh-grep"]
+//	description = "Web search, docs, scraping, code examples"
+//
+//	[mcp.tool_suites.code-intel]
+//	servers = ["lgrep"]
+//	description = "Local code intelligence"
+type ToolSuite struct {
+	Servers     []string `toml:"servers"`
+	Description string   `toml:"description,omitempty"`
 }
 
 // SlotGroup mirrors Vision's internal/config.SlotGroupConfig field-for-field.

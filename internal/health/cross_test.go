@@ -194,3 +194,116 @@ func TestResolvePathAssets(t *testing.T) {
 		t.Fatalf("resolvePath assets = %q, want %q", got, want)
 	}
 }
+
+func TestCheckCross_DeprecatedTools(t *testing.T) {
+	tmpDir := t.TempDir()
+	agentsDir := filepath.Join(tmpDir, "agents")
+	os.MkdirAll(agentsDir, 0o755)
+
+	// Write agent with deprecated tools: field
+	os.WriteFile(filepath.Join(agentsDir, "explore.md"), []byte(`---
+name: explore
+tools:
+  - read
+  - glob
+---
+
+Explore agent.
+`), 0o644)
+
+	// Write agent with permission: field (modern)
+	os.WriteFile(filepath.Join(agentsDir, "build.md"), []byte(`---
+name: build
+permission:
+  - read
+  - write
+  - bash
+---
+
+Build agent.
+`), 0o644)
+
+	stack := &cfg.Stack{}
+	opts := Options{ConfigDir: tmpDir}
+
+	checks, err := CheckCross(context.Background(), stack, opts)
+	if err != nil {
+		t.Fatalf("CheckCross failed: %v", err)
+	}
+
+	// explore should be flagged for deprecated tools
+	foundExplore := false
+	foundBuild := false
+	for _, c := range checks {
+		if c.Name == "agent-deprecated-tools.explore" {
+			foundExplore = true
+			if c.Status != StatusWarn {
+				t.Errorf("explore: expected warn for deprecated tools, got %s: %s", c.Status, c.Message)
+			}
+		}
+		// build should NOT be flagged (uses permission)
+		if strings.Contains(c.Name, "agent-deprecated-tools.build") && c.Status == StatusWarn {
+			foundBuild = true
+		}
+	}
+	if !foundExplore {
+		t.Error("expected agent-deprecated-tools.explore warning")
+	}
+	if foundBuild {
+		t.Error("build agent should not be flagged — it uses permission:")
+	}
+}
+
+func TestCheckCross_DeprecatedToolsAllPermission(t *testing.T) {
+	tmpDir := t.TempDir()
+	agentsDir := filepath.Join(tmpDir, "agents")
+	os.MkdirAll(agentsDir, 0o755)
+
+	// Write agent with only permission: field
+	os.WriteFile(filepath.Join(agentsDir, "librarian.md"), []byte(`---
+name: librarian
+permission:
+  - read
+  - webfetch
+---
+
+Librarian agent.
+`), 0o644)
+
+	stack := &cfg.Stack{}
+	opts := Options{ConfigDir: tmpDir}
+
+	checks, err := CheckCross(context.Background(), stack, opts)
+	if err != nil {
+		t.Fatalf("CheckCross failed: %v", err)
+	}
+
+	found := false
+	for _, c := range checks {
+		if c.Name == "agent-deprecated-tools" && c.Status == StatusPass {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected agent-deprecated-tools pass when all agents use permission:")
+	}
+}
+
+func TestCheckCross_DeprecatedToolsNoAgentsDir(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	stack := &cfg.Stack{}
+	opts := Options{ConfigDir: tmpDir}
+
+	checks, err := CheckCross(context.Background(), stack, opts)
+	if err != nil {
+		t.Fatalf("CheckCross failed: %v", err)
+	}
+
+	// Should have agent-provider-refs skip check but no deprecated-tools checks
+	for _, c := range checks {
+		if strings.Contains(c.Name, "agent-deprecated-tools") {
+			t.Errorf("unexpected deprecated-tools check when agents dir doesn't exist: %s", c.Name)
+		}
+	}
+}
