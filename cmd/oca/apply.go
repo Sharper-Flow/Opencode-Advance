@@ -155,6 +155,11 @@ func applyMCP(ctx context.Context, state *commandState, stack *config.Stack, pat
 }
 
 func applyPlugins(ctx context.Context, state *commandState, stack *config.Stack, paths config.Paths, dryRun bool) error {
+	if dryRun && state.output != "json" {
+		if _, err := fmt.Fprintln(state.opts.Stdout, "would prepare plugins"); err != nil {
+			return err
+		}
+	}
 	if !dryRun {
 		names := sortedPluginNames(stack.Plugins)
 		for _, name := range names {
@@ -175,6 +180,11 @@ func applyPlugins(ctx context.Context, state *commandState, stack *config.Stack,
 		return err
 	}
 	if dryRun {
+		if state.output != "json" {
+			if _, err := fmt.Fprintln(state.opts.Stdout, "would sync plugins"); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 	for _, name := range sortedPluginNames(stack.Plugins) {

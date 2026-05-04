@@ -258,6 +258,39 @@ namespace = "default"
 	}
 }
 
+func TestApplyCommand_BareApplyDryRunReportsLifecycleReadOnly(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(tmp, "opencode"))
+	t.Setenv("OCA_VISION_CONFIG_DIR", filepath.Join(tmp, "vision"))
+	t.Setenv("OCA_CACHE_DIR", filepath.Join(tmp, "cache"))
+	t.Setenv("OCA_PLUGIN_CHECKOUT_ROOT", filepath.Join(tmp, "checkouts"))
+
+	remote := initPluginRemote(t)
+	checkout := filepath.Join(tmp, "checkouts", "advance")
+	stackPath := filepath.Join(tmp, "stack.toml")
+	writeFile(t, stackPath, "[meta]\nversion = \"1.0.0\"\n\n[plugins.advance]\nsource = \""+remote+"\"\nref = \"master\"\ncheckout = \""+checkout+"\"\npath = \"{checkout}\"\nsync = \"{checkout}/sync.sh\"\n\n[temporal]\nenabled = true\naddress = \"127.0.0.1:7233\"\nnamespace = \"default\"\n")
+
+	var stdout, stderr bytes.Buffer
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"apply", "--dry-run", "--config", stackPath})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("bare apply dry-run: %v stderr=%s stdout=%s", err, stderr.String(), stdout.String())
+	}
+
+	out := stdout.String()
+	for _, want := range []string{"would prepare plugins", "would sync plugins", filepath.Join(tmp, "cache", "temporal.env")} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("dry-run output missing %q; stdout=%q", want, out)
+		}
+	}
+	if _, err := os.Stat(checkout); !os.IsNotExist(err) {
+		t.Fatalf("dry-run should not clone plugin checkout; stat err=%v", err)
+	}
+	if _, err := os.Stat(filepath.Join(tmp, "cache", "temporal.env")); !os.IsNotExist(err) {
+		t.Fatalf("dry-run should not write temporal.env; stat err=%v", err)
+	}
+}
+
 func initPluginRemote(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
