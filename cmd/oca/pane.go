@@ -25,44 +25,72 @@ type paneState struct {
 	Ts        int64  `json:"ts"`
 
 	// v2 fields (optional — zero-valued when absent)
-	SchemaVersion  int    `json:"schemaVersion,omitempty"`
-	StartedAt      int64  `json:"startedAt,omitempty"`
-	LastSeenAt     int64  `json:"lastSeenAt,omitempty"`
-	PaneID         string `json:"paneID,omitempty"`
-	Socket         string `json:"socket,omitempty"`
-	Agent          string `json:"agent,omitempty"`
-	GitRoot        string `json:"gitRoot,omitempty"`
-	WorktreePath   string `json:"worktreePath,omitempty"`
-	GitCommonDir   string `json:"gitCommonDir,omitempty"`
-	ProjectID      string `json:"projectId,omitempty"`
-	WorktreeBranch string `json:"worktreeBranch,omitempty"`
-	ChangeID       string `json:"changeID,omitempty"`
-	Role           string `json:"role,omitempty"`
+	SchemaVersion    int    `json:"schemaVersion,omitempty"`
+	StartedAt        int64  `json:"startedAt,omitempty"`
+	LastSeenAt       int64  `json:"lastSeenAt,omitempty"`
+	PaneID           string `json:"paneID,omitempty"`
+	Socket           string `json:"socket,omitempty"`
+	Agent            string `json:"agent,omitempty"`
+	GitRoot          string `json:"gitRoot,omitempty"`
+	WorktreePath     string `json:"worktreePath,omitempty"`
+	GitCommonDir     string `json:"gitCommonDir,omitempty"`
+	DefaultBranch    string `json:"defaultBranch,omitempty"`
+	MainCheckoutPath string `json:"mainCheckoutPath,omitempty"`
+	IsMainCheckout   bool   `json:"isMainCheckout,omitempty"`
+	BranchSafety     string `json:"branchSafety,omitempty"`
+	ProjectID        string `json:"projectId,omitempty"`
+	WorktreeBranch   string `json:"worktreeBranch,omitempty"`
+	ChangeID         string `json:"changeID,omitempty"`
+	Role             string `json:"role,omitempty"`
 }
 
 // paneContext holds derived context computed from a paneState at read time.
 // These fields are NOT persisted — they are computed on demand.
 type paneContext struct {
-	ChangeID    string // from explicit changeID or worktreeBranch "change/*"
-	ProjectRoot string // gitRoot
-	ProjectID   string // projectId
-	IsWorktree  bool   // worktreePath differs from gitRoot
-	Role        string // explicit role or agent name
-	Agent       string // agent name
+	ChangeID         string // from explicit changeID or worktreeBranch "change/*"
+	ProjectRoot      string // gitRoot
+	ProjectID        string // projectId
+	IsWorktree       bool   // worktreePath differs from gitRoot
+	IsMainCheckout   bool   // worktreePath/gitRoot matches mainCheckoutPath
+	WorktreePath     string // materialized checkout path
+	WorktreeBranch   string // current branch
+	DefaultBranch    string // default branch, when known
+	MainCheckoutPath string // main checkout root, when known
+	BranchSafety     string // worktree, safe_main_checkout, unsafe_main_branch, or unknown
+	Role             string // explicit role or agent name
+	Agent            string // agent name
 }
 
 // derivePaneContext computes derived context from a paneState without
 // persisting stale window/project fields. Pure function, no side effects.
 func derivePaneContext(ps *paneState) *paneContext {
 	ctx := &paneContext{
-		ProjectRoot: ps.GitRoot,
-		ProjectID:   ps.ProjectID,
-		Agent:       ps.Agent,
-		Role:        ps.Role,
+		ProjectRoot:      ps.GitRoot,
+		ProjectID:        ps.ProjectID,
+		Agent:            ps.Agent,
+		Role:             ps.Role,
+		WorktreePath:     ps.WorktreePath,
+		WorktreeBranch:   ps.WorktreeBranch,
+		DefaultBranch:    ps.DefaultBranch,
+		MainCheckoutPath: ps.MainCheckoutPath,
+		BranchSafety:     ps.BranchSafety,
 	}
 
-	// Detect worktree: worktreePath is set and differs from gitRoot.
-	ctx.IsWorktree = ps.WorktreePath != "" && ps.WorktreePath != ps.GitRoot
+	// Prefer git common-dir derived mainCheckoutPath over legacy gitRoot/path
+	// comparison. In linked worktrees, gitRoot and worktreePath are both the
+	// worktree root, while mainCheckoutPath points at the shared main checkout.
+	if ps.MainCheckoutPath != "" {
+		ctx.ProjectRoot = ps.MainCheckoutPath
+		ctx.IsMainCheckout = ps.IsMainCheckout || ps.WorktreePath == ps.MainCheckoutPath || ps.GitRoot == ps.MainCheckoutPath
+		ctx.IsWorktree = ps.WorktreePath != "" && ps.WorktreePath != ps.MainCheckoutPath
+	} else {
+		ctx.IsMainCheckout = ps.IsMainCheckout
+		ctx.IsWorktree = ps.WorktreePath != "" && ps.WorktreePath != ps.GitRoot
+	}
+
+	if ctx.BranchSafety == "" {
+		ctx.BranchSafety = deriveBranchSafety(ctx.IsWorktree, ctx.IsMainCheckout, ps.WorktreeBranch, ps.DefaultBranch)
+	}
 
 	// Derive changeID: prefer explicit field, then extract from branch.
 	if ps.ChangeID != "" {
@@ -80,6 +108,19 @@ func derivePaneContext(ps *paneState) *paneContext {
 	}
 
 	return ctx
+}
+
+func deriveBranchSafety(isWorktree, isMainCheckout bool, branch, defaultBranch string) string {
+	if isWorktree {
+		return "worktree"
+	}
+	if !isMainCheckout {
+		return "unknown"
+	}
+	if defaultBranch != "" && branch != "" && branch != defaultBranch {
+		return "unsafe_main_branch"
+	}
+	return "safe_main_checkout"
 }
 
 func newPaneCmd(state *commandState) *cobra.Command {

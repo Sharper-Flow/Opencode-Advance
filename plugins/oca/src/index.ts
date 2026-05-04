@@ -1,5 +1,10 @@
 import { type Plugin } from "@opencode-ai/plugin";
-import { xdgStateHome, atomicWriteJSON, readJSON, deleteStateFile } from "./state-file";
+import {
+  xdgStateHome,
+  atomicWriteJSON,
+  readJSON,
+  deleteStateFile,
+} from "./state-file";
 import { parseSocketFromTmux, sanitizePaneId } from "./tmux";
 import { initWatchdog, handleWatchdogEvent } from "./watchdog";
 import * as path from "path";
@@ -27,7 +32,32 @@ export function deriveChangeID(branch: string): string {
   return id || "";
 }
 
-function buildV2State(info: { id: string; directory?: string }): Record<string, unknown> {
+export function deriveBranchSafety(input: {
+  isMainCheckout: boolean;
+  isWorktree: boolean;
+  branch?: string;
+  defaultBranch?: string;
+}): "worktree" | "safe_main_checkout" | "unsafe_main_branch" | "unknown" {
+  if (input.isWorktree) return "worktree";
+  if (!input.isMainCheckout) return "unknown";
+  if (
+    input.defaultBranch &&
+    input.branch &&
+    input.branch !== input.defaultBranch
+  ) {
+    return "unsafe_main_branch";
+  }
+  return "safe_main_checkout";
+}
+
+function normalizeDefaultBranch(raw: string): string {
+  return raw.replace(/^origin\//, "").trim();
+}
+
+function buildV2State(info: {
+  id: string;
+  directory?: string;
+}): Record<string, unknown> {
   const now = Date.now();
   const state: Record<string, unknown> = {
     schemaVersion: 2,
@@ -54,23 +84,56 @@ function buildV2State(info: { id: string; directory?: string }): Record<string, 
   const dir = info.directory;
   if (dir) {
     try {
-      const git = (args: string[]) => execFileSync("git", args, {
-        cwd: dir,
-        encoding: "utf8",
-        timeout: 2000,
-        stdio: ["ignore", "pipe", "ignore"],
-      }).trim();
+      const git = (args: string[]) =>
+        execFileSync("git", args, {
+          cwd: dir,
+          encoding: "utf8",
+          timeout: 2000,
+          stdio: ["ignore", "pipe", "ignore"],
+        }).trim();
 
-      const gitRoot = git(["rev-parse", "--show-toplevel"]);
+      const gitRoot = git([
+        "rev-parse",
+        "--path-format=absolute",
+        "--show-toplevel",
+      ]);
       if (gitRoot) {
         state.gitRoot = gitRoot;
         state.worktreePath = gitRoot;
       }
 
-      const commonDir = git(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+      const commonDir = git([
+        "rev-parse",
+        "--path-format=absolute",
+        "--git-common-dir",
+      ]);
       if (commonDir) {
-        state.gitCommonDir = path.resolve(dir, commonDir);
+        const gitCommonDir = path.resolve(dir, commonDir);
+        const mainCheckoutPath = path.dirname(gitCommonDir);
+        state.gitCommonDir = gitCommonDir;
+        state.mainCheckoutPath = mainCheckoutPath;
+        state.isMainCheckout = gitRoot
+          ? path.resolve(gitRoot) === path.resolve(mainCheckoutPath)
+          : false;
       }
+
+      let defaultBranch = "";
+      try {
+        defaultBranch = normalizeDefaultBranch(
+          git(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]),
+        );
+      } catch {
+        try {
+          defaultBranch = git([
+            "rev-parse",
+            "--abbrev-ref",
+            "origin/HEAD",
+          ]).replace(/^origin\//, "");
+        } catch {
+          /* best-effort: no remote default branch */
+        }
+      }
+      if (defaultBranch) state.defaultBranch = defaultBranch;
 
       const rootCommit = git(["rev-list", "--max-parents=0", "HEAD"]);
       if (rootCommit) {
@@ -84,7 +147,21 @@ function buildV2State(info: { id: string; directory?: string }): Record<string, 
         const cid = deriveChangeID(branch);
         if (cid) state.changeID = cid;
       }
-    } catch { /* best-effort: ignore permission/ENOENT */ }
+
+      if (gitRoot) {
+        state.branchSafety = deriveBranchSafety({
+          isMainCheckout: state.isMainCheckout === true,
+          isWorktree: state.isMainCheckout === false,
+          branch:
+            typeof state.worktreeBranch === "string"
+              ? state.worktreeBranch
+              : undefined,
+          defaultBranch,
+        });
+      }
+    } catch {
+      /* best-effort: ignore permission/ENOENT */
+    }
   }
 
   // Role: explicit from env, or derived from agent.
