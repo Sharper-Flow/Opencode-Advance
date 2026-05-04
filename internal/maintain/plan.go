@@ -3,7 +3,6 @@ package maintain
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"time"
 
 	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
@@ -138,7 +137,8 @@ func (p Planner) Build(ctx context.Context, opts Options) (Plan, error) {
 			projectRoot = wd
 		}
 	}
-	projectRoot = filepath.Clean(projectRoot)
+	projectRoot = normalizeProjectRoot(projectRoot)
+	opts.ProjectRoot = projectRoot
 	gate := gateCheck(ctx, opts)
 	plan := Plan{
 		SchemaVersion: SchemaVersion,
