@@ -173,7 +173,7 @@ ADV runtime diagnostics layer. Read-only by default; never silently mutates ADV 
 - Narrow interfaces (`WorkflowService`, `OperatorService`) for testability without live Temporal
 - All thresholds tunable via `Config` with conservative defaults
 
-### 4. Session (`internal/session/`)
+### 4. Session (`internal/session/`) — Phase 4 foundation + Pattern B (v1.0)
 
 Phase 4 foundation. Manages OCA tmux sessions on a dedicated socket.
 
@@ -186,6 +186,36 @@ Phase 4 foundation. Manages OCA tmux sessions on a dedicated socket.
 - Pre-validates working dir exists before tmux call
 - All external commands through `internal/subprocess`
 - `OCA_TMUX_SOCKET` env override (default: `"oca"`)
+
+**Pattern B session topology (v1.0):**
+
+- `ProjectRoot(cwd string) string` — resolves git root from any nested subdirectory
+- `ProjectSessionName(projectRoot string) string` — derives a slug-based session name (e.g., `opencode-advance`) without `oca-` prefix or numeric suffix
+- `GetOrCreateProjectSession(ctx, projectRoot, tmuxConfPath)` — creates the project session with a `trunk` window on first call, then reuses
+- `EnsureWindow(ctx, sessionName, windowName, cwd)` — idempotent: creates missing window or reuses existing, replaces stale-cwd windows
+- `ListWindows(ctx, sessionName) []Window` — parses `tmux list-windows` output
+- Smart root command (`oca` / `oc` with no args): project mode resolves git root → project session; per-invocation mode (`[session].mode = "per-invocation"`) delegates to Pattern A
+- `EnsureWindow` and `Reconcile` commands extend the session manager for worktree-aware workflows
+- ADV worktree hook integration: `advWorktreeCreate` calls `ocaEnsureWindow(sessionName, changeId, worktreePath)` after worktree creation/reuse — non-fatal, best-effort
+
+**Pane state v2 (`cmd/oca/pane.go`):**
+
+- v2 fields: `schemaVersion`, `changeID`, `role`, `projectId`, `worktreeBranch`, `worktreePath`, `startedAt`
+- `derivePaneContext(state)` pure function extracts change context from branch/path (no persisted derived fields)
+- v1/v2 read compatibility; v2 write preserves all fields
+
+**Worktree-first trunk protection (ADV):**
+
+- `plugin/src/utils/system-block.ts` — trunk guard fires when `activeChange.id` exists and `isWorktree === false`
+- Emits `[ADV:TRUNK_GUARD]` banner with routing instructions and emergency override documentation
+- Emergency overrides (merge/push/deploy) require audit evidence documentation
+
+**One-writer-per-worktree lease (ADV):**
+
+- `plugin/src/utils/worktree-lease.ts` — lease state keyed by `(projectID, canonicalWorktreePath)`
+- Records: `pid`, `sessionId`, `acquiredAt`, `heartbeatAt`
+- Functions: `acquireLease`, `refreshHeartbeat`, `reclaimStaleLease`, `releaseLease`, `checkLease`
+- Heartbeat-stale + dead-PID triggers automatic reclaim with `previousLease` audit trail
 
 ### 4.5. Install (`internal/install/`)
 
@@ -212,6 +242,8 @@ Current shipped commands:
 - `oca debug validate`
 - `oca pin` and `oca update`
 - `oca session new/list/attach/switch/kill/killall/restart/reap`
+- `oca session ensure-window --session <name> --name <window> --cwd <path>` (Pattern B)
+- `oca session reconcile [--dry-run]` (Pattern B)
 - `oca session list` (aliases: `ls`)
 - `oca theme list/apply`
 - `oca install [--yes]` and `oca uninstall`

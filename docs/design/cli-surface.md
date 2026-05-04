@@ -314,6 +314,53 @@ Implementation caveat: `internal/session.GetSessionByName` delegates through
 target custom names directly, but custom-name restarts should pass an explicit
 working directory rather than relying on path inference.
 
+### `oca session ensure-window --session <name> --name <window> --cwd <path>`
+
+Create or reuse a named window in a Pattern B project tmux session with cwd set to a worktree path.
+
+Flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--session <name>` | Project session name (default: inferred from git root) |
+| `--name <window>` | Window name (default: cwd basename) |
+| `--cwd <path>` | Window working directory (default: current directory) |
+
+Behavior:
+
+- Creates a new tmux window with the given `--cwd` if `--name` does not exist in the session
+- Reuses an existing window with matching `--name` if it exists (idempotent)
+- If an existing window has a stale cwd (directory deleted or inaccessible), replaces the window content
+- Rejects missing `--cwd` with exit code 1
+- Available in OCA v1.0+ (Pattern B session topology, Phase 4 extension)
+
+### `oca session reconcile`
+
+Scan the ADV worktree layout and create missing project-session windows. No filesystem watcher is required.
+
+Flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--session <name>` | Project session name (default: inferred from git root) |
+| `--dry-run` | Print actions without executing them |
+
+Behavior:
+
+- Scans `$XDG_DATA_HOME/opencode/worktree/*/change/*` for ADV change worktrees
+- Ensures one tmux window per change worktree in the project session
+- Idempotent: skips already-existing windows
+- Available in OCA v1.0+ (Pattern B session topology, Phase 4 extension)
+
+### Smart no-arg root command (`oca` / `oc`)
+
+Running `oca` or `oc` with no arguments in a git repository:
+
+- **Project mode** (default, `[session].mode = "project"`): resolves git root, creates/reuses a project tmux session, and attaches
+- **Outside git**: prints `oca session list` hint instead of creating a session
+- **Per-invocation mode** (`[session].mode = "per-invocation"`): delegates to `oca session new` (Pattern A escape valve)
+- Explicit subcommands (`oca session new`, `oca apply`, etc.) are unaffected by session mode
+
 ## Shipped in Phase 6 (foundation)
 
 Phase 6 adds the installer, uninstaller, and shell completion. These commands are shipped and Phase 6 is complete.

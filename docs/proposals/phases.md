@@ -22,7 +22,7 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 
 All five proposal drafts pre-flight-verified 2026-05-04 — see [`../notes/2026-05-04-m-queue-preflight-verification.md`](../notes/2026-05-04-m-queue-preflight-verification.md). Filing-ready.
 
-**Then (Session & Resource Architecture):** OCA #1 Pattern B → OCA #2 hibernation → OCA #3 tmux-resurrect polish → ADV #4 idle-worker reaper → ADV #5 peer-session topology distinction.
+**Then (Session & Resource Architecture):** OCA #1 Pattern B (in delivery) → OCA #2 hibernation → OCA #3 tmux-resurrect polish → ADV #4 idle-worker reaper → ADV #5 peer-session topology distinction.
 
 **Backlog (SHOULD):** S1 runtime doctor canaries → S2 context budget audit → S3 permission-first agent config → S4 MCP suite profiles → S5 legacy-state doctor warning → S6 resume-hint outer terminal.
 
