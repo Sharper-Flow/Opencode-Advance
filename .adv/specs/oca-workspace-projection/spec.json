@@ -1,0 +1,86 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anomalyco/oc-plugins/main/advance/plugin/schemas/spec.schema.json",
+  "name": "oca-workspace-projection",
+  "title": "OCA Workspace Projection — Read-Only ADV State Surfacing",
+  "purpose": "Capability: OCA reads ADV worktree registry state from snapshot.json to project workspace status into OCA session listing, tmux status bar, and CLI output. Non-authoritative, rebuildable, graceful degradation.",
+  "version": "1.0.0",
+  "updated_at": "2026-05-04T00:00:00.000Z",
+  "requirements": [
+    {
+      "id": "rq-ocawp-projection01",
+      "title": "Workspace Projection Reads snapshot.json",
+      "body": "ProjectWorkspaceStates must read $XDG_DATA_HOME/opencode/plugins/advance/{projectID}/snapshot.json and parse worktree_registry entries into WorktreeWorkspaceState structs. Returns empty (never nil) when unavailable.",
+      "priority": "must",
+      "tags": ["oca", "projection", "adv"],
+      "scenarios": [
+        {
+          "id": "rq-ocawp-projection01.1",
+          "title": "Graceful degradation when snapshot missing",
+          "given": ["No snapshot.json exists for the project"],
+          "when": "ProjectWorkspaceStates is called",
+          "then": ["Returns empty Worktrees slice", "No error is returned"]
+        },
+        {
+          "id": "rq-ocawp-projection01.2",
+          "title": "Parse worktree_registry entries",
+          "given": ["snapshot.json exists with worktree_registry containing setup_failed entry"],
+          "when": "ProjectWorkspaceStates is called",
+          "then": ["Result contains WorktreeWorkspaceState with status=setup_failed", "SetupReady=false", "SetupFailureReason populated"]
+        }
+      ]
+    },
+    {
+      "id": "rq-ocawp-enrich01",
+      "title": "Session Enrichment with Workspace State",
+      "body": "EnrichSessionsWithWorkspaceState must match OCA sessions to ADV worktrees by path, change-derived name, or branch-derived window name. Enriched sessions carry workspaceStatus, workspaceChangeId, workspaceBranch, workspaceSetupReady, workspaceFailure fields.",
+      "priority": "must",
+      "tags": ["oca", "session", "enrichment"],
+      "scenarios": [
+        {
+          "id": "rq-ocawp-enrich01.1",
+          "title": "Path match enriches session",
+          "given": ["Session path equals worktree path"],
+          "when": "EnrichSessionsWithWorkspaceState runs",
+          "then": ["Session is enriched with workspace status from that worktree"]
+        },
+        {
+          "id": "rq-ocawp-enrich01.2",
+          "title": "No match leaves fields empty",
+          "given": ["Session does not match any worktree"],
+          "when": "EnrichSessionsWithWorkspaceState runs",
+          "then": ["Workspace fields remain empty on that session"]
+        }
+      ]
+    },
+    {
+      "id": "rq-ocawp-statusBar01",
+      "title": "Branch Safety and Workspace State in Status Bar",
+      "body": "The tmux status bar must show: (1) ⚡ when on a default branch while ADV has active changes, (2) compact workspace state glyphs (✗ setup_failed, ѻ stale, ✓ merged, ␡ pending_delete), (3) workspace status suffix on change window glyphs.",
+      "priority": "must",
+      "tags": ["oca", "status-bar", "ux", "safety"],
+      "scenarios": [
+        {
+          "id": "rq-ocawp-statusBar01.1",
+          "title": "Unsafe trunk shows warning",
+          "given": ["Pane is on trunk/main branch", "ADV has active worktree records"],
+          "when": "Row 0 renders",
+          "then": ["⚡ glyph appears next to the branch name"]
+        },
+        {
+          "id": "rq-ocawp-statusBar01.2",
+          "title": "Setup failed shows error glyph",
+          "given": ["ADV worktree has status=setup_failed"],
+          "when": "Row 0 or window glyphs render",
+          "then": ["✗ glyph appears"]
+        },
+        {
+          "id": "rq-ocawp-statusBar01.3",
+          "title": "No glyphs without ADV state",
+          "given": ["No ADV snapshot.json exists"],
+          "when": "Row 0 renders",
+          "then": ["No branch safety or workspace state glyphs appear"]
+        }
+      ]
+    }
+  ]
+}

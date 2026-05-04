@@ -173,6 +173,16 @@ ADV runtime diagnostics layer. Read-only by default; never silently mutates ADV 
 - Narrow interfaces (`WorkflowService`, `OperatorService`) for testability without live Temporal
 - All thresholds tunable via `Config` with conservative defaults
 
+**Workspace Projection (`workspace_projection.go`):**
+
+- `ProjectWorkspaceStates(projectID)` reads ADV `snapshot.json` to project worktree registry state into OCA-consumable structs
+- `WorktreeWorkspaceState` carries: branch, path, materialized, changeId, status, setupReady, setupFailureReason, baseRef, headSha, source
+- `EnrichSessionsWithWorkspaceState` matches OCA sessions to ADV worktrees by path or change-derived name, enriching session output with workspace status
+- Graceful degradation: returns empty projection when snapshot unavailable
+- Non-authoritative: OCA reads but never writes registry state
+
+**Workspace status values:** active, idle, setup_failed, materializing, pending_delete, merged, stale, deleted
+
 ### 4. Session (`internal/session/`) — Phase 4 foundation + Pattern B (v1.0)
 
 Phase 4 foundation. Manages OCA tmux sessions on a dedicated socket.
@@ -350,14 +360,17 @@ New primitive for flat-array sections (`instructions` ordering). Preserves user-
 
 Pluggable health checks with a `ResetForTesting()` contract so within-package tests remain serial but don't leak across test binaries.
 
-## Future phases
+## Status bar (`lib/status_bar.sh`, `lib/adv_status.sh`, `lib/llm_gauge.sh`)
 
-The following remain planned, not shipped:
+Two-row tmux status bar driven by `#()` format expansions:
 
-- agent rendering
-- `oca add` / `oca remove` interactive flows
-- status bar richness (metrics, LLM fuel gauges, ADV state) — status bar exists but metrics integration is ongoing
+- **Row 0**: session name | git branch [+ branch safety ⚡] | ADV change summary | workspace state glyph | occupancy | Temporal health | host + clock
+- **Row 1**: compact window glyphs (Pattern B, enriched with workspace status) | LLM fuel gauges | date
 
-Advance's Temporal dependency is **current**. Advance runs two durable workflows (`changeWorkflow`, `projectWorkflow`) via Temporal with file-backed fallback. OCA's Phase 6.5 (shipped) manages the Temporal infra (CLI detection, dev-server supervision, env-file rendering, health checks) that Advance needs to function.
+**Branch safety indicator (`oca_status_branch_safety`):** Shows ⚡ when the pane is on a default branch (main/trunk/master/develop) while ADV has active changes — operator-visible trunk guard signal.
 
-See [`../proposals/phases.md`](../proposals/phases.md) for sequencing.
+**Workspace state indicators (`oca_status_workspace_state`):** Compact glyphs for non-normal states: ✗ (setup_failed), ѻ (stale), ✓ (merged), ␡ (pending_delete). Reads from ADV `snapshot.json` via `_oca_adv_snapshot_read`.
+
+**Window glyph enrichment:** Change windows in Pattern B show workspace status suffix when a project_id is provided to `_oca_status_window_glyphs_from_list`.
+
+**Performance:** Row 0 budget 200ms (typically <25ms). Cache TTL 10s aligned with tmux status-interval.
