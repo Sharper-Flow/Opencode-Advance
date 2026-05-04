@@ -7,7 +7,7 @@ OpenCode Advance currently has **completed Phases 0, 1, 2, 3, 3.5, 4, 5, 5.5, 6,
 - Implementation status: **Phase 7 migration + doctor expansion and Phase 6.5 Temporal supervision are archived, merged, and pushed**
 - Repository status: **config rendering ships for MCP, plugins, instructions, providers, permissions, watcher, LSP, skills, commands, formatters, OpenCode toggles, Temporal, and MCP slot groups; doctor scopes ship for mcp, plugins, skills, temporal, adv-assets, adv-plugin, and cross**
 - Recommended next action: **start Phase 8 extras/polish**
-- Latest dependency note: **Advance has in-progress Temporal migration repair work that may require OCA legacy `.adv/` cleanup after it lands**. See `docs/notes/2026-05-02-advance-plugin-impact-check.md`.
+- Latest dependency note: **Advance Temporal migration repair tooling has landed; OCA should use bundle-aware diagnostics and `adv_migrate_cleanup` for legacy `.adv/` residue, preserving `.adv/specs/` and valid `.adv/archive/*/change.json` bundles**. See `docs/notes/2026-05-02-advance-plugin-impact-check.md`.
 - **Post-v1 staged (2026-05-03):** OCA reliability/runtime correctness queue reviewed and accepted into the roadmap (10 OCA proposal drafts: M3 → M2 → M4/M5/M6, then S1/S2 → S3/S4 → S5). Session & resource architecture remains decision-locked with **7 change proposals drafted** across OCA + ADV repos; broad OCA session work starts after the OCA reliability MUST queue. Live ADV proposal creation is deferred until a fresh OpenCode restart and runtime canary prove a non-stub ADV provider agent. See [`docs/proposals/2026-05-03-oca-roadmap-queue.md`](docs/proposals/2026-05-03-oca-roadmap-queue.md), [`docs/proposals/2026-05-03-session-and-resource-architecture.md`](docs/proposals/2026-05-03-session-and-resource-architecture.md), and [`docs/proposals/phases.md`](docs/proposals/phases.md).
 
 ## What is done
@@ -57,7 +57,7 @@ OpenCode Advance currently has **completed Phases 0, 1, 2, 3, 3.5, 4, 5, 5.5, 6,
 
 - No release packaging workflow yet
 - Phase 8 extras/polish not done
-- OCA has not yet executed Advance's upcoming `adv_migrate_cleanup`; dry-run found legacy `.adv/changes` and `.adv/archive` residue to revisit after the Advance repair change lands
+- OCA has not yet executed Advance's landed `adv_migrate_cleanup`; dry-run found legacy `.adv/changes` and archive residue to revisit with bundle-aware diagnostics before any approved cleanup
 - **Post-v1 OCA reliability queue staged but not yet filed via `/adv-proposal`** — 10 OCA-owned proposal drafts accepted into the roadmap and sequenced before broad session architecture.
 - **Post-v1 session-architecture work staged but not yet filed via `/adv-proposal`** — 7 changes drafted (`docs/proposals/2026-05-03-*.md`) waiting on ADV provider runtime prompt health before drafting can resume from a fresh OpenCode session with working ADV orchestrator persona
 

@@ -100,11 +100,12 @@ opencodeadvance/
 │   │   └── first-boot.md               # How to initialize ADV in this repo
 │   └── specs/                          # Generated spec docs (populated by ADV)
 │
-├── .adv/                               # ADV in-repo state (specs only)
-│   └── specs/                          # Capability specs (written by ADV, git-tracked)
-│                                       # Mutable state (changes, archive, wisdom, agenda) lives in
+├── .adv/                               # ADV in-repo state artifacts
+│   ├── specs/                          # Capability specs (written by ADV, git-tracked)
+│   └── archive/                        # In-repo archive bundles (`*/change.json`) written by ADV
+│                                       # Live mutable state (changes, wisdom, agenda, worker lock) lives in
 │                                       # $XDG_DATA_HOME/opencode/plugins/advance/{project-id}/
-│                                       # managed by Temporal workflows with file-backed fallback
+│                                       # managed by Temporal workflows with file-backed persistence
 │
 └── .github/
     └── workflows/                      # CI (populated in Phase 1)
@@ -175,7 +176,7 @@ At v1.0 release time, the user runs `oca migrate from-open-chad` which performs 
 | `~/.config/opencode/skills/lgrep/`            | **oca**           | Code exploration tool selection skill               |
 | `~/.config/opencode/skills/morph/`            | **oca**           | Edit tool selection skill                           |
 | `~/.config/opencode/skills/prioritizer/`      | **oca**           | Tradeoff analysis methodology skill                 |
-| `~/.config/opencode/skills/worktree/`         | **oca**           | Git worktree workflow skill                         |
+| `~/.config/opencode/skills/worktree/`         | **oca**           | Generic worktree boundary skill; defers ADV-managed worktrees to `adv-worktree` |
 | `~/.config/opencode/skills/mcp-selection/`    | **oca**           | MCP tool selection decision matrix skill            |
 | `~/.config/opencode/skills/caveman/`          | **oca**           | Compressed communication mode skill                 |
 | `~/.config/opencode/skills/caveman-commit/`   | **oca**           | Compressed commit message skill                     |
@@ -198,6 +199,8 @@ At v1.0 release time, the user runs `oca migrate from-open-chad` which performs 
 | `plugins/oca/` (source)                       | **oca**           | OCA umbrella plugin source (TypeScript, bun-built) |
 | `~/.config/opencode/plugins/oca/index.js`     | **oca**           | Installed OCA plugin artifact                      |
 | `$XDG_STATE_HOME/oca/panes/`                  | **oca**           | Per-pane session state (plugin write, CLI read)    |
+| `.adv/specs/`                                  | **Advance**       | In-repo capability specs, git-tracked              |
+| `.adv/archive/*/change.json`                  | **Advance**       | In-repo archive bundles written by `/adv-archive`  |
 
 Any file not in the "oca" or "Advance" column is user-owned and MUST NOT be touched by `oca apply`.
 
@@ -209,13 +212,14 @@ Advance now uses **Temporal as its primary state backend**. Key implications for
 
 - State storage moved from JSON files to Temporal durable workflows (`changeWorkflow`, `projectWorkflow`)
 - File-backed JSON is the Temporal adapter's internal persistence layer (not a runtime fallback); `ADV_DISABLE_TEMPORAL=1` is a test/dev escape hatch only
+- Worker heartbeat tuning is Advance-owned: `ADV_WORKER_HEARTBEAT_STALE_MS` controls stale-heartbeat grace and `ADV_WORKER_HEARTBEAT_INTERVAL_MS` controls heartbeat write cadence. OCA only surfaces stale-heartbeat diagnostics.
 - OCA's Phase 5 managed the Temporal infrastructure (CLI, dev server, env vars) that Advance depends on (completeTemporalOnlyMigration and retireLegacyStorageBackend branches pending upstream)
 - New `adv-engineer` agent (bundled global) for delegated code-writing execution
 - `adv-researcher` promoted from repo-scoped to bundled global
 - Worker model: in-process (Node hosts) or out-of-process child (Bun hosts via `ADV_NODE_PATH`)
 - Continue-as-new prevents unbounded workflow history (configurable thresholds)
-- Recent Advance repair work (`repairTemporalMigrationDebt`) adds cleanup and diagnostic tooling for Temporal/disk divergence. OCA should use that tooling for legacy in-repo `.adv/{changes,archive,db,agenda*}` cleanup instead of manual deletion, and must preserve `.adv/specs/`.
-- Recent Advance worker work (`boundParentProjectWorkflow`) moves toward one Temporal worker per project rather than one worker per OpenCode session. OCA doctor/status logic should avoid process-count assumptions and prefer service/workflow health checks.
+- Landed Advance repair work (`repairTemporalMigrationDebt`) provides cleanup and diagnostic tooling for Temporal/disk divergence. OCA should use that tooling for legacy in-repo `.adv/{changes,db,agenda*}` and non-bundle `.adv/archive` cleanup instead of manual deletion, and must preserve `.adv/specs/` plus valid `.adv/archive/*/change.json` bundles.
+- Landed Advance worker work (`boundParentProjectWorkflow`) uses one Temporal worker per project rather than one worker per OpenCode session. OCA doctor/status logic should avoid process-count assumptions and prefer service/workflow/heartbeat health checks.
 
 ---
 

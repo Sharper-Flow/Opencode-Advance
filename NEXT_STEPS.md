@@ -52,8 +52,8 @@ Then:
 ## Immediate implementation target (Phase 8)
 
 - Add release packaging and remaining polish from `docs/proposals/phases.md`
-- Re-check Advance `repairTemporalMigrationDebt` before release prep; if landed, run `adv_migrate_cleanup` dry-run against OCA and consider cleanup with backup/commit
-- Consider an OCA doctor warning for legacy in-repo ADV state (`.adv/changes`, `.adv/archive`, `.adv/db`, `.adv/agenda*`) while preserving `.adv/specs/`
+- Advance `repairTemporalMigrationDebt` has landed; run `adv_migrate_cleanup` dry-run against OCA before any approved cleanup with backup/commit
+- Keep OCA doctor warnings bundle-aware: warn legacy in-repo ADV state (`.adv/changes`, `.adv/db`, `.adv/agenda*`, non-bundle `.adv/archive` residue) while preserving `.adv/specs/` and valid `.adv/archive/*/change.json` bundles
 - Keep shipped config rendering behavior stable while layering release polish on top
 - Keep all writes isolated from live user config
 
@@ -109,7 +109,7 @@ Session & resource architecture work is decision-locked and ready to file as ADV
 - Do **not** write to live user config during development
 - Always use isolated config dirs via `OCA_OPENCODE_CONFIG_DIR`, `OCA_VISION_CONFIG_DIR`, `OCA_PLUGIN_CHECKOUT_ROOT`, and `OCA_CACHE_DIR`
 - Advance is a required dependency, but OCA must not duplicate Advance-owned assets
-- Do not manually delete legacy `.adv/` state; use Advance cleanup tooling after it lands, and always preserve `.adv/specs/`
+- Do not manually delete legacy `.adv/` state; use landed Advance cleanup tooling, and always preserve `.adv/specs/` plus valid `.adv/archive/*/change.json` bundles
 - Prefer per-phase ADV changes over one giant implementation change
 
 ## Key docs
