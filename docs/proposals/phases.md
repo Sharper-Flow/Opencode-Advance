@@ -4,6 +4,32 @@ OpenCode Advance v1.0 is developed in sequential phases. Each phase is one or mo
 
 ---
 
+## Now / Next (2026-05-04)
+
+**Where we are:**
+
+- Phases 0–8 shipped. v1.0 release-candidate work landed; tag publication pending.
+- Operator Dashboard v1.0 shipped (`oca dashboard`, ~1,900 LOC).
+- **In flight (other repo):** ADV plugin change `syncglobalpromptrefsinglefile` — fixes multi-`{file:...}` prompt-ref expansion failure that breaks all four ADV provider variants. Filed cross-project from this repo 2026-05-04. BLOCKER for clean `/adv-proposal` runs.
+
+**Immediate next (in order, after ADV #6 archives):**
+
+1. M3 — `installOcaUmbrellaPlugin` (1–2 h)
+2. M2 — `applyLifecycleParity`
+3. M4 — `instructionAssetsReal` (refinements pre-baked 2026-05-04: 4-file triage required)
+4. M5 — `starterMigrationValidity`
+5. M6 — `skillGuidanceRefresh` (refinements pre-baked 2026-05-04: worktree skill out of scope)
+
+All five proposal drafts pre-flight-verified 2026-05-04 — see [`../notes/2026-05-04-m-queue-preflight-verification.md`](../notes/2026-05-04-m-queue-preflight-verification.md). Filing-ready.
+
+**Then (Session & Resource Architecture):** OCA #1 Pattern B → OCA #2 hibernation → OCA #3 tmux-resurrect polish → ADV #4 idle-worker reaper → ADV #5 peer-session topology distinction.
+
+**Backlog (SHOULD):** S1 runtime doctor canaries → S2 context budget audit → S3 permission-first agent config → S4 MCP suite profiles → S5 legacy-state doctor warning.
+
+**Hygiene:** OpenCode session debt cleared 2026-05-04 (3 stale blank rows deleted via `bun ~/dev/oc-plugins/advance/scripts/opencode-session-doctor.ts --apply`).
+
+---
+
 ## Phase 0: Foundation + Brand
 
 **Status:** Complete — delivered in archived change `phase0FoundationBrand` and merged to `trunk`.
@@ -631,11 +657,18 @@ Full details, open questions, and reference implementations in the [research not
 
 ## Post-v1: OCA Reliability + Runtime Correctness Queue
 
-**Status:** Reviewed and accepted 2026-05-03. Proposal files are drafted and ready to file as ADV changes from a fresh, non-stub ADV session.
+**Status:** Reviewed and accepted 2026-05-03. **Pre-flight verified 2026-05-04** — all five MUST proposals filing-ready; M4 and M6 drafts updated in place to bake in pre-flight refinements. Filing waits on ADV #6 (`syncglobalpromptrefsinglefile`) archive + a fresh non-stub provider session.
 
 **Goal:** address OCA-owned correctness gaps surfaced by the layer-strategy follow-up before broad post-v1 session-architecture work. These changes make `oca apply`, OCA-owned assets, generated stacks, skill guidance, runtime doctor checks, and per-agent tool exposure trustworthy enough to support the larger Pattern B / hibernation track.
 
+**Pre-flight findings (2026-05-04):**
+
+- M3, M2, M5 — claims clean as drafted; file as-is.
+- M4 — live `~/.config/opencode/instructions/` has 14 files, README inventory lists 10. Proposal expanded to require triage of `caveman.md`, `criteria-prioritizer.md`, `global-verify-policy.md`, `post_install_verification.md` and a README-vs-asset-dir parity gate.
+- M6 — `worktree/SKILL.md` already clean (claim was stale); proposal scope narrowed to `assets/skills/README.md` deleted-skill cleanup + `mcp-selection/SKILL.md` schema-current MCP function names. Banned-term docs check requirement added.
+
 **Handoff queue:** [`./2026-05-03-oca-roadmap-queue.md`](./2026-05-03-oca-roadmap-queue.md)
+**Pre-flight notes:** [`../notes/2026-05-04-m-queue-preflight-verification.md`](../notes/2026-05-04-m-queue-preflight-verification.md)
 
 ### Accepted roadmap entries
 
@@ -662,7 +695,7 @@ ADV caveat: the proposals are drafted but not created as live ADV changes in thi
 
 ## Post-v1: Session & Resource Architecture
 
-**Status:** Decision-locked 2026-05-03. **Seven change proposals drafted** (one added 2026-05-03 post-reconnaissance). Broad implementation starts after the ADV provider prompt blocker is fixed and the OCA reliability MUST queue above has shipped.
+**Status:** Decision-locked 2026-05-03. **Seven change proposals drafted** (one added 2026-05-03 post-reconnaissance). **ADV #6 filed in ADV-plugin repo 2026-05-04** as `syncglobalpromptrefsinglefile` (cross-project from OCA, source draft preserved as provenance). OCA #0 = M3 in the reliability queue above. Broad implementation of OCA #1–3 + ADV #4–5 starts after the ADV provider prompt blocker is fixed and the OCA reliability MUST queue above has shipped.
 
 **Goal:** adapt OCA's session topology and resource-sharing model for the operator's actual workload — 8+ concurrent agents per project, 4–5 active projects, on a 42 GB WSL2 ceiling. Replace per-invocation tmux sessions (Pattern A) with session-per-project (Pattern B), surface per-window ADV status markers in the tmux status bar, and add graceful opencode hibernation as the dominant RAM lever (~16 GB savings at 50% idle of 40 agents).
 
@@ -697,8 +730,8 @@ ADV-repo proposals (#4, #5, #6) are drafted in this OCA repo for split coherence
 
 | Order | Change                                          | Reason                                                                                                          |
 | ----- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 1     | **ADV #6** — sync-global single-ref prompt fix   | BLOCKER. OpenCode 1.14.33 does not expand multi-`{file:...}` refs in `agent.X.prompt`; ADV provider variants run in degraded persona until fixed. Must ship before any other change can run `/adv-proposal` cleanly. |
-| 2     | **OCA reliability MUST queue** — M3 → M2 → M4/M5/M6 | PREREQ before broad OCA session architecture. M3 is the umbrella plugin install / Session Architecture #0; M2/M4/M5/M6 make apply/assets/generated stacks/skills trustworthy before larger changes. |
+| 1     | **ADV #6** — sync-global single-ref prompt fix   | BLOCKER. OpenCode 1.14.33 does not expand multi-`{file:...}` refs in `agent.X.prompt`; ADV provider variants run in degraded persona until fixed. Must ship before any other change can run `/adv-proposal` cleanly. **Status (2026-05-04):** filed in ADV-plugin repo as `syncglobalpromptrefsinglefile` (cross-project from OCA, source draft preserved at `docs/proposals/2026-05-03-adv-sync-prompt-ref-fix.md`). Operator workaround D in effect until archive. |
+| 2     | **OCA reliability MUST queue** — M3 → M2 → M4/M5/M6 | PREREQ before broad OCA session architecture. M3 is the umbrella plugin install / Session Architecture #0; M2/M4/M5/M6 make apply/assets/generated stacks/skills trustworthy before larger changes. **Pre-flight verified 2026-05-04:** see [`../notes/2026-05-04-m-queue-preflight-verification.md`](../notes/2026-05-04-m-queue-preflight-verification.md) — M3/M2/M5 ready as drafted; M4 needs README expansion (4 live files missing); M6 should drop the worktree-skill claim (already fixed) and focus on README + mcp-selection. |
 | 3     | OCA #1 — Pattern B                              | Highest UX value at 8-agent scale; unblocks #2's status surface and the rest of the OCA work.                  |
 | 4     | OCA #2 — Hibernation                            | Dominant RAM lever (~16 GB headroom). Depends on #1's status bar to surface 💤 marker.                          |
 | 5     | OCA #3 — tmux-resurrect + warning polish        | Small composable; can run in parallel with #2.                                                                  |
