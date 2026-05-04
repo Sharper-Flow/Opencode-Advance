@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -216,8 +217,20 @@ func newSessionListCmd(state *commandState) *cobra.Command {
 				return newCLIError(1, "list sessions: %v", err)
 			}
 
+			// Enrich with ADV workspace projection when available.
+			var projectID string
+			if root, err := session.ProjectRoot(ctx, ""); err == nil {
+				projectID = resolveProjectID(root)
+			}
+			projection, _ := advruntime.ProjectWorkspaceStates(projectID)
+			views := make([]advruntime.SessionView, len(sessions))
+			for i, s := range sessions {
+				views[i] = advruntime.SessionView{Name: s.Name, Attached: s.Attached, Path: s.Path}
+			}
+			enriched := advruntime.EnrichSessionsWithWorkspaceState(views, projection)
+
 			if state.output == "json" {
-				return printJSON(cmd.OutOrStdout(), sessions)
+				return printJSON(cmd.OutOrStdout(), enriched)
 			}
 
 			if len(sessions) == 0 {
@@ -225,18 +238,46 @@ func newSessionListCmd(state *commandState) *cobra.Command {
 				return nil
 			}
 
-			for _, s := range sessions {
+			for _, e := range enriched {
 				attached := "detached"
-				if s.Attached {
+				if e.Attached {
 					attached = "attached"
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\n", s.Name, attached)
+				line := fmt.Sprintf("%s\t%s", e.Name, attached)
+				if e.WorkspaceStatus != "" {
+					line += fmt.Sprintf("\t%s", e.WorkspaceStatus)
+					if e.WorkspaceFailure != "" {
+						line += fmt.Sprintf(" (%s)", e.WorkspaceFailure)
+					}
+				}
+				fmt.Fprintln(cmd.OutOrStdout(), line)
 			}
 			return nil
 		},
 	}
 
 	return cmd
+}
+
+// resolveProjectID computes the ADV project ID (root commit SHA) for a git
+// repository root. Returns empty string on any failure.
+func resolveProjectID(repoRoot string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		return ""
+	}
+	// Match ADV's project-id logic: first commit hash of the repo.
+	res, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    gitPath,
+		Args:    []string{"-C", repoRoot, "rev-list", "--max-parents=0", "HEAD"},
+		Timeout: 5 * time.Second,
+	})
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(res.Output))
 }
 
 // sessionSocket returns the tmux socket name for OCA sessions.
