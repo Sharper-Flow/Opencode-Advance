@@ -15,6 +15,7 @@ import (
 	cfg "github.com/Sharper-Flow/Opencode-Advance/internal/config"
 	"github.com/Sharper-Flow/Opencode-Advance/internal/health"
 	"github.com/Sharper-Flow/Opencode-Advance/internal/render"
+	"github.com/Sharper-Flow/Opencode-Advance/internal/session"
 	"github.com/spf13/cobra"
 )
 
@@ -39,6 +40,10 @@ type exitCoder interface{ ExitCode() int }
 type cliError struct {
 	code int
 	err  error
+}
+
+var attachProjectSession = func(ctx context.Context, mgr *session.Manager, name string) error {
+	return mgr.Attach(ctx, name)
 }
 
 func (e *cliError) Error() string { return e.err.Error() }
@@ -69,7 +74,7 @@ func newRootCmd(opts commandOptions) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmd.Help()
+			return runRootDefault(cmd, state)
 		},
 	}
 
@@ -100,6 +105,74 @@ func newRootCmd(opts commandOptions) *cobra.Command {
 	cmd.AddCommand(newAdvCmd(state))
 	cmd.AddCommand(newOccupancyCmd(state))
 	return cmd
+}
+
+func runRootDefault(cmd *cobra.Command, state *commandState) error {
+	if err := validateOutputMode(state.output); err != nil {
+		return err
+	}
+
+	stack, stackErr := loadStack(state)
+	mode := "project"
+	if stackErr == nil && stack.Session != nil && stack.Session.Mode != "" {
+		mode = stack.Session.Mode
+	}
+	if mode == "per-invocation" {
+		return runSessionNew(cmd, state, "", false)
+	}
+
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return newCLIError(1, "get working directory: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	projectRoot, err := session.ProjectRoot(ctx, workingDir)
+	if err != nil {
+		fmt.Fprintln(cmd.OutOrStdout(), "not in a git project; run `oca session list` to see existing sessions")
+		return nil
+	}
+
+	socket := sessionSocket()
+	mgr, err := session.NewManager(socket)
+	if err != nil {
+		return newCLIError(1, "session manager: %v", err)
+	}
+
+	theme := defaultTheme
+	if stackErr == nil && stack.Session != nil && stack.Session.Theme != "" {
+		theme = stack.Session.Theme
+	}
+	tmuxConf := resolveTmuxConf(theme)
+
+	s, _, err := mgr.GetOrCreateProjectSession(ctx, projectRoot, tmuxConf)
+	if err != nil {
+		return newCLIError(1, "project session: %v", err)
+	}
+	repoRoot := mustGetRepoRoot()
+	if repoRoot != "." {
+		if err := mgr.SetGlobalEnv(ctx, "OCA_REPO_ROOT", repoRoot); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to set OCA_REPO_ROOT: %v\n", err)
+		}
+	}
+	if stackErr == nil && stack.Session != nil && stack.Session.Watchdog != nil {
+		if err := mgr.ApplyWatchdogEnv(ctx, stack.Session.Watchdog); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to set watchdog env: %v\n", err)
+		}
+	}
+
+	if state.output == "json" {
+		type result struct {
+			Session string `json:"session"`
+			Socket  string `json:"socket"`
+			Status  string `json:"status"`
+		}
+		if err := printJSON(cmd.OutOrStdout(), result{Session: s.Name, Socket: socket, Status: "attached"}); err != nil {
+			return err
+		}
+	}
+	return attachProjectSession(ctx, mgr, s.Name)
 }
 
 func defaultCommandOptions() commandOptions {

@@ -55,127 +55,7 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 		Short: "Create a new OCA tmux session",
 		Long:  "Create a new detached tmux session with Obsidian theming and optional boot splash.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := validateOutputMode(state.output); err != nil {
-				return err
-			}
-
-			socket := sessionSocket()
-			mgr, err := session.NewManager(socket)
-			if err != nil {
-				return newCLIError(1, "session manager: %v", err)
-			}
-
-			workingDir, err := os.Getwd()
-			if err != nil {
-				return newCLIError(1, "get working directory: %v", err)
-			}
-
-			// Resolve repo slug from working dir basename
-			repoSlug := filepath.Base(workingDir)
-
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-
-			// Load stack config once — drives theme, watchdog, reaper, and
-			// boot-splash decisions below. Failures are non-fatal: each
-			// consumer falls back to v1 defaults so `oca session new` still
-			// works in fresh environments before stack.toml exists.
-			stack, stackErr := loadStack(state)
-
-			// Preflight: warn about ADV runtime debt before creating session.
-			// Never blocks session creation — warnings only.
-			if stackErr == nil {
-				runSessionPreflight(ctx, cmd.ErrOrStderr(), stack)
-			}
-
-			// Auto-generate name if not provided
-			if sessionName == "" {
-				sessionName, err = mgr.NextSessionName(ctx, repoSlug)
-				if err != nil {
-					return newCLIError(1, "generate session name: %v", err)
-				}
-			}
-
-			// Resolve tmux conf from configured theme (default "obsidian"
-			// on missing config or unset theme; empty conf path on unknown
-			// theme = graceful degrade per design KD4).
-			theme := defaultTheme
-			if stackErr == nil && stack.Session != nil && stack.Session.Theme != "" {
-				theme = stack.Session.Theme
-			}
-			tmuxConf := resolveTmuxConf(theme)
-
-			err = mgr.Create(ctx, sessionName, workingDir, tmuxConf)
-			if err != nil {
-				return newCLIError(1, "create session: %v", err)
-			}
-
-			// Inject OCA_REPO_ROOT into tmux global env so status_bar.sh
-			// can be found by obsidian.tmux.conf #() expansions.
-			repoRoot := mustGetRepoRoot()
-			if repoRoot != "." {
-				if err := mgr.SetGlobalEnv(ctx, "OCA_REPO_ROOT", repoRoot); err != nil {
-					// Non-fatal: status bar degrades gracefully when unset
-					fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to set OCA_REPO_ROOT: %v\n", err)
-				}
-			}
-
-			// Inject watchdog config into tmux global env so the OCA
-			// plugin can read it at startup. Non-fatal on error.
-			if stackErr == nil && stack.Session != nil && stack.Session.Watchdog != nil {
-				if err := mgr.ApplyWatchdogEnv(ctx, stack.Session.Watchdog); err != nil {
-					fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to set watchdog env: %v\n", err)
-				}
-			}
-
-			// Auto-reap stale sessions in the background. Default ON; controlled
-			// by [session].reaper. Fire-and-forget — must not block session
-			// creation. Uses context.Background() with its own timeout so the
-			// 15s cobra ctx cancelling on RunE return does not cancel the
-			// reap mid-flight.
-			autoReap := true
-			reapThreshold := 4 * time.Hour
-			if stackErr == nil && stack.Session != nil {
-				autoReap = stack.Session.Reaper
-				if stack.Session.ReaperThreshold > 0 {
-					reapThreshold = stack.Session.ReaperThreshold
-				}
-			}
-			if autoReap {
-				go func(threshold time.Duration) {
-					bgCtx, bgCancel := context.WithTimeout(context.Background(), 30*time.Second)
-					defer bgCancel()
-					if _, err := mgr.ReapStale(bgCtx, threshold); err != nil {
-						fmt.Fprintf(os.Stderr, "warning: auto-reap: %v\n", err)
-					}
-				}(reapThreshold)
-			}
-
-			// Trigger boot splash. Default ON; controlled by [session].boot_splash.
-			// CLI --no-splash always wins, even when config says true.
-			bootSplash := true
-			if stackErr == nil && stack.Session != nil {
-				bootSplash = stack.Session.BootSplash
-			}
-			if bootSplash && !noSplash {
-				triggerSplash(ctx, socket, sessionName, state)
-			}
-
-			if state.output == "json" {
-				type result struct {
-					Session string `json:"session"`
-					Socket  string `json:"socket"`
-					Status  string `json:"status"`
-				}
-				return printJSON(cmd.OutOrStdout(), result{
-					Session: sessionName,
-					Socket:  socket,
-					Status:  "created",
-				})
-			}
-
-			fmt.Fprintf(cmd.OutOrStdout(), "session %s created (socket: %s)\n", sessionName, socket)
-			return nil
+			return runSessionNew(cmd, state, sessionName, noSplash)
 		},
 	}
 
@@ -183,6 +63,130 @@ func newSessionNewCmd(state *commandState) *cobra.Command {
 	cmd.Flags().BoolVar(&noSplash, "no-splash", false, "Skip boot splash on session creation")
 
 	return cmd
+}
+
+func runSessionNew(cmd *cobra.Command, state *commandState, sessionName string, noSplash bool) error {
+	if err := validateOutputMode(state.output); err != nil {
+		return err
+	}
+
+	socket := sessionSocket()
+	mgr, err := session.NewManager(socket)
+	if err != nil {
+		return newCLIError(1, "session manager: %v", err)
+	}
+
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return newCLIError(1, "get working directory: %v", err)
+	}
+
+	// Resolve repo slug from working dir basename
+	repoSlug := filepath.Base(workingDir)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Load stack config once — drives theme, watchdog, reaper, and
+	// boot-splash decisions below. Failures are non-fatal: each
+	// consumer falls back to v1 defaults so `oca session new` still
+	// works in fresh environments before stack.toml exists.
+	stack, stackErr := loadStack(state)
+
+	// Preflight: warn about ADV runtime debt before creating session.
+	// Never blocks session creation — warnings only.
+	if stackErr == nil {
+		runSessionPreflight(ctx, cmd.ErrOrStderr(), stack)
+	}
+
+	// Auto-generate name if not provided
+	if sessionName == "" {
+		sessionName, err = mgr.NextSessionName(ctx, repoSlug)
+		if err != nil {
+			return newCLIError(1, "generate session name: %v", err)
+		}
+	}
+
+	// Resolve tmux conf from configured theme (default "obsidian"
+	// on missing config or unset theme; empty conf path on unknown
+	// theme = graceful degrade per design KD4).
+	theme := defaultTheme
+	if stackErr == nil && stack.Session != nil && stack.Session.Theme != "" {
+		theme = stack.Session.Theme
+	}
+	tmuxConf := resolveTmuxConf(theme)
+
+	err = mgr.Create(ctx, sessionName, workingDir, tmuxConf)
+	if err != nil {
+		return newCLIError(1, "create session: %v", err)
+	}
+
+	// Inject OCA_REPO_ROOT into tmux global env so status_bar.sh
+	// can be found by obsidian.tmux.conf #() format expansions.
+	repoRoot := mustGetRepoRoot()
+	if repoRoot != "." {
+		if err := mgr.SetGlobalEnv(ctx, "OCA_REPO_ROOT", repoRoot); err != nil {
+			// Non-fatal: status bar degrades gracefully when unset
+			fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to set OCA_REPO_ROOT: %v\n", err)
+		}
+	}
+
+	// Inject watchdog config into tmux global environment so the OCA
+	// plugin can read it at startup. Non-fatal on error.
+	if stackErr == nil && stack.Session != nil && stack.Session.Watchdog != nil {
+		if err := mgr.ApplyWatchdogEnv(ctx, stack.Session.Watchdog); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to set watchdog env: %v\n", err)
+		}
+	}
+
+	// Auto-reap stale sessions in the background. Default ON; controlled
+	// by [session].reaper. Fire-and-forget — must not block session
+	// creation. Uses context.Background() with its own timeout so the
+	// 15s cobra ctx cancelling on RunE return does not cancel the
+	// reap mid-flight.
+	autoReap := true
+	reapThreshold := 4 * time.Hour
+	if stackErr == nil && stack.Session != nil {
+		autoReap = stack.Session.Reaper
+		if stack.Session.ReaperThreshold > 0 {
+			reapThreshold = stack.Session.ReaperThreshold
+		}
+	}
+	if autoReap {
+		go func(threshold time.Duration) {
+			bgCtx, bgCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer bgCancel()
+			if _, err := mgr.ReapStale(bgCtx, threshold); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: auto-reap: %v\n", err)
+			}
+		}(reapThreshold)
+	}
+
+	// Trigger boot splash. Default ON; controlled by [session].boot_splash.
+	// CLI --no-splash always wins, even when config says true.
+	bootSplash := true
+	if stackErr == nil && stack.Session != nil {
+		bootSplash = stack.Session.BootSplash
+	}
+	if bootSplash && !noSplash {
+		triggerSplash(ctx, socket, sessionName, state)
+	}
+
+	if state.output == "json" {
+		type result struct {
+			Session string `json:"session"`
+			Socket  string `json:"socket"`
+			Status  string `json:"status"`
+		}
+		return printJSON(cmd.OutOrStdout(), result{
+			Session: sessionName,
+			Socket:  socket,
+			Status:  "created",
+		})
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "session %s created (socket: %s)\n", sessionName, socket)
+	return nil
 }
 
 func newSessionListCmd(state *commandState) *cobra.Command {
