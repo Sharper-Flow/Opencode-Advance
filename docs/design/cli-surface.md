@@ -2,7 +2,7 @@
 
 This document separates the **implemented CLI** from the broader **planned v1.0 command surface**.
 
-Phase 1 shipped `oca version`, `oca apply --target mcp`, `oca doctor --scope mcp`, and `oca debug`. Phase 2 extended the surface with plugin/instructions targets on `apply`, added new `oca pin` and `oca update` commands, and extended `oca doctor` with a `plugins` scope and a `--network` flag. Phases 3–3.5 extended apply/diff/doctor. Phase 4 shipped session lifecycle. Phase 5 shipped temporal config. Phase 5.5 shipped slot groups. Phase 6 shipped `oca install`, `oca uninstall`, and `oca completion`. Phase 6.5 shipped `oca temporal` dev-server supervision subcommands. Phase 7 shipped `adv-plugin` and `cross` doctor scopes.
+Phase 1 shipped `oca version`, `oca apply --target mcp`, `oca doctor --scope mcp`, and `oca debug`. Phase 2 extended the surface with plugin/instructions targets on `apply`, added new `oca pin` and `oca update` commands, and extended `oca doctor` with a `plugins` scope and a `--network` flag. Phases 3–3.5 extended apply/diff/doctor. Phase 4 shipped session lifecycle. Phase 5 shipped temporal config. Phase 5.5 shipped slot groups. Phase 6 shipped `oca install`, `oca uninstall`, and `oca completion`. Phase 6.5 shipped `oca temporal` dev-server supervision subcommands. Phase 7 shipped `adv-plugin` and `cross` doctor scopes. The worktree occupancy visibility change added `oca occupancy`.
 
 ## Shipped in Phase 1
 
@@ -443,6 +443,28 @@ Behavior:
 ### `oca pane`
 
 Per-pane state operations for OCA tmux sessions. Reads and writes JSON state in `$XDG_STATE_HOME/oca/panes/` for session ↔ directory ↔ watchdog correlation.
+
+### `oca occupancy`
+
+Show which OCA panes occupy which worktrees. The command reads local pane state from `$XDG_STATE_HOME/oca/panes/`, reconciles with live tmux pane metadata when available, groups occupants by project/worktree, and warns when multiple active sessions share one worktree.
+
+Flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--all` | include stale pane-state records |
+| `--json` | emit machine-readable groups, warnings, malformed count, and stale count |
+| `--socket <name>` | filter pane-state records by tmux socket |
+| `--path <dir>` | filter occupants by directory/worktree path prefix |
+| `--status` | emit compact current-pane status for tmux status bar use |
+| `--pane <id>` | target pane for `--status` mode |
+
+Privacy/behavior:
+
+- local CLI output may include local worktree paths and branch names;
+- the compact status path is fail-closed and prints `?` on missing state/errors;
+- no chat/message content is read;
+- visibility only — it never locks or blocks multiple sessions.
 
 ### `oca watchdog`
 
