@@ -131,6 +131,31 @@ else
   printf 'SKIP (oca binary not built)\n'
 fi
 
+printf 'occupancy: row0 passes explicit pane id to oca... '
+FAKE_BIN_DIR=$(mktemp -d)
+cat > "$FAKE_BIN_DIR/oca" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" > "${OCA_FAKE_ARGS_FILE:?}"
+printf '1× trunk'
+EOF
+chmod +x "$FAKE_BIN_DIR/oca"
+ARGS_FILE=$(mktemp)
+OLD_PATH="$PATH"
+export OCA_FAKE_ARGS_FILE="$ARGS_FILE"
+PATH="$FAKE_BIN_DIR:$PATH"
+hash -r
+OUTPUT=$(TMUX_PANE="%wrong" oca_status_row0 "test" "/tmp" "%expected")
+PATH="$OLD_PATH"
+hash -r
+unset OCA_FAKE_ARGS_FILE
+ARGS=$(cat "$ARGS_FILE")
+rm -rf "$FAKE_BIN_DIR" "$ARGS_FILE"
+if [[ "$ARGS" != *"--pane %expected"* ]]; then
+  printf 'FAIL: expected explicit pane id, got %q\n' "$ARGS" >&2
+  exit 1
+fi
+printf 'OK\n'
+
 printf 'occupancy: timeout kills slow invocation... '
 if [[ -x "$OCA_BIN" ]]; then
   # 0.1s timeout should still return quickly

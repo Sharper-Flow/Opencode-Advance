@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { execFileSync } from "child_process";
 
 import {
   xdgStateHome,
@@ -34,6 +35,13 @@ describe("state-file", () => {
     atomicWriteJSON(file, { sessionID: "ses_abc", directory: "/tmp", ts: 123 });
     const got = readJSON(file);
     expect(got).toEqual({ sessionID: "ses_abc", directory: "/tmp", ts: 123 });
+  });
+
+  it("writes state files owner-readable only", () => {
+    const file = path.join(tmpDir, "secure.json");
+    atomicWriteJSON(file, { sessionID: "ses_secure" });
+    const mode = fs.statSync(file).mode & 0o777;
+    expect(mode).toBe(0o600);
   });
 
   it("deletes existing file", () => {
@@ -285,6 +293,35 @@ describe("v2 pane state enrichment", () => {
     const stateFile = path.join(tmpDir, "oca", "panes", "oca", "42.json");
     const got = readJSON(stateFile);
     expect(got.agent).toBe("adv");
+  });
+
+  it("v2 enriches git metadata from repo subdirectories", async () => {
+    const repo = path.join(tmpDir, "repo");
+    const subdir = path.join(repo, "nested");
+    fs.mkdirSync(subdir, { recursive: true });
+    execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
+    execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+    execFileSync("git", ["config", "user.name", "Test"], { cwd: repo });
+    fs.writeFileSync(path.join(repo, "README.md"), "test\n");
+    execFileSync("git", ["add", "README.md"], { cwd: repo });
+    execFileSync("git", ["commit", "-m", "init"], { cwd: repo, stdio: "ignore" });
+
+    const mod = await import("../src/index");
+    const hooks = await mod.default({ $: {} } as any, {} as any);
+    await hooks.event!({
+      event: {
+        type: "session.created",
+        properties: { info: { id: "ses_git", directory: subdir } },
+      },
+    });
+
+    const stateFile = path.join(tmpDir, "oca", "panes", "oca", "42.json");
+    const got = readJSON(stateFile);
+    expect(got.gitRoot).toBe(repo);
+    expect(got.worktreePath).toBe(repo);
+    expect(typeof got.gitCommonDir).toBe("string");
+    expect(typeof got.projectId).toBe("string");
+    expect(got.projectId.length).toBeGreaterThan(0);
   });
 
   it("v2 omits agent when env not set", async () => {

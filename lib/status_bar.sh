@@ -2,7 +2,7 @@
 # status_bar.sh — Live tmux status bar content generator.
 #
 # Called by tmux #() with format variable expansion.
-# Usage: status_bar.sh {row0|row1} <session_name> <pane_path>
+# Usage: status_bar.sh {row0|row1} <session_name> <pane_path> [pane_id]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -79,6 +79,7 @@ _oca_discord_update() {
 oca_status_row0() {
   local session_name="$1"
   local pane_path="$2"
+  local pane_id="${3:-}"
 
   _oca_discord_update
 
@@ -105,7 +106,10 @@ oca_status_row0() {
 
   # Occupancy (compact status from oca occupancy --status --pane)
   local occupancy_seg
-  occupancy_seg=$(timeout 0.5s oca occupancy --status --pane "${TMUX_PANE:-}" 2>/dev/null)
+  occupancy_seg=""
+  if [[ -n "$pane_id" ]]; then
+    occupancy_seg=$(timeout 0.5s oca occupancy --status --pane "$pane_id" 2>/dev/null)
+  fi
   if [[ -n "$occupancy_seg" ]]; then
     printf ' %s' "$(_oca_status_color '#2D3138')│$(_oca_status_reset)"
     # Color warning (multiple occupants) differently
@@ -154,7 +158,7 @@ oca_status_row1() {
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   case "${1:-}" in
     row0)
-      oca_status_row0 "${2:-}" "${3:-}"
+      oca_status_row0 "${2:-}" "${3:-}" "${4:-}"
       ;;
     row1)
       oca_status_row1 "${2:-}"

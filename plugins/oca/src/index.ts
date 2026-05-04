@@ -3,8 +3,7 @@ import { xdgStateHome, atomicWriteJSON, readJSON, deleteStateFile } from "./stat
 import { parseSocketFromTmux, sanitizePaneId } from "./tmux";
 import { initWatchdog, handleWatchdogEvent } from "./watchdog";
 import * as path from "path";
-import * as fs from "fs";
-import * as os from "os";
+import { execFileSync } from "child_process";
 
 function stateFilePath(input: { directory?: string } | null): string | null {
   const paneId = process.env.TMUX_PANE;
@@ -40,50 +39,37 @@ function buildV2State(info: { id: string; directory?: string }): Record<string, 
   const agent = process.env.OPENCODE_AGENT;
   if (agent) state.agent = agent;
 
-  // Git metadata (best-effort from directory)
+  // Git metadata (best-effort from directory). Use git directly instead of
+  // checking for <directory>/.git so subdirectories of a worktree are handled.
   const dir = info.directory;
   if (dir) {
     try {
-      // Try to find .git and extract project info
-      const gitDir = path.join(dir, ".git");
-      if (fs.existsSync(gitDir)) {
-        state.gitRoot = dir;
-        // Resolve gitCommonDir (handles worktrees where .git is a file)
-        const gitStat = fs.statSync(gitDir);
-        if (gitStat.isDirectory()) {
-          state.gitCommonDir = gitDir;
-        } else {
-          // .git file in worktree — read gitdir pointer
-          const content = fs.readFileSync(gitDir, "utf8").trim();
-          const match = content.match(/^gitdir:\s*(.+)$/m);
-          if (match) {
-            const gitdir = match[1].trim();
-            state.gitCommonDir = path.resolve(dir, gitdir);
-          }
-        }
+      const git = (args: string[]) => execFileSync("git", args, {
+        cwd: dir,
+        encoding: "utf8",
+        timeout: 2000,
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
 
-        // Project ID from root commit SHA
-        try {
-          const { execSync } = require("child_process");
-          const rootCommit = execSync("git rev-list --max-parents=0 HEAD", {
-            cwd: dir,
-            encoding: "utf8",
-            timeout: 2000,
-          }).trim();
-          if (rootCommit) state.projectId = rootCommit;
-        } catch { /* best-effort */ }
+      const gitRoot = git(["rev-parse", "--show-toplevel"]);
+      if (gitRoot) {
+        state.gitRoot = gitRoot;
+        state.worktreePath = gitRoot;
+      }
 
-        // Worktree info
-        try {
-          const { execSync } = require("child_process");
-          state.worktreePath = dir;
-          const branch = execSync("git rev-parse --abbrev-ref HEAD", {
-            cwd: dir,
-            encoding: "utf8",
-            timeout: 2000,
-          }).trim();
-          if (branch && branch !== "HEAD") state.worktreeBranch = branch;
-        } catch { /* best-effort */ }
+      const commonDir = git(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+      if (commonDir) {
+        state.gitCommonDir = path.resolve(dir, commonDir);
+      }
+
+      const rootCommit = git(["rev-list", "--max-parents=0", "HEAD"]);
+      if (rootCommit) {
+        state.projectId = rootCommit;
+      }
+
+      const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
+      if (branch && branch !== "HEAD") {
+        state.worktreeBranch = branch;
       }
     } catch { /* best-effort: ignore permission/ENOENT */ }
   }

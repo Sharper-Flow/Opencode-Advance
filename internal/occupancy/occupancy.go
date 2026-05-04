@@ -152,7 +152,8 @@ func DiscoverRecords(stateDir string) (records []PaneRecord, malformed int, err 
 	// Walk recursively to find all .json files under socket subdirs
 	filepath.WalkDir(stateDir, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
-			return nil // skip errors
+			bad++
+			return nil // continue best-effort discovery while surfacing skipped entries
 		}
 		if d.IsDir() || filepath.Ext(path) != ".json" {
 			return nil
@@ -291,8 +292,7 @@ func OccupancyWarnings(classified []ClassifiedRecord) []OccupancyWarning {
 // enrichment. When tmux cwd disagrees with pane state directory, the tmux value
 // wins and DirectoryDrift is set.
 func Reconcile(records []PaneRecord, livePanes map[string]bool, tmuxCwd map[string]string) []ClassifiedRecord {
-	now := time.Now()
-	classified := ClassifyLiveness(records, livePanes, now)
+	classified := ClassifyLiveness(records, livePanes, time.Now())
 
 	for i := range classified {
 		c := &classified[i]
@@ -308,11 +308,6 @@ func Reconcile(records []PaneRecord, livePanes map[string]bool, tmuxCwd map[stri
 			c.DirectoryDrift = true
 		}
 		c.Directory = tmuxDir
-		// Also update worktree path if it matched the old directory
-		if c.WorktreePath != "" && !c.DirectoryDrift {
-			// Only update worktreePath if it was equal to old directory
-			// (don't override if it was explicitly different)
-		}
 	}
 
 	return classified
