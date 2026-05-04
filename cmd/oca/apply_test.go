@@ -222,6 +222,42 @@ namespace = "default"
 	}
 }
 
+func TestApplyCommand_BareApplyRendersTemporal(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(tmp, "opencode"))
+	t.Setenv("OCA_VISION_CONFIG_DIR", filepath.Join(tmp, "vision"))
+	t.Setenv("OCA_CACHE_DIR", filepath.Join(tmp, "cache"))
+
+	stackPath := filepath.Join(tmp, "stack.toml")
+	writeFile(t, stackPath, `[meta]
+version = "1.0.0"
+
+[temporal]
+enabled = true
+address = "127.0.0.1:7233"
+namespace = "default"
+`)
+
+	var stdout, stderr bytes.Buffer
+	cmd := newRootCmd(commandOptions{Stdout: &stdout, Stderr: &stderr, Environment: brand.Environment{IsTTY: false}})
+	cmd.SetArgs([]string{"apply", "--config", stackPath})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("bare apply temporal render: %v stderr=%s stdout=%s", err, stderr.String(), stdout.String())
+	}
+
+	envPath := filepath.Join(tmp, "cache", "temporal.env")
+	if !strings.Contains(stdout.String(), envPath) {
+		t.Fatalf("expected path in stdout, got stdout=%q", stdout.String())
+	}
+	content, err := os.ReadFile(envPath)
+	if err != nil {
+		t.Fatalf("read temporal.env: %v", err)
+	}
+	if !strings.Contains(string(content), "ADV_TEMPORAL_ADDRESS=127.0.0.1:7233") {
+		t.Fatalf("unexpected content: %s", string(content))
+	}
+}
+
 func initPluginRemote(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
