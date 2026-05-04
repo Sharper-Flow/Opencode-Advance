@@ -58,10 +58,10 @@ type PaneRecord struct {
 	Agent string `json:"agent,omitempty"`
 
 	// Git metadata
-	GitRoot       string `json:"gitRoot,omitempty"`
-	GitCommonDir  string `json:"gitCommonDir,omitempty"`
-	ProjectID     string `json:"projectId,omitempty"`
-	WorktreePath  string `json:"worktreePath,omitempty"`
+	GitRoot        string `json:"gitRoot,omitempty"`
+	GitCommonDir   string `json:"gitCommonDir,omitempty"`
+	ProjectID      string `json:"projectId,omitempty"`
+	WorktreePath   string `json:"worktreePath,omitempty"`
 	WorktreeBranch string `json:"worktreeBranch,omitempty"`
 
 	// Reconciliation-enriched fields (not persisted)
@@ -72,23 +72,23 @@ type PaneRecord struct {
 // rawPane is the wire format for JSON parsing.
 // json.Number is used for ts to handle both number and string forms.
 type rawPane struct {
-	SchemaVersion  int             `json:"schemaVersion"`
-	SessionID      string          `json:"sessionID"`
-	Directory      string          `json:"directory"`
-	Ts             json.Number     `json:"ts"`
-	StartedAt      json.Number     `json:"startedAt"`
-	LastSeenAt     json.Number     `json:"lastSeenAt"`
-	Socket         string          `json:"socket"`
-	PaneID         string          `json:"paneID"`
-	SessionName    string          `json:"sessionName"`
-	WindowID       string          `json:"windowID"`
-	WindowName     string          `json:"windowName"`
-	Agent          string          `json:"agent"`
-	GitRoot        string          `json:"gitRoot"`
-	GitCommonDir   string          `json:"gitCommonDir"`
-	ProjectID      string          `json:"projectId"`
-	WorktreePath   string          `json:"worktreePath"`
-	WorktreeBranch string          `json:"worktreeBranch"`
+	SchemaVersion  int         `json:"schemaVersion"`
+	SessionID      string      `json:"sessionID"`
+	Directory      string      `json:"directory"`
+	Ts             json.Number `json:"ts"`
+	StartedAt      json.Number `json:"startedAt"`
+	LastSeenAt     json.Number `json:"lastSeenAt"`
+	Socket         string      `json:"socket"`
+	PaneID         string      `json:"paneID"`
+	SessionName    string      `json:"sessionName"`
+	WindowID       string      `json:"windowID"`
+	WindowName     string      `json:"windowName"`
+	Agent          string      `json:"agent"`
+	GitRoot        string      `json:"gitRoot"`
+	GitCommonDir   string      `json:"gitCommonDir"`
+	ProjectID      string      `json:"projectId"`
+	WorktreePath   string      `json:"worktreePath"`
+	WorktreeBranch string      `json:"worktreeBranch"`
 }
 
 // Parse parses a single pane state JSON blob into PaneRecords.

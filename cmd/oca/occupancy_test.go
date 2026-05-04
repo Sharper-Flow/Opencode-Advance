@@ -145,14 +145,14 @@ func TestPrintOccupancyHumanBasic(t *testing.T) {
 	records := []occupancy.ClassifiedRecord{
 		{
 			PaneRecord: occupancy.PaneRecord{
-				SessionID:   "s1",
-				Directory:   "/home/user/proj",
-				ProjectID:   "abc12345",
-				WorktreePath: "/home/user/proj",
+				SessionID:      "s1",
+				Directory:      "/home/user/proj",
+				ProjectID:      "abc12345",
+				WorktreePath:   "/home/user/proj",
 				WorktreeBranch: "trunk",
-				PaneID:      "%1",
-				Agent:       "adv",
-				LastSeenAt:  time.Now().Add(-5 * time.Second).UnixMilli(),
+				PaneID:         "%1",
+				Agent:          "adv",
+				LastSeenAt:     time.Now().Add(-5 * time.Second).UnixMilli(),
 			},
 			Liveness: occupancy.Active,
 		},
@@ -179,11 +179,11 @@ func TestPrintOccupancyHumanWithWarning(t *testing.T) {
 	records := []occupancy.ClassifiedRecord{
 		{
 			PaneRecord: occupancy.PaneRecord{SessionID: "s1", WorktreePath: "/a", PaneID: "%1", Agent: "adv"},
-			Liveness: occupancy.Active,
+			Liveness:   occupancy.Active,
 		},
 		{
 			PaneRecord: occupancy.PaneRecord{SessionID: "s2", WorktreePath: "/a", PaneID: "%2", Agent: "build"},
-			Liveness: occupancy.Active,
+			Liveness:   occupancy.Active,
 		},
 	}
 	warnings := occupancy.OccupancyWarnings(records)
