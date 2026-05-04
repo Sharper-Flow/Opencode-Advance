@@ -381,6 +381,7 @@ agent       = "build"
 
 [session]
 prefix           = "oca-"
+mode             = "project" # project = one tmux session per repo; per-invocation = legacy oca-<slug>-<n>
 reaper           = true     # auto-run stale-session reaper on `oca session new`
 reaper_threshold = "4h"     # age above which an unattached oca-* session is reaped
 theme            = "obsidian"

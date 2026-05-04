@@ -804,8 +804,12 @@ type ProviderListSection struct {
 // SessionSection is the [session] table. Carries session-level configuration
 // including the watchdog subsystem for automatic hang detection and recovery.
 //
-// Reaper, ReaperThreshold, Theme, and BootSplash drive `oca session new`
+// Mode, Reaper, ReaperThreshold, Theme, and BootSplash drive `oca session new`
 // behavior:
+//   - Mode: session topology. "project" (default) uses one tmux session per
+//     project with multiple worktree windows. "per-invocation" preserves the
+//     legacy Pattern A behavior that creates a new oca-<slug>-<n> session per
+//     launch.
 //   - Reaper: run the stale-session reaper as a fire-and-forget goroutine
 //     after creating a new session. Default true.
 //   - ReaperThreshold: age above which an unattached session is considered
@@ -817,6 +821,7 @@ type ProviderListSection struct {
 //     Default true. CLI `--no-splash` always wins.
 type SessionSection struct {
 	Prefix          string          `toml:"prefix,omitempty"`
+	Mode            string          `toml:"mode,omitempty"`
 	Reaper          bool            `toml:"reaper,omitempty"`
 	ReaperThreshold time.Duration   `toml:"reaper_threshold,omitempty"`
 	Theme           string          `toml:"theme,omitempty"`
@@ -856,6 +861,12 @@ func (s *SessionSection) UnmarshalTOML(value any) error {
 		case "prefix":
 			if str, ok := v.(string); ok {
 				s.Prefix = str
+			}
+		case "mode":
+			if str, ok := v.(string); ok {
+				s.Mode = str
+			} else {
+				return fmt.Errorf("mode: expected string, got %T", v)
 			}
 		case "reaper":
 			if b, ok := v.(bool); ok {

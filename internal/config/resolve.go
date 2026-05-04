@@ -58,6 +58,9 @@ func (s *Stack) Resolve() {
 // flags (reaperSet, bootSplashSet) distinguish "unset" from "explicitly
 // false" so user-set `reaper = false` survives Resolve.
 func (s *SessionSection) applyDefaults() {
+	if s.Mode == "" {
+		s.Mode = "project"
+	}
 	if !s.reaperSet {
 		s.Reaper = true
 	}

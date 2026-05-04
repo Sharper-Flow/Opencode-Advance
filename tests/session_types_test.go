@@ -181,6 +181,7 @@ version = "1.0.0"
 
 [session]
 prefix           = "oca-"
+mode             = "per-invocation"
 reaper           = true
 reaper_threshold = "2h"
 theme            = "obsidian"
@@ -204,12 +205,15 @@ boot_splash      = false
 	if stack.Session.Theme != "obsidian" {
 		t.Errorf("Theme = %q, want obsidian", stack.Session.Theme)
 	}
+	if stack.Session.Mode != "per-invocation" {
+		t.Errorf("Mode = %q, want per-invocation", stack.Session.Mode)
+	}
 	if stack.Session.BootSplash {
 		t.Error("BootSplash = true, want false (explicit override)")
 	}
 
 	// Extra map must NOT contain any of the now-typed keys.
-	for _, k := range []string{"reaper", "reaper_threshold", "theme", "boot_splash"} {
+	for _, k := range []string{"mode", "reaper", "reaper_threshold", "theme", "boot_splash"} {
 		if _, ok := stack.Session.Extra[k]; ok {
 			t.Errorf("Extra map still contains typed key %q — UnmarshalTOML did not consume it", k)
 		}
@@ -242,9 +246,65 @@ prefix = "oca-"
 	if stack.Session.Theme != "obsidian" {
 		t.Errorf("Theme default = %q, want obsidian", stack.Session.Theme)
 	}
+	if stack.Session.Mode != "project" {
+		t.Errorf("Mode default = %q, want project", stack.Session.Mode)
+	}
 	if !stack.Session.BootSplash {
 		t.Error("BootSplash default = false, want true")
 	}
+}
+
+func TestSessionSection_ModeValidation(t *testing.T) {
+	t.Run("explicit_project_mode", func(t *testing.T) {
+		toml := `
+[meta]
+version = "1.0.0"
+
+[session]
+mode = "project"
+`
+		stack, err := loadFromBytes([]byte(toml))
+		if err != nil {
+			t.Fatalf("loadFromBytes failed: %v", err)
+		}
+		if stack.Session.Mode != "project" {
+			t.Errorf("Mode = %q, want project", stack.Session.Mode)
+		}
+	})
+
+	t.Run("explicit_per_invocation_mode", func(t *testing.T) {
+		toml := `
+[meta]
+version = "1.0.0"
+
+[session]
+mode = "per-invocation"
+`
+		stack, err := loadFromBytes([]byte(toml))
+		if err != nil {
+			t.Fatalf("loadFromBytes failed: %v", err)
+		}
+		if stack.Session.Mode != "per-invocation" {
+			t.Errorf("Mode = %q, want per-invocation", stack.Session.Mode)
+		}
+	})
+
+	t.Run("invalid_mode", func(t *testing.T) {
+		toml := `
+[meta]
+version = "1.0.0"
+
+[session]
+mode = "global-megasession"
+`
+		_, err := loadFromBytes([]byte(toml))
+		if err == nil {
+			t.Fatal("expected validation error for invalid session.mode")
+		}
+		if !cfg.ValidationErrorContains(err, "unknown mode") {
+			t.Fatalf("expected unknown mode validation error, got: %v", err)
+		}
+	})
 }
 
 // TestSessionSection_InvalidReaperThreshold verifies that a malformed

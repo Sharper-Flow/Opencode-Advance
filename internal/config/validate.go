@@ -999,10 +999,25 @@ func knownSectionNames() []string {
 	return names
 }
 
-// validateSession checks [session.watchdog] constraints.
+var validSessionModes = map[string]bool{
+	"":               true,
+	"project":        true,
+	"per-invocation": true,
+}
+
+// validateSession checks [session] and [session.watchdog] constraints.
 func validateSession(s *Stack) ValidationErrors {
 	var errs ValidationErrors
-	if s.Session == nil || s.Session.Watchdog == nil {
+	if s.Session == nil {
+		return errs
+	}
+	if !validSessionModes[s.Session.Mode] {
+		errs = append(errs, ValidationError{
+			Path:    "session.mode",
+			Message: fmt.Sprintf("unknown mode %q (allowed: project, per-invocation)", s.Session.Mode),
+		})
+	}
+	if s.Session.Watchdog == nil {
 		return errs
 	}
 	wd := s.Session.Watchdog
