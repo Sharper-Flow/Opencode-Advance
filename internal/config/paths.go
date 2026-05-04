@@ -62,6 +62,11 @@ func (p Paths) EnvStampPath() string {
 	return filepath.Join(p.CacheDir, "env.stamp")
 }
 
+// DriftCachePath is the cached result of read-only plugin update probes.
+func (p Paths) DriftCachePath() string {
+	return filepath.Join(p.CacheDir, "drift_cache.json")
+}
+
 // PluginCheckoutRoot is the default parent directory for plugin checkouts.
 // Honors $OCA_PLUGIN_CHECKOUT_ROOT when set, otherwise ~/dev/oc-plugins.
 func (p Paths) PluginCheckoutRoot() string {
