@@ -1,0 +1,152 @@
+{
+  "id": "installOcaUmbrellaPlugin",
+  "title": "Install OCA umbrella plugin into operator's opencode.json — register plugins/oca/ so pane state and watchdog primitives activate, unblocking Pattern B (#1) and hibernation (#2).",
+  "status": "archived",
+  "created_at": "2026-05-04T17:37:40.680Z",
+  "tasks": [
+    {
+      "id": "tk-ad7d72ef-2b61-4f1b-88ce-9a9f3b6b4a9e",
+      "title": "Change plugins/oca/package.json `main` field from `\"dist/index.js\"` to `\"src/index.ts\"` — LBP alignment with other 4 local plugins.",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 0,
+      "created_at": "2026-05-04T17:37:40.850Z",
+      "tdd_phase": "none",
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "started_at": "2026-05-04T17:37:40.856Z",
+      "touched_files": [
+        "plugins/oca/package.json"
+      ],
+      "completed_at": "2026-05-04T17:37:40.858Z"
+    },
+    {
+      "id": "tk-a4c804a3-aaa5-4e7e-ba37-3487fcfb8e2e",
+      "title": "Add /home/jrede/dev/opencodeadvance/plugins/oca to opencode.json plugin array (6th entry). Use exact string edit to preserve JSONC comments.",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 1,
+      "created_at": "2026-05-04T17:37:40.851Z",
+      "tdd_phase": "none",
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "started_at": "2026-05-04T17:37:40.861Z",
+      "completed_at": "2026-05-04T17:37:40.862Z"
+    },
+    {
+      "id": "tk-e73263b5-621b-4719-808e-5a9e9a9a554c",
+      "title": "Add [plugins.oca] section to stack.example.toml with path = \"~/dev/opencodeadvance/plugins/oca\". Place after [plugins.anthropic-auth], before [temporal].",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 2,
+      "created_at": "2026-05-04T17:37:40.852Z",
+      "tdd_phase": "none",
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "started_at": "2026-05-04T17:37:40.863Z",
+      "touched_files": [
+        "stack.example.toml"
+      ],
+      "completed_at": "2026-05-04T17:37:40.865Z"
+    },
+    {
+      "id": "tk-29d86978-9a2e-4694-8401-1fec099bfd11",
+      "title": "Post-edit verification: confirm opencode.json has 6 plugin entries, package.json main is \"src/index.ts\", stack.example.toml has [plugins.oca]. Run go test ./... to ensure no regressions.",
+      "type": "code",
+      "section": "verification",
+      "status": "done",
+      "priority": 3,
+      "created_at": "2026-05-04T17:37:40.853Z",
+      "tdd_phase": "none",
+      "metadata": {
+        "tdd_intent": "separate_verification"
+      },
+      "started_at": "2026-05-04T17:37:40.866Z",
+      "touched_files": [
+        "internal/plugin/prepare.go",
+        "stack.example.toml"
+      ],
+      "completed_at": "2026-05-04T17:37:40.868Z"
+    },
+    {
+      "id": "tk-7932ce54-815a-4794-b1eb-a752c363e3bc",
+      "title": "Run bun install in plugins/oca/ to resolve @opencode-ai/plugin peer dependency. node_modules does not exist — plugin cannot load without it.",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 4,
+      "created_at": "2026-05-04T17:37:40.854Z",
+      "tdd_phase": "none",
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "started_at": "2026-05-04T17:37:40.859Z",
+      "completed_at": "2026-05-04T17:37:40.860Z"
+    }
+  ],
+  "deltas": {},
+  "wisdom": [],
+  "gates": {
+    "proposal": {
+      "status": "done",
+      "completed_at": "2026-05-04T17:37:40.847Z",
+      "completed_by": "agent"
+    },
+    "discovery": {
+      "status": "done",
+      "completed_at": "2026-05-04T17:37:40.848Z",
+      "completed_by": "agent"
+    },
+    "design": {
+      "status": "done",
+      "completed_at": "2026-05-04T17:37:40.849Z",
+      "completed_by": "agent"
+    },
+    "planning": {
+      "status": "done",
+      "completed_at": "2026-05-04T17:37:40.855Z",
+      "completed_by": "agent",
+      "notes": "User approved task graph with 5 tasks: package.json main change, bun install, opencode.json registration, stack.example.toml update, verification. Added bun install task after discovering missing node_modules."
+    },
+    "execution": {
+      "status": "done",
+      "completed_at": "2026-05-04T17:37:40.869Z",
+      "completed_by": "agent"
+    },
+    "acceptance": {
+      "status": "done",
+      "completed_at": "2026-05-04T17:37:40.870Z",
+      "completed_by": "agent",
+      "notes": "User approved delivered work after live verification: fresh opencode run loaded OCA plugin and wrote pane state JSON; go test ./... passed; remaining full restart-tui tmux respawn requires real pane after merge/restart."
+    },
+    "release": {
+      "status": "done",
+      "completed_at": "2026-05-04T17:37:40.871Z",
+      "completed_by": "agent",
+      "notes": "User signed off with 'sign off'. Validation passed. No spec deltas required; warnings are expected proposal-section/task drift and no-delta warning."
+    }
+  },
+  "reentry_history": [],
+  "adv_project_id": "cdae139e16c8cbaa4ef2ebf35dda326e826e93bc",
+  "clarify_findings": [
+    {
+      "code": "CLARIFY_MISSING_SUCCESS_CRITERIA",
+      "severity": "warning",
+      "message": "Success criteria are placeholder or empty. What measurable outcomes define done?",
+      "recorded_at": "2026-05-04T17:43:05.306Z"
+    },
+    {
+      "code": "CLARIFY_UNCLEAR_SCOPE",
+      "severity": "warning",
+      "message": "Proposal has no Scope section. What files and modules will be affected?",
+      "recorded_at": "2026-05-04T17:43:05.306Z"
+    }
+  ],
+  "judgment_calls": []
+}
