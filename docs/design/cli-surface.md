@@ -446,19 +446,70 @@ Per-pane state operations for OCA tmux sessions. Reads and writes JSON state in 
 
 Session watchdog that monitors pane activity, tracks bump counts, last-activity timestamps, and idle-state transitions for OCA-managed tmux sessions.
 
+### `oca doctor --scope adv-runtime`
+
+ADV runtime health check. Inspects Temporal search attributes, workflow queues, session debt, and worktree census.
+
+Flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--scope adv-runtime` | required |
+
+Behavior:
+
+- Search attributes: verifies required ADV attrs (AdvProjectId, AdvChangeId, etc.) are present and correct
+- Workflow queues: lists Running ADV workflows, checks poller counts, flags stale queues
+- Session debt: scans OpenCode SQLite DB for stale blank assistant messages
+- Worktree census: counts active/stale OCA worktrees and orphan ADV state roots
+- Degrades gracefully when Temporal or DB is unavailable — warnings, not hard fails
+
+### `oca session doctor`
+
+Diagnose and optionally clean up stale OpenCode session debt.
+
+Flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--db <path>` | OpenCode SQLite database path (default: `$XDG_DATA_HOME/opencode/opencode.db`) |
+| `--threshold <duration>` | Stale message age threshold (default: `5m`) |
+| `--apply` | Actually delete repairable rows (requires `--backup-dir`) |
+| `--backup-dir <dir>` | Backup directory (required with `--apply`) |
+
+Behavior:
+
+- Dry-run by default — scans and reports without deleting
+- Repairable = assistant messages with no parts, no finishReason, older than threshold
+- `--apply` refuses without `--backup-dir` for safety
+- Creates backup manifest JSON alongside copied DB files
+
+### `oca adv recover --dry-run`
+
+Render an ordered ADV recovery plan from the current runtime state.
+
+Flags:
+
+| Flag | Purpose |
+| --- | --- |
+| `--dry-run` | Required in v1 — shows plan without executing |
+| `--project <id>` | Filter plan by project ID |
+| `--change <id>` | Filter plan by change ID |
+
+Behavior:
+
+- Loads runtime report from all scanners
+- Synthesizes ordered recovery steps: search attrs → queues → session debt → worktrees
+- All steps are dry-run only in v1
+- Refuses to run without `--dry-run` flag
+
 ## Planned later-phase commands
 
 The following are still design targets, not shipped:
 
-- `oca migrate ...`
 - `oca add ...`
 - `oca remove ...`
 - `oca clean`
-- `oca session attach`
-- `oca session switch`
-- `oca session killall`
-- `oca session restart`
-- `oca theme ...`
 
 ### Planned `oca session` behavior (Phase 4 target)
 

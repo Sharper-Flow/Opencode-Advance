@@ -33,11 +33,24 @@ type HealthRow struct {
 	Uptime            string `json:"uptime,omitempty"`
 }
 
+// ADVOpsRow represents ADV runtime state for the dashboard panel.
+type ADVOpsRow struct {
+	Status             string `json:"status"`
+	WorkflowQueues     int    `json:"workflow_queues"`
+	StaleQueues        int    `json:"stale_queues"`
+	MissingSearchAttrs int    `json:"missing_search_attrs"`
+	SessionDebt        int    `json:"session_debt"`
+	WorktreeDebt       int    `json:"worktree_debt"`
+	RecoverySteps      int    `json:"recovery_steps"`
+	Message            string `json:"message,omitempty"`
+}
+
 // Snapshot is a point-in-time view of all dashboard data.
 type Snapshot struct {
 	Changes  []ChangeRow  `json:"changes"`
 	Sessions []SessionRow `json:"sessions"`
 	Health   HealthRow    `json:"health"`
+	ADVOps   ADVOpsRow    `json:"adv_ops"`
 	Warm     bool         `json:"warm"`
 	Version  uint64       `json:"version"`
 }

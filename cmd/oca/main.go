@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	_ "modernc.org/sqlite"
 )
 
 func main() {
