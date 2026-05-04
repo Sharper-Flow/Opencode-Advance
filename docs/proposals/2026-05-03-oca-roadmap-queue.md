@@ -43,7 +43,7 @@ Suggested order: M3 → M2 → M4/M5/M6.
 | S2 | `2026-05-03-context-budget-audit.md` | Make prompt/tool-schema load visible before trimming. |
 | S3 | `2026-05-03-agent-permission-first-config.md` | OpenCode docs deprecate `tools`; OCA should move to permission-first profiles. |
 | S4 | `2026-05-03-mcp-tool-suite-profiles.md` | Manage MCP as per-agent tool suites, not only server installs. |
-| S5 | `2026-05-03-legacy-adv-state-doctor-warning.md` | Warn about legacy `.adv/{changes,archive,...}` while preserving `.adv/specs`. |
+| S5 | `2026-05-03-legacy-adv-state-doctor-warning.md` | Warn about legacy `.adv/{changes,db,agenda*}` and non-bundle archive residue while preserving `.adv/specs` and valid archive bundles. |
 
 Suggested order: S1/S2 → S3/S4 → S5.
 
@@ -88,7 +88,7 @@ Validation summary:
 | S2 | `2026-05-03-context-budget-audit.md` | Accepted | Current config exposes broad instruction and tool-schema load; OpenCode docs confirm permission/tool exposure is per-agent and measurable from config/runtime debug output. |
 | S3 | `2026-05-03-agent-permission-first-config.md` | Accepted | OpenCode agent docs mark `tools` as deprecated and prefer `permission`; current runtime debug output still shows legacy `tools`. |
 | S4 | `2026-05-03-mcp-tool-suite-profiles.md` | Accepted | OpenCode permissions support wildcard gating for built-ins and MCP tools; OCA currently models servers more strongly than per-agent tool exposure. |
-| S5 | `2026-05-03-legacy-adv-state-doctor-warning.md` | Accepted | Project has `.adv/changes` and `.adv/archive` alongside valid `.adv/specs`; OCA should warn and point to Advance cleanup tooling, not delete directly. |
+| S5 | `2026-05-03-legacy-adv-state-doctor-warning.md` | Accepted | Project has `.adv/changes` and archive entries alongside valid `.adv/specs`; OCA should warn only on legacy/non-bundle residue and point to Advance cleanup tooling, not delete directly. |
 
 Operational caveat: ADV change creation was not performed in this review session
 because provider ADV runtime prompt resolution still needs a fresh OpenCode

@@ -64,7 +64,7 @@ the `lgrep_*` tool definitions in its tool manifest.
 **API key (semantic engine only):**
 - Semantic tools (`lgrep_search_semantic`, `lgrep_index_semantic`) require `VOYAGE_API_KEY`.
 - Symbol tools work without any API key.
-- If using **Vision / open-chad**: set `VOYAGE_API_KEY` under `lgrep.env` in `~/.config/vision/servers.yaml`.
+- If using **Vision / OCA-managed config**: set `VOYAGE_API_KEY` under `lgrep.env` in `~/.config/vision/servers.yaml`.
 - If using **raw OpenCode MCP config**: set `VOYAGE_API_KEY` in `mcp.lgrep.env` in `~/.config/opencode/opencode.json`.
 
 **Recommended — one command:**

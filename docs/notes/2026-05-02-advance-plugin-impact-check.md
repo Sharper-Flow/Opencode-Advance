@@ -17,16 +17,16 @@ Status at check time: draft, execution pending, 8/15 tasks done.
 
 Relevant changes:
 
-- Adds `adv_migrate_cleanup` to detect and remove legacy in-repo `.adv/{changes,archive,db,agenda*}` while preserving `.adv/specs/`.
+- Adds `adv_migrate_cleanup` to detect and remove legacy in-repo `.adv/{changes,db,agenda*}` and non-bundle `.adv/archive` residue while preserving `.adv/specs/` and valid archive bundles.
 - Adds `adv_change_diagnose` for disk-vs-Temporal divergence inspection.
 - Adds `target_path` support to recovery/sweep tools.
 - Adds `_healthSnapshot` to `adv_status` for closed/source-dir leak detection.
 
 OCA impact:
 
-- Direct. Dry-run against this repo reported legacy `.adv/changes` and `.adv/archive` while preserving `.adv/specs/`.
-- Do not remove manually yet. Re-run dry-run after the Advance change lands, then approve execute cleanup with backup/commit.
-- Candidate OCA doctor enhancement: warn when legacy `.adv/{changes,archive,db,agenda*}` exists in repo, but never treat `.adv/specs/` as legacy.
+- Direct. Earlier dry-runs against this repo reported legacy `.adv/changes` plus `.adv/archive` entries that now require bundle-aware classification.
+- Do not remove manually. Use landed Advance cleanup tooling, then approve execute cleanup with backup/commit only after dry-run review.
+- Candidate OCA doctor enhancement: warn when legacy `.adv/{changes,db,agenda*}` or non-bundle `.adv/archive` residue exists in repo, but never treat `.adv/specs/` or valid archive bundles as legacy.
 
 ### High impact: `boundParentProjectWorkflow`
 
@@ -74,7 +74,7 @@ OCA impact:
 
 ## Follow-up checklist
 
-- [ ] After `repairTemporalMigrationDebt` lands, run `adv_migrate_cleanup` dry-run against OCA again.
+- [ ] Run landed `adv_migrate_cleanup` dry-run against OCA again.
 - [ ] If dry-run still reports legacy state, approve execute mode with backup/commit.
 - [ ] Add OCA doctor warning for legacy in-repo ADV state if this becomes a recurring issue.
 - [ ] Review OCA Temporal doctor/status logic for assumptions about worker process count after `boundParentProjectWorkflow` lands.

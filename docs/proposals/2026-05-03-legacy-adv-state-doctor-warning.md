@@ -12,12 +12,14 @@
 ## Problem Statement
 
 Current Advance stores mutable state externally through Temporal-backed project
-state. In-repo `.adv/specs/` remains source-controlled; legacy mutable dirs such
-as `.adv/changes`, `.adv/archive`, `.adv/db`, and `.adv/agenda*` are migration
-debt.
+state. In-repo `.adv/specs/` remains source-controlled, and valid
+`.adv/archive/*/change.json` bundles are preserved archive artifacts. Legacy
+mutable dirs such as `.adv/changes`, `.adv/db`, `.adv/agenda*`, and non-bundle
+`.adv/archive` residue are migration debt.
 
-OCA currently has `.adv/changes` and `.adv/archive`. OCA must not delete them
-manually, but it should warn operators and point to Advance cleanup tooling.
+OCA currently has legacy `.adv/changes` plus archive entries that need
+bundle-aware handling. OCA must not delete them manually, but it should warn
+operators and point to Advance cleanup tooling.
 
 ---
 
@@ -25,9 +27,12 @@ manually, but it should warn operators and point to Advance cleanup tooling.
 
 - [ ] `oca doctor` reports legacy in-repo ADV mutable state when present.
 - [ ] `.adv/specs/` is explicitly treated as valid and never warned as legacy.
+- [ ] Valid `.adv/archive/*/change.json` bundles are explicitly treated as valid
+      and never warned as legacy.
 - [ ] Warning points to `adv_migrate_cleanup` dry-run/execute workflow.
 - [ ] Warning is non-fatal by default.
-- [ ] Tests cover `.adv/specs` only, legacy dirs present, and no `.adv` dir.
+- [ ] Tests cover `.adv/specs` only, valid archive bundles, non-bundle archive
+      residue, legacy dirs present, and no `.adv` dir.
 
 ---
 
@@ -43,10 +48,11 @@ manually, but it should warn operators and point to Advance cleanup tooling.
 
 1. Add check under `adv-plugin`, `adv-assets`, or new `adv-state` doctor scope.
 2. Scan only project-local `.adv` directory entries.
-3. Warn for legacy mutable entries.
+3. Warn for legacy mutable entries and non-bundle archive residue; preserve
+   valid `.adv/archive/*/change.json` bundles.
 4. Include remediation text:
    - run `adv_migrate_cleanup` dry-run from ADV-capable session
-   - preserve `.adv/specs/`
+   - preserve `.adv/specs/` and valid `.adv/archive/*/change.json` bundles
    - execute only with user approval and backup
 
 ---
@@ -55,5 +61,6 @@ manually, but it should warn operators and point to Advance cleanup tooling.
 
 1. Fixture with `.adv/specs` only passes.
 2. Fixture with `.adv/changes` warns.
-3. Fixture with `.adv/archive` warns.
-4. `go test ./...` passes.
+3. Fixture with valid `.adv/archive/<id>/change.json` bundle passes.
+4. Fixture with non-bundle `.adv/archive` residue warns.
+5. `go test ./...` passes.
