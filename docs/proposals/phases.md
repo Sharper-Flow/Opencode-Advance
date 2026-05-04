@@ -24,7 +24,7 @@ All five proposal drafts pre-flight-verified 2026-05-04 — see [`../notes/2026-
 
 **Then (Session & Resource Architecture):** OCA #1 Pattern B → OCA #2 hibernation → OCA #3 tmux-resurrect polish → ADV #4 idle-worker reaper → ADV #5 peer-session topology distinction.
 
-**Backlog (SHOULD):** S1 runtime doctor canaries → S2 context budget audit → S3 permission-first agent config → S4 MCP suite profiles → S5 legacy-state doctor warning.
+**Backlog (SHOULD):** S1 runtime doctor canaries → S2 context budget audit → S3 permission-first agent config → S4 MCP suite profiles → S5 legacy-state doctor warning → S6 resume-hint outer terminal.
 
 **Hygiene:** OpenCode session debt cleared 2026-05-04 (3 stale blank rows deleted via `bun ~/dev/oc-plugins/advance/scripts/opencode-session-doctor.ts --apply`).
 

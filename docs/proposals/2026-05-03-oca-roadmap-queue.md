@@ -44,8 +44,9 @@ Suggested order: M3 → M2 → M4/M5/M6.
 | S3 | `2026-05-03-agent-permission-first-config.md` | OpenCode docs deprecate `tools`; OCA should move to permission-first profiles. |
 | S4 | `2026-05-03-mcp-tool-suite-profiles.md` | Manage MCP as per-agent tool suites, not only server installs. |
 | S5 | `2026-05-03-legacy-adv-state-doctor-warning.md` | Warn about legacy `.adv/{changes,db,agenda*}` and non-bundle archive residue while preserving `.adv/specs` and valid archive bundles. |
+| S6 | `2026-05-04-oca-resume-hint-outer-terminal.md` | `/exit` resume hint prints inside dying tmux pane; outer terminal sees nothing. Fix: `bin/oc` captures and reprints after tmux exits. |
 
-Suggested order: S1/S2 → S3/S4 → S5.
+Suggested order: S1/S2 → S3/S4 → S5/S6.
 
 ---
 
