@@ -45,6 +45,23 @@ func (p Paths) ApplyLockPath() string {
 	return filepath.Join(p.CacheDir, "apply.lock")
 }
 
+// OCAConfigDir is the directory for OCA-owned shell integration state. It is
+// intentionally a sibling of the OpenCode config dir so tests that override
+// OCA_OPENCODE_CONFIG_DIR stay isolated without introducing another env var.
+func (p Paths) OCAConfigDir() string {
+	return filepath.Join(filepath.Dir(p.OpencodeConfigDir), "oca")
+}
+
+// OCAEnvPath is the OCA-owned environment file sourced by managed shell hooks.
+func (p Paths) OCAEnvPath() string {
+	return filepath.Join(p.OCAConfigDir(), "env.sh")
+}
+
+// EnvStampPath is the stamp touched after env.sh has been written.
+func (p Paths) EnvStampPath() string {
+	return filepath.Join(p.CacheDir, "env.stamp")
+}
+
 // PluginCheckoutRoot is the default parent directory for plugin checkouts.
 // Honors $OCA_PLUGIN_CHECKOUT_ROOT when set, otherwise ~/dev/oc-plugins.
 func (p Paths) PluginCheckoutRoot() string {
