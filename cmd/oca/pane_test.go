@@ -122,6 +122,10 @@ func TestReadPaneStateV2(t *testing.T) {
 		"gitRoot": "/home/user/project",
 		"worktreePath": "/home/user/.local/share/opencode/worktree/abc123/change/mychange",
 		"gitCommonDir": "/home/user/project/.git",
+		"defaultBranch": "trunk",
+		"mainCheckoutPath": "/home/user/project",
+		"isMainCheckout": false,
+		"branchSafety": "worktree",
 		"projectId": "abc123def",
 		"worktreeBranch": "change/mychange",
 		"changeID": "mychange",
@@ -163,6 +167,18 @@ func TestReadPaneStateV2(t *testing.T) {
 	}
 	if ps.WorktreePath != "/home/user/.local/share/opencode/worktree/abc123/change/mychange" {
 		t.Errorf("WorktreePath = %q, want worktree path", ps.WorktreePath)
+	}
+	if ps.DefaultBranch != "trunk" {
+		t.Errorf("DefaultBranch = %q, want trunk", ps.DefaultBranch)
+	}
+	if ps.MainCheckoutPath != "/home/user/project" {
+		t.Errorf("MainCheckoutPath = %q, want main checkout", ps.MainCheckoutPath)
+	}
+	if ps.IsMainCheckout {
+		t.Error("IsMainCheckout = true, want false for worktree state")
+	}
+	if ps.BranchSafety != "worktree" {
+		t.Errorf("BranchSafety = %q, want worktree", ps.BranchSafety)
 	}
 	if ps.Agent != "adv" {
 		t.Errorf("Agent = %q, want %q", ps.Agent, "adv")
@@ -274,6 +290,51 @@ func TestDerivePaneContext(t *testing.T) {
 		ctx := derivePaneContext(ps)
 		if ctx.IsWorktree {
 			t.Error("IsWorktree = true, want false when worktreePath empty")
+		}
+	})
+
+	t.Run("detects worktree via main checkout path when gitRoot is worktree root", func(t *testing.T) {
+		ps := &paneState{
+			GitRoot:          "/home/user/.local/share/opencode/worktree/abc/change/xyz",
+			WorktreePath:     "/home/user/.local/share/opencode/worktree/abc/change/xyz",
+			GitCommonDir:     "/home/user/project/.git",
+			MainCheckoutPath: "/home/user/project",
+			WorktreeBranch:   "change/xyz",
+			DefaultBranch:    "trunk",
+		}
+		ctx := derivePaneContext(ps)
+		if !ctx.IsWorktree {
+			t.Error("IsWorktree = false, want true for linked worktree")
+		}
+		if ctx.IsMainCheckout {
+			t.Error("IsMainCheckout = true, want false for linked worktree")
+		}
+		if ctx.ProjectRoot != "/home/user/project" {
+			t.Errorf("ProjectRoot = %q, want main checkout path", ctx.ProjectRoot)
+		}
+		if ctx.BranchSafety != "worktree" {
+			t.Errorf("BranchSafety = %q, want worktree", ctx.BranchSafety)
+		}
+	})
+
+	t.Run("marks non-default main checkout branch unsafe", func(t *testing.T) {
+		ps := &paneState{
+			GitRoot:          "/home/user/project",
+			WorktreePath:     "/home/user/project",
+			MainCheckoutPath: "/home/user/project",
+			WorktreeBranch:   "feature/unsafe",
+			DefaultBranch:    "trunk",
+			IsMainCheckout:   true,
+		}
+		ctx := derivePaneContext(ps)
+		if !ctx.IsMainCheckout {
+			t.Error("IsMainCheckout = false, want true")
+		}
+		if ctx.IsWorktree {
+			t.Error("IsWorktree = true, want false for main checkout")
+		}
+		if ctx.BranchSafety != "unsafe_main_branch" {
+			t.Errorf("BranchSafety = %q, want unsafe_main_branch", ctx.BranchSafety)
 		}
 	})
 }
