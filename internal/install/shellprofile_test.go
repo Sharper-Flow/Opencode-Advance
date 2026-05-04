@@ -457,6 +457,27 @@ func TestRenderShellProfile(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("contains drift surfacer with passive and warn behavior", func(t *testing.T) {
+		root := t.TempDir()
+		t.Setenv("OCA_CACHE_DIR", filepath.Join(root, "cache"))
+		got := RenderShellProfile("/opt/oca/bin/oca")
+
+		for _, want := range []string{
+			"_oca_drift_surfacer",
+			filepath.Join(root, "cache", "drift_cache.json"),
+			"OCA_UPDATE_PROBE",
+			"passive",
+			"warn",
+			"oca update --check --quiet",
+			"update_available",
+			"_oca_drift_notice_shown",
+		} {
+			if !strings.Contains(got, want) {
+				t.Fatalf("RenderShellProfile missing %q in:\n%s", want, got)
+			}
+		}
+	})
 }
 
 func min(a, b int) int {

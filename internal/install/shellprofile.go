@@ -40,6 +40,7 @@ esac
 
 _oca_env_file={{.OCAEnvPath}}
 _oca_env_stamp={{.EnvStampPath}}
+_oca_drift_cache={{.DriftCachePath}}
 
 if [ -r "$_oca_env_file" ]; then
     . "$_oca_env_file"
@@ -47,6 +48,26 @@ fi
 
 : "${OCA_SHELL_AUTO_REFRESH:=true}"
 : "${OCA_SHELL_AUTO_REFRESH_NOTICE:=off}"
+: "${OCA_UPDATE_PROBE:=passive}"
+: "${OCA_UPDATE_PROBE_TIMEOUT_SECONDS:=10}"
+
+_oca_drift_surfacer() {
+    [ "${OCA_UPDATE_PROBE:-passive}" = "off" ] && return 0
+
+    if [ ! -r "$_oca_drift_cache" ]; then
+        if [ "${OCA_UPDATE_PROBE:-passive}" = "warn" ]; then
+            timeout "${OCA_UPDATE_PROBE_TIMEOUT_SECONDS:-10}" oca update --check --quiet >/dev/null 2>&1 || true
+        fi
+        return 0
+    fi
+
+    if grep -q '"status": "update_available"' "$_oca_drift_cache" 2>/dev/null; then
+        if [ -z "${_oca_drift_notice_shown:-}" ]; then
+            _oca_drift_notice_shown=1
+            printf '%s\n' "oca: plugin updates available (run: oca update --check)"
+        fi
+    fi
+}
 
 _oca_auto_refresh_hook() {
     [ "${OCA_SHELL_AUTO_REFRESH:-true}" = "false" ] && return 0
@@ -60,6 +81,8 @@ _oca_auto_refresh_hook() {
     if [ -r "$_oca_env_file" ]; then
         . "$_oca_env_file"
     fi
+
+    _oca_drift_surfacer
 
     case "${OCA_SHELL_AUTO_REFRESH_NOTICE:-off}" in
         every)
@@ -269,9 +292,10 @@ func RenderShellProfile(ocaBinPath string) string {
 
 	var buf bytes.Buffer
 	data := map[string]string{
-		"OCABinDir":    binDir,
-		"OCAEnvPath":   shellQuote(paths.OCAEnvPath()),
-		"EnvStampPath": shellQuote(paths.EnvStampPath()),
+		"OCABinDir":      binDir,
+		"OCAEnvPath":     shellQuote(paths.OCAEnvPath()),
+		"EnvStampPath":   shellQuote(paths.EnvStampPath()),
+		"DriftCachePath": shellQuote(paths.DriftCachePath()),
 	}
 	if err := tmpl.Execute(&buf, data); err != nil {
 		panic(fmt.Sprintf("execute shell profile template: %v", err))
