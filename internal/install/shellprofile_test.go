@@ -423,6 +423,16 @@ func TestRenderShellProfile(t *testing.T) {
 		}
 	})
 
+	t.Run("shell-quotes binary directory", func(t *testing.T) {
+		got := RenderShellProfile("/tmp/oca $(touch hacked)/bin/oca")
+		if !strings.Contains(got, "_oca_bindir='/tmp/oca $(touch hacked)/bin'") {
+			t.Fatalf("binary directory should be single-quoted in shell profile:\n%s", got)
+		}
+		if strings.Contains(got, "_oca_bindir=\"/tmp/oca $(touch hacked)/bin\"") {
+			t.Fatalf("binary directory should not use double quotes, which allow command substitution:\n%s", got)
+		}
+	})
+
 	t.Run("contains auto-refresh hook with interactive guard", func(t *testing.T) {
 		root := t.TempDir()
 		t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(root, "opencode"))
@@ -470,7 +480,7 @@ func TestRenderShellProfile(t *testing.T) {
 			"passive",
 			"warn",
 			"oca update --check --quiet",
-			"update_available",
+			`"status"[[:space:]]*:[[:space:]]*"update_available"`,
 			"_oca_drift_notice_shown",
 		} {
 			if !strings.Contains(got, want) {

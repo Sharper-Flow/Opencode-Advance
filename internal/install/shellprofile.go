@@ -25,7 +25,7 @@ const shellProfileTemplate = `# This block is managed by OpenCode Advance (oca).
 # To remove: ` + "`oca uninstall`" + ` or delete this block manually.
 
 # Add OCA to PATH (resolved at install time)
-_oca_bindir="{{.OCABinDir}}"
+_oca_bindir={{.OCABinDir}}
 case ":$PATH:" in
     *":$_oca_bindir:"*) ;;
     *) export PATH="$_oca_bindir:$PATH" ;;
@@ -61,7 +61,7 @@ _oca_drift_surfacer() {
         return 0
     fi
 
-    if grep -q '"status": "update_available"' "$_oca_drift_cache" 2>/dev/null; then
+    if grep -Eq '"status"[[:space:]]*:[[:space:]]*"update_available"' "$_oca_drift_cache" 2>/dev/null; then
         if [ -z "${_oca_drift_notice_shown:-}" ]; then
             _oca_drift_notice_shown=1
             printf '%s\n' "oca: plugin updates available (run: oca update --check)"
@@ -292,7 +292,7 @@ func RenderShellProfile(ocaBinPath string) string {
 
 	var buf bytes.Buffer
 	data := map[string]string{
-		"OCABinDir":      binDir,
+		"OCABinDir":      shellQuote(binDir),
 		"OCAEnvPath":     shellQuote(paths.OCAEnvPath()),
 		"EnvStampPath":   shellQuote(paths.EnvStampPath()),
 		"DriftCachePath": shellQuote(paths.DriftCachePath()),

@@ -107,6 +107,13 @@ func ProbeAll(ctx context.Context, plugins config.PluginsSection, selected map[s
 	sort.Strings(names)
 
 	results := make([]DriftResult, len(names))
+	for i, name := range names {
+		ref := plugins[name].Ref
+		if ref == "" {
+			ref = "trunk"
+		}
+		results[i] = DriftResult{Name: name, Ref: ref, Status: DriftUnknown}
+	}
 	sem := make(chan struct{}, opts.Parallelism)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -121,6 +128,7 @@ func ProbeAll(ctx context.Context, plugins config.PluginsSection, selected map[s
 			case sem <- struct{}{}:
 				defer func() { <-sem }()
 			case <-ctx.Done():
+				results[i].Error = ctx.Err().Error()
 				mu.Lock()
 				if firstErr == nil {
 					firstErr = ctx.Err()
@@ -149,7 +157,7 @@ func lsRemote(ctx context.Context, source, ref string, timeout time.Duration) (s
 	}
 	res, err := subprocess.Run(ctx, subprocess.Cmd{
 		Name:    "git",
-		Args:    prependHardening([]string{"ls-remote", "--", source, ref}),
+		Args:    prependHardening([]string{"ls-remote", "--quiet", "--", source, ref}),
 		Timeout: timeout,
 		Env: map[string]string{
 			"GIT_TERMINAL_PROMPT": "0",

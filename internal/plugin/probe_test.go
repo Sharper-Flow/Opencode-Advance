@@ -76,6 +76,27 @@ func TestProbeAllSkipsDisabledAndNPMPlugins(t *testing.T) {
 	}
 }
 
+func TestProbeAllCancelledContextReturnsNamedUnknownResults(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	results, err := ProbeAll(ctx, config.PluginsSection{
+		"alpha": {Source: "file:///unused/alpha.git", Ref: "main", Checkout: "/unused/alpha"},
+		"beta":  {Source: "file:///unused/beta.git", Ref: "trunk", Checkout: "/unused/beta"},
+	}, nil, ProbeOptions{TimeoutPerPlugin: 5 * time.Second, TimeoutGlobal: 10 * time.Second, Parallelism: 1})
+	if err == nil {
+		t.Fatal("ProbeAll() error = nil, want context cancellation")
+	}
+	if len(results) != 2 {
+		t.Fatalf("ProbeAll results len = %d, want 2", len(results))
+	}
+	for i, want := range []string{"alpha", "beta"} {
+		if results[i].Name != want || results[i].Status != DriftUnknown || results[i].Error == "" {
+			t.Fatalf("results[%d] = %+v, want named unknown result for %s", i, results[i], want)
+		}
+	}
+}
+
 func initProbeRemoteWorkCheckout(t *testing.T) (remote, work, checkout string) {
 	t.Helper()
 	tmp := t.TempDir()
