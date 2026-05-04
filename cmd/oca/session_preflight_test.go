@@ -45,3 +45,31 @@ func TestRunSessionPreflight_WithTemporalConfig(t *testing.T) {
 		t.Fatalf("expected warning prefix, got: %q", output)
 	}
 }
+
+func TestRunSessionPreflight_NeverPanics(t *testing.T) {
+	// runSessionPreflight must never panic or block, regardless of input.
+	cases := []struct {
+		name  string
+		stack *cfg.Stack
+	}{
+		{"nil stack", nil},
+		{"empty stack", &cfg.Stack{}},
+		{"temporal unreachable", &cfg.Stack{Temporal: &cfg.TemporalSection{Address: "127.0.0.1:1", Namespace: "default"}}},
+		{"temporal no namespace", &cfg.Stack{Temporal: &cfg.TemporalSection{Address: "127.0.0.1:7233"}}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			// Must not panic.
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						t.Fatalf("runSessionPreflight panicked: %v", r)
+					}
+				}()
+				runSessionPreflight(context.Background(), &buf, tc.stack)
+			}()
+		})
+	}
+}

@@ -131,6 +131,41 @@ func TestMapFinding_WarnSeverity(t *testing.T) {
 	}
 }
 
+func TestCheckAdvRuntime_MissingHomeEmitsWarnings(t *testing.T) {
+	// Simulate unresolvable home directory by unsetting HOME and XDG_DATA_HOME.
+	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
+	t.Setenv("XDG_DATA_HOME", "")
+
+	stack := &cfg.Stack{}
+	checks, err := CheckAdvRuntime(context.Background(), stack, Options{})
+	if err != nil {
+		t.Fatalf("CheckAdvRuntime should not error: %v", err)
+	}
+
+	var sessionDebtFound, worktreeFound bool
+	for _, c := range checks {
+		if c.Name == "adv-runtime.session-debt" {
+			sessionDebtFound = true
+			if c.Status != StatusWarn {
+				t.Fatalf("session-debt status = %q, want warn when HOME unset", c.Status)
+			}
+		}
+		if c.Name == "adv-runtime.worktree" {
+			worktreeFound = true
+			if c.Status != StatusWarn {
+				t.Fatalf("worktree status = %q, want warn when HOME unset", c.Status)
+			}
+		}
+	}
+	if !sessionDebtFound {
+		t.Fatal("missing adv-runtime.session-debt warning when HOME unset")
+	}
+	if !worktreeFound {
+		t.Fatal("missing adv-runtime.worktree warning when HOME unset")
+	}
+}
+
 func TestAdvRuntimeScopeIsRegistered(t *testing.T) {
 	scopes := KnownScopes()
 	found := false

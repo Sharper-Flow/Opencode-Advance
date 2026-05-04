@@ -46,19 +46,37 @@ func CheckAdvRuntime(ctx context.Context, stack *cfg.Stack, opts Options) ([]Che
 		} else {
 			// Search attributes
 			checker := advruntime.NewSearchAttributeChecker(&operatorServiceAdapter{client.OperatorService()}, config)
-			report, _ := checker.Check(ctx)
-			for _, attr := range report.SearchAttributes {
-				checks = append(checks, mapSearchAttribute(attr))
+			report, err := checker.Check(ctx)
+			if err != nil {
+				checks = append(checks, Check{
+					Name:    "adv-runtime.search-attributes",
+					Status:  StatusWarn,
+					Message: fmt.Sprintf("search attribute check failed: %v", err),
+					Hint:    "verify Temporal search attributes are registered",
+				})
+			} else {
+				for _, attr := range report.SearchAttributes {
+					checks = append(checks, mapSearchAttribute(attr))
+				}
 			}
 
 			// Workflow / task queue classifier
 			classifier := advruntime.NewWorkflowClassifier(&workflowServiceAdapter{client.WorkflowService()}, config, nil)
-			report, _ = classifier.Classify(ctx)
-			for _, queue := range report.WorkflowQueues {
-				checks = append(checks, mapWorkflowQueue(queue))
-			}
-			for _, finding := range report.Findings {
-				checks = append(checks, mapFinding(finding))
+			report, err = classifier.Classify(ctx)
+			if err != nil {
+				checks = append(checks, Check{
+					Name:    "adv-runtime.workflow-classifier",
+					Status:  StatusWarn,
+					Message: fmt.Sprintf("workflow classification failed: %v", err),
+					Hint:    "verify Temporal workflow service is responsive",
+				})
+			} else {
+				for _, queue := range report.WorkflowQueues {
+					checks = append(checks, mapWorkflowQueue(queue))
+				}
+				for _, finding := range report.Findings {
+					checks = append(checks, mapFinding(finding))
+				}
 			}
 		}
 	} else {
@@ -70,14 +88,37 @@ func CheckAdvRuntime(ctx context.Context, stack *cfg.Stack, opts Options) ([]Che
 	}
 
 	// --- Session debt scan ---
-	dbPath := defaultOpenCodeDBPath()
-	if _, err := os.Stat(dbPath); err == nil {
+	dbPath := advruntime.DefaultOpenCodeDBPath()
+	if dbPath == "" {
+		checks = append(checks, Check{
+			Name:    "adv-runtime.session-debt",
+			Status:  StatusWarn,
+			Message: "cannot resolve OpenCode session DB path — HOME may be unset",
+			Hint:    "set HOME or XDG_DATA_HOME environment variable",
+		})
+	} else if _, err := os.Stat(dbPath); err == nil {
 		db, err := sql.Open("sqlite", dbPath)
-		if err == nil {
+		if err != nil {
+			checks = append(checks, Check{
+				Name:    "adv-runtime.session-debt",
+				Status:  StatusWarn,
+				Message: fmt.Sprintf("cannot open session DB: %v", err),
+				Hint:    "verify the database file is readable and not locked",
+			})
+		} else {
 			defer db.Close()
 			scanner := advruntime.NewSessionDebtScanner(db, config)
-			finding, _ := scanner.Scan(ctx)
-			checks = append(checks, mapSessionDebt(finding, dbPath))
+			finding, err := scanner.Scan(ctx)
+			if err != nil {
+				checks = append(checks, Check{
+					Name:    "adv-runtime.session-debt",
+					Status:  StatusWarn,
+					Message: fmt.Sprintf("session debt scan failed: %v", err),
+					Hint:    "run 'oca doctor --scope adv-runtime' to retry",
+				})
+			} else {
+				checks = append(checks, mapSessionDebt(finding, dbPath))
+			}
 		}
 	} else {
 		checks = append(checks, Check{
@@ -88,12 +129,30 @@ func CheckAdvRuntime(ctx context.Context, stack *cfg.Stack, opts Options) ([]Che
 	}
 
 	// --- Worktree census ---
-	worktreeRoot := defaultWorktreeRoot()
-	advRoot := defaultADVStateRoot()
-	census := advruntime.NewWorktreeCensus(worktreeRoot, advRoot, config)
-	worktrees, _ := census.Scan(ctx)
-	for _, wt := range worktrees {
-		checks = append(checks, mapWorktree(wt))
+	worktreeRoot := advruntime.DefaultWorktreeRoot()
+	advRoot := advruntime.DefaultADVStateRoot()
+	if worktreeRoot == "" || advRoot == "" {
+		checks = append(checks, Check{
+			Name:    "adv-runtime.worktree",
+			Status:  StatusWarn,
+			Message: "cannot resolve worktree or ADV state root — HOME may be unset",
+			Hint:    "set HOME or XDG_DATA_HOME environment variable",
+		})
+	} else {
+		census := advruntime.NewWorktreeCensus(worktreeRoot, advRoot, config)
+		worktrees, err := census.Scan(ctx)
+		if err != nil {
+			checks = append(checks, Check{
+				Name:    "adv-runtime.worktree",
+				Status:  StatusWarn,
+				Message: fmt.Sprintf("worktree census failed: %v", err),
+				Hint:    "verify worktree root is readable",
+			})
+		} else {
+			for _, wt := range worktrees {
+				checks = append(checks, mapWorktree(wt))
+			}
+		}
 	}
 
 	// --- Recovery plan synthesis (informational) ---
@@ -227,30 +286,6 @@ func temporalNamespace(stack *cfg.Stack) string {
 		return stack.Temporal.Namespace
 	}
 	return advruntime.DefaultNamespace
-}
-
-func defaultOpenCodeDBPath() string {
-	if dataHome := os.Getenv("XDG_DATA_HOME"); dataHome != "" {
-		return filepath.Join(dataHome, "opencode", "opencode.db")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "share", "opencode", "opencode.db")
-}
-
-func defaultWorktreeRoot() string {
-	if dataHome := os.Getenv("XDG_DATA_HOME"); dataHome != "" {
-		return filepath.Join(dataHome, "opencode", "worktree")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "share", "opencode", "worktree")
-}
-
-func defaultADVStateRoot() string {
-	if dataHome := os.Getenv("XDG_DATA_HOME"); dataHome != "" {
-		return filepath.Join(dataHome, "opencode", "plugins", "advance")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "share", "opencode", "plugins", "advance")
 }
 
 // operatorServiceAdapter adapts the gRPC client interface (which has variadic

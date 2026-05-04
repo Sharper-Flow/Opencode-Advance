@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -44,12 +45,13 @@ type ApplyDeletionOptions struct {
 
 // BackupManifest records what was backed up and deleted.
 type BackupManifest struct {
-	SourcePath string    `json:"source_path"`
-	BackupPath string    `json:"backup_path"`
-	Timestamp  time.Time `json:"timestamp"`
-	Threshold  string    `json:"threshold"`
-	DeletedIDs []string  `json:"deleted_ids"`
-	FileCount  int       `json:"file_count"`
+	SourcePath    string    `json:"source_path"`
+	BackupPath    string    `json:"backup_path"`
+	ManifestError string    `json:"manifest_error,omitempty"`
+	Timestamp     time.Time `json:"timestamp"`
+	Threshold     string    `json:"threshold"`
+	DeletedIDs    []string  `json:"deleted_ids"`
+	FileCount     int       `json:"file_count"`
 }
 
 // Scan inspects the database for session debt and returns a finding.
@@ -102,8 +104,9 @@ func (s *SessionDebtScanner) Scan(ctx context.Context) (SessionDebtFinding, erro
 	// Count total non-repairable assistant messages for informational purposes.
 	ignored, err := s.countIgnored(ctx, staleCutoff)
 	if err != nil {
-		// Non-fatal: we just skip this metric.
-		ignored = 0
+		finding.Status = StatusWarn
+		finding.Message = fmt.Sprintf("cannot count ignored messages: %v", err)
+		return finding, nil
 	}
 	finding.Ignored = ignored
 
@@ -181,8 +184,8 @@ func (s *SessionDebtScanner) ApplyDeletion(ctx context.Context, opts ApplyDeleti
 	manifestData, _ := json.MarshalIndent(manifest, "", "  ")
 	if err := os.WriteFile(manifestPath, manifestData, 0600); err != nil {
 		// Manifest write failure is non-fatal but concerning.
-		// The backup itself succeeded; log the issue in the manifest.
-		manifest.BackupPath = fmt.Sprintf("%s (manifest write failed: %v)", backupPath, err)
+		// The backup itself succeeded; record the error separately.
+		manifest.ManifestError = fmt.Sprintf("manifest write failed: %v", err)
 	}
 
 	return manifest, nil
@@ -208,6 +211,17 @@ func resolveDBPath(db *sql.DB) string {
 	return ""
 }
 
+// repairablePredicate is the SQL WHERE clause identifying repairable blank
+// assistant messages. It is reused across count, collect, and age queries.
+const repairablePredicate = `
+	m.time_created < ?
+	AND json_extract(m.data, '$.role') = 'assistant'
+	AND json_extract(m.data, '$.finishReason') IS NULL
+	AND NOT EXISTS (
+		SELECT 1 FROM part p WHERE p.message_id = m.id
+	)
+`
+
 func (s *SessionDebtScanner) countRepairable(ctx context.Context, staleCutoff int64) (int, error) {
 	// A message is repairable when:
 	// 1. Its data JSON contains role "assistant"
@@ -218,12 +232,7 @@ func (s *SessionDebtScanner) countRepairable(ctx context.Context, staleCutoff in
 	err := s.db.QueryRowContext(ctx, `
 		SELECT COUNT(*)
 		FROM message m
-		WHERE m.time_created < ?
-		  AND json_extract(m.data, '$.role') = 'assistant'
-		  AND json_extract(m.data, '$.finishReason') IS NULL
-		  AND NOT EXISTS (
-			SELECT 1 FROM part p WHERE p.message_id = m.id
-		  )
+		WHERE `+repairablePredicate+`
 	`, staleCutoff).Scan(&count)
 	return count, err
 }
@@ -234,14 +243,7 @@ func (s *SessionDebtScanner) countIgnored(ctx context.Context, staleCutoff int64
 	err := s.db.QueryRowContext(ctx, `
 		SELECT COUNT(*)
 		FROM message m
-		WHERE NOT (
-			m.time_created < ?
-			AND json_extract(m.data, '$.role') = 'assistant'
-			AND json_extract(m.data, '$.finishReason') IS NULL
-			AND NOT EXISTS (
-				SELECT 1 FROM part p WHERE p.message_id = m.id
-			)
-		)
+		WHERE NOT (`+repairablePredicate+`)
 	`, staleCutoff).Scan(&count)
 	return count, err
 }
@@ -251,14 +253,9 @@ func (s *SessionDebtScanner) oldestRepairableAge(ctx context.Context, staleCutof
 	err := s.db.QueryRowContext(ctx, `
 		SELECT MIN(m.time_created)
 		FROM message m
-		WHERE m.time_created < ?
-		  AND json_extract(m.data, '$.role') = 'assistant'
-		  AND json_extract(m.data, '$.finishReason') IS NULL
-		  AND NOT EXISTS (
-			SELECT 1 FROM part p WHERE p.message_id = m.id
-		  )
+		WHERE `+repairablePredicate+`
 	`, staleCutoff).Scan(&oldestMs)
-	if err != nil || !oldestMs.Valid || oldestMs.Int64 == 0 {
+	if err != nil || !oldestMs.Valid {
 		return 0, fmt.Errorf("no oldest repairable")
 	}
 	created := time.UnixMilli(oldestMs.Int64)
@@ -272,12 +269,7 @@ func (s *SessionDebtScanner) collectRepairableIDs(ctx context.Context, staleCuto
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT m.id
 		FROM message m
-		WHERE m.time_created < ?
-		  AND json_extract(m.data, '$.role') = 'assistant'
-		  AND json_extract(m.data, '$.finishReason') IS NULL
-		  AND NOT EXISTS (
-			SELECT 1 FROM part p WHERE p.message_id = m.id
-		  )
+		WHERE `+repairablePredicate+`
 	`, staleCutoff)
 	if err != nil {
 		return nil, err
@@ -298,6 +290,24 @@ func (s *SessionDebtScanner) collectRepairableIDs(ctx context.Context, staleCuto
 func (s *SessionDebtScanner) backupDB(backupDir string) (string, int, error) {
 	if s.dbPath == "" {
 		return "", 0, fmt.Errorf("cannot determine database path for backup")
+	}
+
+	// Reject absolute paths.
+	if filepath.IsAbs(backupDir) {
+		return "", 0, fmt.Errorf("backup directory must be relative, absolute path not allowed: %s", backupDir)
+	}
+
+	// Reject traversal after filepath.Clean.
+	cleaned := filepath.Clean(backupDir)
+	for _, part := range strings.Split(filepath.ToSlash(cleaned), "/") {
+		if part == ".." {
+			return "", 0, fmt.Errorf("backup directory path traversal not allowed: %s", backupDir)
+		}
+	}
+
+	// Reject symlinks.
+	if info, err := os.Lstat(backupDir); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return "", 0, fmt.Errorf("backup directory cannot be a symlink")
 	}
 
 	// Ensure backup dir exists.

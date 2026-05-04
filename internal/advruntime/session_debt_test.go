@@ -7,11 +7,29 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
+
+// chdirTemp changes to the given directory and returns a cleanup function.
+func chdirTemp(t *testing.T, dir string) {
+	t.Helper()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldWd); err != nil {
+			t.Fatalf("restore wd: %v", err)
+		}
+	})
+}
 
 // openTestDB creates an isolated SQLite database with the OpenCode message/part
 // schema. Callers must call db.Close() and may clean up the temp directory.
@@ -244,7 +262,8 @@ func TestSessionDebtBackup_CopiesDBAndCreatesManifest(t *testing.T) {
 	insertMessage(t, db, "msg-with-parts", "sess-1", staleTime, msgInfo("assistant"))
 	insertPart(t, db, "part-1", "msg-with-parts", "sess-1", staleTime, map[string]any{"type": "text", "text": "hello"})
 
-	backupDir := filepath.Join(dir, "backups")
+	chdirTemp(t, dir)
+	backupDir := "backups"
 	if err := os.MkdirAll(backupDir, 0700); err != nil {
 		t.Fatalf("mkdir backups: %v", err)
 	}
@@ -325,7 +344,8 @@ func TestSessionDebtBackup_ManifestJSON(t *testing.T) {
 	staleTime := time.Now().Add(-10 * time.Minute).UnixMilli()
 	insertMessage(t, db, "msg-stale-1", "sess-1", staleTime, msgInfo("assistant"))
 
-	backupDir := filepath.Join(dir, "backups")
+	chdirTemp(t, dir)
+	backupDir := "backups"
 	if err := os.MkdirAll(backupDir, 0700); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -363,4 +383,163 @@ func TestSessionDebtBackup_ManifestJSON(t *testing.T) {
 	}
 
 	_ = fmt.Sprintf("manifest JSON length: %d", len(b))
+}
+
+func TestSessionDebtBackup_ManifestWriteFailurePreservesBackupPath(t *testing.T) {
+	db, dir := openTestDB(t)
+	defer db.Close()
+
+	// Close and reopen to ensure PRAGMA database_list returns a valid path.
+	db.Close()
+	dbPath := filepath.Join(dir, "opencode.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("reopen db: %v", err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+
+	staleTime := time.Now().Add(-10 * time.Minute).UnixMilli()
+	insertMessage(t, db, "msg-stale-1", "sess-1", staleTime, msgInfo("assistant"))
+
+	chdirTemp(t, dir)
+	backupDir := "backups"
+	if err := os.MkdirAll(backupDir, 0700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	scanner := NewSessionDebtScanner(db, Config{SessionStaleAfter: 5 * time.Minute})
+	manifest, err := scanner.ApplyDeletion(context.Background(), ApplyDeletionOptions{
+		BackupDir: backupDir,
+	})
+	if err != nil {
+		t.Fatalf("ApplyDeletion: %v", err)
+	}
+
+	// BackupPath should be a clean path, not contain error text.
+	if strings.Contains(manifest.BackupPath, "manifest write failed") {
+		t.Fatalf("BackupPath contains error text: %q", manifest.BackupPath)
+	}
+	if manifest.BackupPath == "" {
+		t.Fatal("BackupPath empty")
+	}
+
+	// Make manifest.json read-only to force a write failure on next run.
+	manifestPath := filepath.Join(backupDir, "manifest.json")
+	if err := os.Chmod(manifestPath, 0400); err != nil {
+		t.Fatalf("chmod manifest: %v", err)
+	}
+	// Also make the backup dir read-only so new backup files cannot be created.
+	// But first we need another stale message to trigger a new backup.
+	insertMessage(t, db, "msg-stale-2", "sess-1", staleTime, msgInfo("assistant"))
+
+	// Re-create the scanner because the first one already deleted msg-stale-1.
+	scanner = NewSessionDebtScanner(db, Config{SessionStaleAfter: 5 * time.Minute})
+	manifest2, err := scanner.ApplyDeletion(context.Background(), ApplyDeletionOptions{
+		BackupDir: backupDir,
+	})
+	if err != nil {
+		t.Fatalf("ApplyDeletion: %v", err)
+	}
+
+	// The second backup should have a clean BackupPath and a ManifestError.
+	if strings.Contains(manifest2.BackupPath, "manifest write failed") {
+		t.Fatalf("BackupPath contains error text: %q", manifest2.BackupPath)
+	}
+	if manifest2.ManifestError == "" {
+		t.Fatal("ManifestError empty when manifest write should have failed")
+	}
+	if !strings.Contains(manifest2.ManifestError, "manifest write failed") {
+		t.Fatalf("ManifestError does not contain expected text: %q", manifest2.ManifestError)
+	}
+
+	// Cleanup: restore permissions so t.TempDir() can be cleaned.
+	os.Chmod(manifestPath, 0600)
+	os.Chmod(backupDir, 0700)
+}
+
+func TestSessionDebtBackup_RejectAbsolutePath(t *testing.T) {
+	db, _ := openTestDB(t)
+	defer db.Close()
+
+	_, _ = db.Exec("INSERT INTO session (id, title) VALUES ('sess-1', 'test')")
+	staleTime := time.Now().Add(-10 * time.Minute).UnixMilli()
+	insertMessage(t, db, "msg-stale", "sess-1", staleTime, msgInfo("assistant"))
+
+	scanner := NewSessionDebtScanner(db, Config{SessionStaleAfter: 5 * time.Minute})
+	_, err := scanner.ApplyDeletion(context.Background(), ApplyDeletionOptions{
+		BackupDir: "/tmp/backups",
+	})
+	if err == nil {
+		t.Fatal("expected error for absolute backup path")
+	}
+	if !strings.Contains(err.Error(), "absolute path not allowed") {
+		t.Fatalf("error should mention absolute path: %v", err)
+	}
+}
+
+func TestSessionDebtBackup_RejectTraversal(t *testing.T) {
+	db, _ := openTestDB(t)
+	defer db.Close()
+
+	_, _ = db.Exec("INSERT INTO session (id, title) VALUES ('sess-1', 'test')")
+	staleTime := time.Now().Add(-10 * time.Minute).UnixMilli()
+	insertMessage(t, db, "msg-stale", "sess-1", staleTime, msgInfo("assistant"))
+
+	scanner := NewSessionDebtScanner(db, Config{SessionStaleAfter: 5 * time.Minute})
+	_, err := scanner.ApplyDeletion(context.Background(), ApplyDeletionOptions{
+		BackupDir: "../backups",
+	})
+	if err == nil {
+		t.Fatal("expected error for traversal backup path")
+	}
+	if !strings.Contains(err.Error(), "traversal not allowed") {
+		t.Fatalf("error should mention traversal: %v", err)
+	}
+}
+
+func TestSessionDebtBackup_AllowRelativePath(t *testing.T) {
+	db, dir := openTestDB(t)
+	defer db.Close()
+
+	_, _ = db.Exec("INSERT INTO session (id, title) VALUES ('sess-1', 'test')")
+	staleTime := time.Now().Add(-10 * time.Minute).UnixMilli()
+	insertMessage(t, db, "msg-stale", "sess-1", staleTime, msgInfo("assistant"))
+
+	chdirTemp(t, dir)
+	backupDir := "backups"
+	if err := os.MkdirAll(backupDir, 0700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	scanner := NewSessionDebtScanner(db, Config{SessionStaleAfter: 5 * time.Minute})
+	manifest, err := scanner.ApplyDeletion(context.Background(), ApplyDeletionOptions{
+		BackupDir: backupDir,
+	})
+	if err != nil {
+		t.Fatalf("ApplyDeletion with relative path: %v", err)
+	}
+	if manifest.BackupPath == "" {
+		t.Fatal("BackupPath empty for relative path")
+	}
+}
+
+func TestSessionDebtBackup_RejectTraversalAfterClean(t *testing.T) {
+	db, _ := openTestDB(t)
+	defer db.Close()
+
+	_, _ = db.Exec("INSERT INTO session (id, title) VALUES ('sess-1', 'test')")
+	staleTime := time.Now().Add(-10 * time.Minute).UnixMilli()
+	insertMessage(t, db, "msg-stale", "sess-1", staleTime, msgInfo("assistant"))
+
+	scanner := NewSessionDebtScanner(db, Config{SessionStaleAfter: 5 * time.Minute})
+	_, err := scanner.ApplyDeletion(context.Background(), ApplyDeletionOptions{
+		BackupDir: "foo/../../bar",
+	})
+	if err == nil {
+		t.Fatal("expected error for traversal after clean")
+	}
+	if !strings.Contains(err.Error(), "traversal not allowed") {
+		t.Fatalf("error should mention traversal: %v", err)
+	}
 }

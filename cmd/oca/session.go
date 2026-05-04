@@ -711,7 +711,7 @@ func (a *workflowServiceAdapter) DescribeTaskQueue(ctx context.Context, req *wor
 // runSessionPreflight inspects ADV runtime state and prints warnings to stderr.
 // It never blocks or fails — warnings are purely advisory.
 func runSessionPreflight(ctx context.Context, stderr io.Writer, stack *cfg.Stack) {
-	if stack.Temporal == nil || stack.Temporal.Address == "" {
+	if stack == nil || stack.Temporal == nil || stack.Temporal.Address == "" {
 		return // Temporal not configured — nothing to preflight
 	}
 
@@ -752,9 +752,5 @@ func runSessionPreflight(ctx context.Context, stderr io.Writer, stack *cfg.Stack
 }
 
 func defaultOpenCodeDBPath() string {
-	if dataHome := os.Getenv("XDG_DATA_HOME"); dataHome != "" {
-		return filepath.Join(dataHome, "opencode", "opencode.db")
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "share", "opencode", "opencode.db")
+	return advruntime.DefaultOpenCodeDBPath()
 }

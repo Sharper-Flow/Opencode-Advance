@@ -136,7 +136,7 @@ func (c *WorktreeCensus) scanWorktreeRoot() ([]worktreeEntry, error) {
 }
 
 func (c *WorktreeCensus) findOrphanADVState(existingFindings []WorktreeFinding) []string {
-	if c.advRoot == "" {
+	if c.advRoot == "" || c.worktreeRoot == "" {
 		return nil
 	}
 
