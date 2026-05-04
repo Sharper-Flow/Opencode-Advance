@@ -629,9 +629,40 @@ Full details, open questions, and reference implementations in the [research not
 
 ---
 
+## Post-v1: OCA Reliability + Runtime Correctness Queue
+
+**Status:** Reviewed and accepted 2026-05-03. Proposal files are drafted and ready to file as ADV changes from a fresh, non-stub ADV session.
+
+**Goal:** address OCA-owned correctness gaps surfaced by the layer-strategy follow-up before broad post-v1 session-architecture work. These changes make `oca apply`, OCA-owned assets, generated stacks, skill guidance, runtime doctor checks, and per-agent tool exposure trustworthy enough to support the larger Pattern B / hibernation track.
+
+**Handoff queue:** [`./2026-05-03-oca-roadmap-queue.md`](./2026-05-03-oca-roadmap-queue.md)
+
+### Accepted roadmap entries
+
+| Order | Priority | Change | Proposal file | Roadmap placement |
+|---|---|---|---|---|
+| 1 | **M3** | OCA umbrella plugin install | [`./2026-05-03-oca-plugin-install.md`](./2026-05-03-oca-plugin-install.md) | Prerequisite for Pattern B and hibernation; same work as Session Architecture change #0. |
+| 2 | **M2** | OCA apply lifecycle parity | [`./2026-05-03-oca-apply-lifecycle-parity.md`](./2026-05-03-oca-apply-lifecycle-parity.md) | Must land before treating bare `oca apply` as the source-of-truth apply command. |
+| 3 | **M4** | OCA-owned instruction assets are real files | [`./2026-05-03-oca-instruction-assets-real.md`](./2026-05-03-oca-instruction-assets-real.md) | Source-of-truth asset fix; pairs with M5 and M6. |
+| 4 | **M5** | Starter and migration stack validity | [`./2026-05-03-oca-starter-migration-validity.md`](./2026-05-03-oca-starter-migration-validity.md) | Ensures generated starter/migration stacks validate and apply. |
+| 5 | **M6** | OCA skill guidance refresh | [`./2026-05-03-oca-skill-guidance-refresh.md`](./2026-05-03-oca-skill-guidance-refresh.md) | Removes stale OpenChad/old-ADV/tool-name guidance from OCA-owned skills. |
+| 6 | **S1** | OCA runtime doctor canaries | [`./2026-05-03-oca-runtime-doctor-canaries.md`](./2026-05-03-oca-runtime-doctor-canaries.md) | Adds runtime checks for failures static config checks miss. |
+| 7 | **S2** | Context budget audit + instruction loading diet | [`./2026-05-03-context-budget-audit.md`](./2026-05-03-context-budget-audit.md) | Measures prompt/tool-schema load before trimming or profile changes. |
+| 8 | **S3** | Permission-first agent configuration | [`./2026-05-03-agent-permission-first-config.md`](./2026-05-03-agent-permission-first-config.md) | Aligns OCA agent config with current OpenCode permission guidance. |
+| 9 | **S4** | MCP tool suite profiles and per-agent exposure | [`./2026-05-03-mcp-tool-suite-profiles.md`](./2026-05-03-mcp-tool-suite-profiles.md) | Makes MCP tool exposure explicit per agent/profile. |
+| 10 | **S5** | Legacy in-repo ADV state doctor warning | [`./2026-05-03-legacy-adv-state-doctor-warning.md`](./2026-05-03-legacy-adv-state-doctor-warning.md) | Warns about legacy mutable `.adv` state while preserving `.adv/specs`. |
+
+### Sequencing rule
+
+Run the MUST queue in order **M3 → M2 → M4/M5/M6** before starting broad OCA session-architecture implementation beyond the plugin prerequisite. Then run SHOULD items as capacity allows: **S1/S2 → S3/S4 → S5**. S1 is especially valuable immediately because runtime prompt-resolution failures can pass static config checks.
+
+ADV caveat: the proposals are drafted but not created as live ADV changes in this review pass. Start them with `/adv-proposal` only after a fresh OpenCode session verifies that the selected ADV provider agent no longer resolves to `[ADV:PROVIDER_STUB_UNEXPANDED]`.
+
+---
+
 ## Post-v1: Session & Resource Architecture
 
-**Status:** Decision-locked 2026-05-03. **Seven change proposals drafted** (one added 2026-05-03 post-reconnaissance). Drafting via `/adv-proposal` deferred until ADV-side blocker (#6) ships first.
+**Status:** Decision-locked 2026-05-03. **Seven change proposals drafted** (one added 2026-05-03 post-reconnaissance). Broad implementation starts after the ADV provider prompt blocker is fixed and the OCA reliability MUST queue above has shipped.
 
 **Goal:** adapt OCA's session topology and resource-sharing model for the operator's actual workload — 8+ concurrent agents per project, 4–5 active projects, on a 42 GB WSL2 ceiling. Replace per-invocation tmux sessions (Pattern A) with session-per-project (Pattern B), surface per-window ADV status markers in the tmux status bar, and add graceful opencode hibernation as the dominant RAM lever (~16 GB savings at 50% idle of 40 agents).
 
@@ -667,16 +698,16 @@ ADV-repo proposals (#4, #5, #6) are drafted in this OCA repo for split coherence
 | Order | Change                                          | Reason                                                                                                          |
 | ----- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | 1     | **ADV #6** — sync-global single-ref prompt fix   | BLOCKER. OpenCode 1.14.33 does not expand multi-`{file:...}` refs in `agent.X.prompt`; ADV provider variants run in degraded persona until fixed. Must ship before any other change can run `/adv-proposal` cleanly. |
-| 2     | **OCA #0** — umbrella plugin install             | PREREQ for #1 + #2. The OCA plugin (writes pane state, hosts watchdog) is not registered in operator's opencode.json today. ~1–2 hour install fix. |
+| 2     | **OCA reliability MUST queue** — M3 → M2 → M4/M5/M6 | PREREQ before broad OCA session architecture. M3 is the umbrella plugin install / Session Architecture #0; M2/M4/M5/M6 make apply/assets/generated stacks/skills trustworthy before larger changes. |
 | 3     | OCA #1 — Pattern B                              | Highest UX value at 8-agent scale; unblocks #2's status surface and the rest of the OCA work.                  |
 | 4     | OCA #2 — Hibernation                            | Dominant RAM lever (~16 GB headroom). Depends on #1's status bar to surface 💤 marker.                          |
 | 5     | OCA #3 — tmux-resurrect + warning polish        | Small composable; can run in parallel with #2.                                                                  |
 | 6     | ADV #4 — Idle worker reaper                     | ADV-repo work; parallelizable with OCA. Lands once worker-singleton handover is verified at 8-agent scale.      |
 | 7     | ADV #5 — Peer-session topology distinction      | Quality-of-life enhancement on existing peer-session detection; lands any time after Pattern B is in operator hands. |
 
-### Workaround in place
+### Provider prompt workaround note
 
-Pending ADV #6 ship: `~/.config/opencode/agents/adv-claude.md` body has been manually overwritten with concatenated canonical `adv.md` + claude provider hint. Survives until the next `sync-global.sh --fix` run, which will re-stub it. Backup at `~/.config/opencode/agents/adv-claude.md.bak.20260503-161725`. Workaround documented in #6's proposal §Operator-Side Workaround.
+This section historically documented a manual `adv-claude` concatenated-prompt workaround. Treat that workaround as ephemeral: any `sync-global.sh --fix` run can replace it. The current source of truth is the runtime canary: `opencode debug agent adv-gpt` (or the selected provider agent) must not resolve to `[ADV:PROVIDER_STUB_UNEXPANDED]` before filing new ADV proposals.
 
 ### Composition with Operator Dashboard track
 
@@ -686,7 +717,7 @@ Pattern B (#1) materially improves dashboard rendering — one row per project i
 
 ## Post-v1: Context Budget & Instruction Loading Diet
 
-**Status:** Proposal drafted 2026-05-03. Drafting via `/adv-proposal` deferred until ADV provider prompt refs are healthy.
+**Status:** Accepted as OCA roadmap SHOULD item S2 in the OCA Reliability + Runtime Correctness Queue. Drafting via `/adv-proposal` deferred until ADV provider prompt refs are healthy.
 
 **Goal:** measure and reduce baseline context load without weakening strict tool, shell, MCP, lgrep, morph, security, or ADV safety instructions. OCA should make prompt/tool-schema cost visible before trimming anything.
 

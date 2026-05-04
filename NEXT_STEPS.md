@@ -4,14 +4,15 @@ This file is the fastest way to resume work in `~/dev/opencodeadvance` later.
 
 ## Quick answer: what's next on roadmap?
 
-Two parallel tracks, in priority order:
+Three tracks, in priority order:
 
 | Priority | Track | What | Blocked by |
 |---|---|---|---|
 | 1 | **Finish v1.0** | Phase 8 release-candidate validation + tag publication. Phase 8 work is RC-shipped; remaining is smoke test and `git tag v1.0.0`. See `docs/proposals/phases.md` § "Phase 8: Extras + Polish". | Nothing |
-| 2 | **Post-v1 session architecture** | 7-change split decision-locked 2026-05-03. Pattern B session topology + graceful hibernation + tmux-resurrect on the OCA side; idle worker reaper + peer-session topology + sync-global prompt-ref fix on the ADV side; OCA umbrella plugin install as prereq. See `docs/proposals/phases.md` § "Post-v1: Session & Resource Architecture" + `docs/proposals/2026-05-03-session-and-resource-architecture.md` for the parent decision lock. | **ADV change #6 (`syncGlobalPromptRefSingleFile`) must ship first** — current OpenCode 1.14.33 does not expand multi-`{file:...}` refs in `agent.X.prompt`, so ADV provider variants run in degraded persona until it ships. Workaround C in place locally; next fresh session has a working ADV agent. See [`docs/proposals/2026-05-03-adv-sync-prompt-ref-fix.md`](docs/proposals/2026-05-03-adv-sync-prompt-ref-fix.md). |
+| 2 | **Post-v1 OCA reliability queue** | Reviewed/accepted 2026-05-03. File and ship OCA MUST proposals in order: M3 OCA plugin install → M2 bare apply lifecycle parity → M4/M5/M6 instruction assets, starter/migration validity, skill refresh. Then SHOULD proposals: S1/S2 → S3/S4 → S5. See `docs/proposals/phases.md` § "Post-v1: OCA Reliability + Runtime Correctness Queue" and `docs/proposals/2026-05-03-oca-roadmap-queue.md`. | Fresh OpenCode restart + runtime canary proving selected ADV provider agent no longer resolves to `[ADV:PROVIDER_STUB_UNEXPANDED]`. |
+| 3 | **Post-v1 session architecture** | 7-change split decision-locked 2026-05-03. Pattern B session topology + graceful hibernation + tmux-resurrect on the OCA side; idle worker reaper + peer-session topology + sync-global prompt-ref fix on the ADV side; OCA umbrella plugin install is now M3 in the OCA reliability queue. See `docs/proposals/phases.md` § "Post-v1: Session & Resource Architecture" + `docs/proposals/2026-05-03-session-and-resource-architecture.md` for the parent decision lock. | ADV prompt runtime canary + OCA reliability MUST queue. |
 
-If asked "what's next" without further context: confirm v1.0 finalization (track 1) before starting any of the 7 post-v1 changes (track 2).
+If asked "what's next" without further context: confirm v1.0 finalization (track 1) before starting post-v1 OCA reliability or session-architecture work.
 
 ## Current state
 
@@ -23,7 +24,7 @@ If asked "what's next" without further context: confirm v1.0 finalization (track
 - CI and local verification cover Go tests, vet, builds, and race runs for shipped phases
 - **Current focus:** Phase 8 extras/polish
 - **Dependency watch:** Advance has in-progress Temporal migration repair work. See `docs/notes/2026-05-02-advance-plugin-impact-check.md` before cleanup or release prep.
-- **Post-v1 staged (2026-05-03):** Session & resource architecture work decision-locked. Seven change proposals drafted in `docs/proposals/2026-05-03-*.md`. Awaiting ADV blocker change #6 (`syncGlobalPromptRefSingleFile`) to ship before any of the 7 can be filed via `/adv-proposal`. Workaround in place locally so the next fresh OpenCode session has a working ADV orchestrator agent.
+- **Post-v1 staged (2026-05-03):** Session & resource architecture work decision-locked. Seven change proposals drafted in `docs/proposals/2026-05-03-*.md`. OCA reliability/runtime correctness queue reviewed and accepted into the roadmap (M3 → M2 → M4/M5/M6, then S1/S2 → S3/S4 → S5). File proposals only after a fresh OpenCode restart and runtime canary prove a non-stub ADV provider agent.
 
 ## Resume from here
 
@@ -56,9 +57,26 @@ Then:
 - Keep shipped config rendering behavior stable while layering release polish on top
 - Keep all writes isolated from live user config
 
-## Post-v1 staged work (2026-05-03)
+## Post-v1 OCA reliability queue (reviewed 2026-05-03)
 
-Session & resource architecture work is decision-locked and ready to file as ADV changes once the blocker ships. **7 change proposals** drafted across OCA + ADV repos:
+OCA-owned MUST/SHOULD queue accepted into the roadmap. Proposal files are ready in `docs/proposals/`; create live ADV changes from a fresh, non-stub ADV session.
+
+| Order | Priority | Change | Proposal |
+|---|---|---|---|
+| 1 | M3 | OCA umbrella plugin install | `docs/proposals/2026-05-03-oca-plugin-install.md` |
+| 2 | M2 | Bare `oca apply` lifecycle parity | `docs/proposals/2026-05-03-oca-apply-lifecycle-parity.md` |
+| 3 | M4 | OCA-owned instruction assets are real files | `docs/proposals/2026-05-03-oca-instruction-assets-real.md` |
+| 4 | M5 | Starter and migration stack validity | `docs/proposals/2026-05-03-oca-starter-migration-validity.md` |
+| 5 | M6 | OCA skill guidance refresh | `docs/proposals/2026-05-03-oca-skill-guidance-refresh.md` |
+| 6 | S1 | OCA runtime doctor canaries | `docs/proposals/2026-05-03-oca-runtime-doctor-canaries.md` |
+| 7 | S2 | Context budget audit + instruction loading diet | `docs/proposals/2026-05-03-context-budget-audit.md` |
+| 8 | S3 | Permission-first agent configuration | `docs/proposals/2026-05-03-agent-permission-first-config.md` |
+| 9 | S4 | MCP tool suite profiles and per-agent exposure | `docs/proposals/2026-05-03-mcp-tool-suite-profiles.md` |
+| 10 | S5 | Legacy in-repo ADV state doctor warning | `docs/proposals/2026-05-03-legacy-adv-state-doctor-warning.md` |
+
+## Post-v1 staged session/resource work (2026-05-03)
+
+Session & resource architecture work is decision-locked and ready to file as ADV changes after the ADV provider runtime canary passes and the OCA reliability MUST queue is filed/shipped. **7 change proposals** drafted across OCA + ADV repos:
 
 | #     | Change                                                  | Repo            | Effort       |
 | ----- | ------------------------------------------------------- | --------------- | ------------ |
@@ -70,16 +88,17 @@ Session & resource architecture work is decision-locked and ready to file as ADV
 | 4     | Idle Temporal worker reaper                             | ADV plugin      | 1–2 days     |
 | 5     | Peer-session topology distinction                       | ADV plugin      | 1–2 hours    |
 
-**Sequence:** ADV #6 first (blocker) → OCA #0 (prereq) → OCA #1 → OCA #2 (parallel #3) → ADV #4 → ADV #5.
+**Sequence:** ADV #6 first (blocker) → OCA reliability MUST queue (M3/OCA #0 → M2 → M4/M5/M6) → OCA #1 → OCA #2 (parallel #3) → ADV #4 → ADV #5.
 
-**Resume sequence when ADV #6 ships:**
+**Resume sequence when ADV provider runtime canary passes:**
 
 1. Fresh OpenCode session in `~/dev/oc-plugins/advance` (ADV repo)
-2. Switch to `adv-claude` agent (workaround C in place — agent works post-restart)
-3. File ADV #6 via `/adv-proposal`, paste body from [`docs/proposals/2026-05-03-adv-sync-prompt-ref-fix.md`](docs/proposals/2026-05-03-adv-sync-prompt-ref-fix.md)
-4. After #6 archives: re-run `bash ~/dev/oc-plugins/advance/scripts/sync-global.sh --fix` (will produce single-ref prompt form natively, workaround C becomes redundant)
-5. Move to OCA repo and file #0, then #1, #2, #3 in sequence
-6. Move to ADV repo and file #4, #5 (parallelizable)
+2. Verify `opencode debug agent adv-gpt` (or selected provider agent) no longer resolves to `[ADV:PROVIDER_STUB_UNEXPANDED]`
+3. File ADV #6 via `/adv-proposal` if not already archived, paste body from [`docs/proposals/2026-05-03-adv-sync-prompt-ref-fix.md`](docs/proposals/2026-05-03-adv-sync-prompt-ref-fix.md)
+4. After #6 archives: re-run `bash ~/dev/oc-plugins/advance/scripts/sync-global.sh --fix` and restart OpenCode
+5. Move to OCA repo and file OCA reliability MUST queue: M3/OCA #0, M2, then M4/M5/M6
+6. Continue OCA session architecture: #1, then #2 and #3
+7. Move to ADV repo and file #4, #5 (parallelizable)
 
 **Companion staging:** [`docs/notes/2026-05-03-session-arch-companion-staging.md`](docs/notes/2026-05-03-session-arch-companion-staging.md) holds pre-drafted spec deltas + companion doc updates for each change. The `/adv-apply` phase of each change should pull from this file rather than redrafting from scratch.
 
