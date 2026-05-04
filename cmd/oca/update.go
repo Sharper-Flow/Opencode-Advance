@@ -92,6 +92,9 @@ func newUpdateCmd(state *commandState) *cobra.Command {
 					return newCLIError(3, "%w", syncpkg.FormatSyncError(name, res, err))
 				}
 			}
+			if err := render.WriteShellEnvAndStamp(config.ResolvePaths()); err != nil {
+				return newCLIError(3, "update shell env refresh: %w", err)
+			}
 			if skipped {
 				return newCLIError(1, "some plugins skipped")
 			}

@@ -277,6 +277,9 @@ func applyTemporal(state *commandState, stack *config.Stack, dryRun bool) error 
 	if _, err := render.WriteAtomic(envPath, []byte(content), 0o600, 3); err != nil {
 		return newCLIError(3, "write temporal env: %w", err)
 	}
+	if err := render.WriteShellEnvAndStamp(config.ResolvePaths()); err != nil {
+		return newCLIError(3, "apply temporal shell env refresh: %w", err)
+	}
 	if _, err := fmt.Fprintf(state.opts.Stdout, "rendered\t%s\n", envPath); err != nil {
 		return err
 	}
@@ -305,6 +308,9 @@ func emitPlanOrApplyWithOpts(state *commandState, plan *render.Plan, dryRun bool
 	result, err := render.Apply(plan, opts)
 	if err != nil {
 		return newCLIError(3, "%s: %w", action, err)
+	}
+	if err := render.WriteShellEnvAndStamp(config.ResolvePaths()); err != nil {
+		return newCLIError(3, "%s shell env refresh: %w", action, err)
 	}
 	if state.output == "json" {
 		return printJSON(state.opts.Stdout, result)

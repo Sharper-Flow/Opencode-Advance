@@ -56,6 +56,9 @@ func newPinCmd(state *commandState) *cobra.Command {
 					return newCLIError(3, "pin %s: %w", name, err)
 				}
 			}
+			if err := render.WriteShellEnvAndStamp(paths); err != nil {
+				return newCLIError(3, "pin shell env refresh: %w", err)
+			}
 			return nil
 		},
 	}

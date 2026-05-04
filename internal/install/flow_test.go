@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Sharper-Flow/Opencode-Advance/internal/config"
 	"github.com/Sharper-Flow/Opencode-Advance/internal/health"
 )
 
@@ -16,6 +17,9 @@ import (
 func TestInstall(t *testing.T) {
 	t.Run("fresh install creates dirs and writes rc files", func(t *testing.T) {
 		home := t.TempDir()
+		t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(home, ".config", "opencode"))
+		t.Setenv("OCA_VISION_CONFIG_DIR", filepath.Join(home, ".config", "vision"))
+		t.Setenv("OCA_CACHE_DIR", filepath.Join(home, ".cache", "oca"))
 		mockedHome := func() (string, error) { return home, nil }
 		mockedBin := func() (string, error) { return home + "/bin/oca", nil }
 		mockedPrereqs := func(ctx context.Context, _ interface{}, _ health.Options) ([]health.Check, error) {
@@ -60,6 +64,14 @@ func TestInstall(t *testing.T) {
 			if !contains(string(content), SentinelStart) {
 				t.Errorf("%s missing start sentinel", rc)
 			}
+		}
+
+		paths := config.ResolvePaths()
+		if _, err := os.Stat(paths.OCAEnvPath()); err != nil {
+			t.Fatalf("install should write shell env: %v", err)
+		}
+		if _, err := os.Stat(paths.EnvStampPath()); err != nil {
+			t.Fatalf("install should write env stamp: %v", err)
 		}
 	})
 

@@ -8,10 +8,14 @@ import (
 	"testing"
 
 	"github.com/Sharper-Flow/Opencode-Advance/brand"
+	"github.com/Sharper-Flow/Opencode-Advance/internal/config"
 )
 
 func TestPinCommand_PinsAllGitPluginsAndSkipsNPM(t *testing.T) {
 	tmp := t.TempDir()
+	t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(tmp, "opencode"))
+	t.Setenv("OCA_VISION_CONFIG_DIR", filepath.Join(tmp, "vision"))
+	t.Setenv("OCA_CACHE_DIR", filepath.Join(tmp, "cache"))
 	checkout := initLocalPinnedRepo(t, filepath.Join(tmp, "advance"))
 	stackPath := filepath.Join(tmp, "stack.toml")
 	writeFile(t, stackPath, "[meta]\nversion = \"1.0.0\"\n\n[plugins.advance]\nsource = \""+checkout+"\"\nref = \"master\"\ncheckout = \""+checkout+"\"\npath = \""+checkout+"\"\n\n[plugins.auth]\nsource = \"npm:opencode-auth@1.0.0\"\n")
@@ -33,10 +37,14 @@ func TestPinCommand_PinsAllGitPluginsAndSkipsNPM(t *testing.T) {
 	if !regexp.MustCompile(`source = "npm:opencode-auth@1.0.0"`).Match(data) {
 		t.Fatalf("npm plugin should remain unchanged:\n%s", string(data))
 	}
+	assertShellEnvAndStamp(t, config.ResolvePaths())
 }
 
 func TestPinCommand_TargetedPluginOnly(t *testing.T) {
 	tmp := t.TempDir()
+	t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(tmp, "opencode"))
+	t.Setenv("OCA_VISION_CONFIG_DIR", filepath.Join(tmp, "vision"))
+	t.Setenv("OCA_CACHE_DIR", filepath.Join(tmp, "cache"))
 	advance := initLocalPinnedRepo(t, filepath.Join(tmp, "advance"))
 	morph := initLocalPinnedRepo(t, filepath.Join(tmp, "morph"))
 	stackPath := filepath.Join(tmp, "stack.toml")
@@ -58,6 +66,9 @@ func TestPinCommand_TargetedPluginOnly(t *testing.T) {
 
 func TestPinCommand_UnreadableCheckoutExit2(t *testing.T) {
 	tmp := t.TempDir()
+	t.Setenv("OCA_OPENCODE_CONFIG_DIR", filepath.Join(tmp, "opencode"))
+	t.Setenv("OCA_VISION_CONFIG_DIR", filepath.Join(tmp, "vision"))
+	t.Setenv("OCA_CACHE_DIR", filepath.Join(tmp, "cache"))
 	stackPath := filepath.Join(tmp, "stack.toml")
 	writeFile(t, stackPath, `[meta]
 version = "1.0.0"

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Sharper-Flow/Opencode-Advance/brand"
+	"github.com/Sharper-Flow/Opencode-Advance/internal/config"
 )
 
 func TestUpdateCommand_TrackingRefFetchesLatestAndReapplies(t *testing.T) {
@@ -41,6 +42,7 @@ func TestUpdateCommand_TrackingRefFetchesLatestAndReapplies(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(tmp, "opencode", "opencode.json")); err != nil {
 		t.Fatalf("expected opencode.json after reapply: %v", err)
 	}
+	assertShellEnvAndStamp(t, config.ResolvePaths())
 }
 
 func TestUpdateCommand_PinnedSHA_SkipsWithExit1(t *testing.T) {

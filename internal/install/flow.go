@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Sharper-Flow/Opencode-Advance/internal/config"
 	"github.com/Sharper-Flow/Opencode-Advance/internal/health"
+	"github.com/Sharper-Flow/Opencode-Advance/internal/render"
 )
 
 // Package-level function variables for testability.
@@ -126,6 +128,14 @@ func Install(ctx context.Context, opts InstallOptions) (*InstallResult, error) {
 			return nil, fmt.Errorf("write %s: %w", rc, err)
 		}
 		wroteRCFiles = append(wroteRCFiles, rc)
+	}
+
+	paths := config.ResolvePaths()
+	if os.Getenv("OCA_OPENCODE_CONFIG_DIR") == "" {
+		paths.OpencodeConfigDir = filepath.Join(home, ".config", "opencode")
+	}
+	if err := render.WriteShellEnvAndStamp(paths); err != nil {
+		return nil, fmt.Errorf("write shell env refresh stamp: %w", err)
 	}
 
 	return &InstallResult{
