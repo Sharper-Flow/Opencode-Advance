@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "id": "ws-8260c802-c6ab-4e90-a3e5-8a334a1683ab",
+      "type": "gotcha",
+      "content": "When upstream architecture is designed but not landed, keep OCA runtime docs explicitly split between current-era guidance and pending cutover gates; do not update specs or runtime code until live Advance contracts match the planned model.",
+      "source_task": "tk-61c7b68b-a852-46c4-a582-e93b1b877306",
+      "recorded_at": "2026-05-04T23:02:15.313Z"
+    }
+  ],
+  "count": 1
+}

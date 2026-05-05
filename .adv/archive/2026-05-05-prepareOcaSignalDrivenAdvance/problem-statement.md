@@ -1,0 +1,1 @@
+OCA needs to prepare for Advance's planned signal-driven workflow refactor, but the upstream architecture is not landed yet. The safe near-term work is to clarify current OCA guidance and define an exact readiness checklist so the runtime refactor can proceed later without breaking current Advance compatibility.
