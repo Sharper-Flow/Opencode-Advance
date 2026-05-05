@@ -161,7 +161,7 @@ Current defaults:
 
 ### 3.5. ADV Runtime (`internal/advruntime/`)
 
-ADV runtime diagnostics layer. Read-only by default; never silently mutates ADV workflow state.
+ADV runtime diagnostics layer. Read-only by default; never silently mutates ADV workflow state. This section describes the current Advance repair/projection-era integration. Advance has a planned signal-driven workflow refactor; OCA must not replace these runtime assumptions until the readiness gates in `../notes/2026-05-05-advance-signal-cutover-readiness.md` pass.
 
 - `Report` data model aggregates findings from all scanners
 - `WorkflowClassifier` lists Running ADV workflows via Temporal visibility, groups by task queue, detects stale queues (no pollers + stale age)

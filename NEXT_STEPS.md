@@ -23,7 +23,7 @@ If asked "what's next" without further context: confirm v1.0 finalization (track
 - `oca doctor --scope adv-assets` is shipped as out-of-phase hardening for plugin/OCA asset ownership drift
 - CI and local verification cover Go tests, vet, builds, and race runs for shipped phases
 - **Current focus:** Phase 8 extras/polish
-- **Dependency watch:** Advance has in-progress Temporal migration repair work. See `docs/notes/2026-05-02-advance-plugin-impact-check.md` before cleanup or release prep.
+- **Dependency watch:** Current Advance repair/projection-era tooling remains live. A signal-driven workflow refactor is planned upstream but not landed; keep OCA runtime behavior compatible until the readiness gates in `docs/notes/2026-05-05-advance-signal-cutover-readiness.md` pass. See `docs/notes/2026-05-02-advance-plugin-impact-check.md` before current-era cleanup or release prep.
 - **Post-v1 staged (2026-05-03; updated 2026-05-04):** Session & resource architecture work decision-locked. Seven change proposals drafted in `docs/proposals/2026-05-03-*.md`. OCA reliability/runtime correctness queue reviewed and accepted into the roadmap (M3 → M2 → M4/M5/M6, then S1/S2 → S3/S4 → S5/S6/S7). S7 is OCA issue `#9`, companion to Advance `#40`: deterministic Advance rebuild + fresh-session/worktree handoff. File proposals only after a fresh OpenCode restart and runtime canary prove a non-stub ADV provider agent.
 
 ## Resume from here
@@ -52,8 +52,9 @@ Then:
 ## Immediate implementation target (Phase 8)
 
 - Add release packaging and remaining polish from `docs/proposals/phases.md`
-- Advance `repairTemporalMigrationDebt` has landed; run `adv_migrate_cleanup` dry-run against OCA before any approved cleanup with backup/commit
-- Keep OCA doctor warnings bundle-aware: warn legacy in-repo ADV state (`.adv/changes`, `.adv/db`, `.adv/agenda*`, non-bundle `.adv/archive` residue) while preserving `.adv/specs/` and valid `.adv/archive/*/change.json` bundles
+- For current Advance builds, `repairTemporalMigrationDebt` has landed; run `adv_migrate_cleanup` dry-run against OCA before any approved cleanup with backup/commit
+- Keep OCA doctor warnings bundle-aware for the current era: warn legacy in-repo ADV state (`.adv/changes`, `.adv/db`, `.adv/agenda*`, non-bundle `.adv/archive` residue) while preserving `.adv/specs/` and valid historical `.adv/archive/*/change.json` bundles
+- Do not start the signal-driven OCA runtime refactor until `docs/notes/2026-05-05-advance-signal-cutover-readiness.md` gates pass
 - Keep shipped config rendering behavior stable while layering release polish on top
 - Keep all writes isolated from live user config
 
@@ -111,7 +112,7 @@ Session & resource architecture work is decision-locked and ready to file as ADV
 - Do **not** write to live user config during development
 - Always use isolated config dirs via `OCA_OPENCODE_CONFIG_DIR`, `OCA_VISION_CONFIG_DIR`, `OCA_PLUGIN_CHECKOUT_ROOT`, and `OCA_CACHE_DIR`
 - Advance is a required dependency, but OCA must not duplicate Advance-owned assets
-- Do not manually delete legacy `.adv/` state; use landed Advance cleanup tooling, and always preserve `.adv/specs/` plus valid `.adv/archive/*/change.json` bundles
+- Do not manually delete legacy `.adv/` state; for current Advance builds use landed cleanup tooling, and always preserve `.adv/specs/` plus valid historical `.adv/archive/*/change.json` bundles
 - Prefer per-phase ADV changes over one giant implementation change
 
 ## Key docs
