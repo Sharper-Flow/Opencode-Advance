@@ -2,9 +2,11 @@ package dashboard
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"os"
 
+	"go.temporal.io/api/common/v1"
 	"go.temporal.io/api/workflow/v1"
 	"go.temporal.io/api/workflowservice/v1"
 )
@@ -110,15 +112,40 @@ func (p *TemporalPoller) mapWorkflowToRow(wf *workflow.WorkflowExecutionInfo) Ch
 		row.ID = wf.Execution.WorkflowId
 	}
 
-	// Extract search attributes
+	// Extract search attributes from Temporal visibility.
 	if wf.SearchAttributes != nil {
-		for _, sa := range wf.SearchAttributes.IndexedFields {
-			_ = sa // TODO: parse search attributes in follow-up
+		for key, payload := range wf.SearchAttributes.IndexedFields {
+			switch key {
+			case "AdvChangeId":
+				row.ChangeID = extractPayloadString(payload)
+			case "AdvChangeStatus":
+				row.Status = extractPayloadString(payload)
+			case "AdvChangeTitle":
+				row.Title = extractPayloadString(payload)
+			case "AdvCurrentGate":
+				row.CurrentGate = extractPayloadString(payload)
+			}
 		}
 	}
 
-	// Map status
-	row.Status = wf.Status.String()
+	// Map Temporal execution status as fallback when search attributes empty.
+	if row.Status == "unknown" || row.Status == "" {
+		row.Status = wf.Status.String()
+	}
 
 	return row
+}
+
+// extractPayloadString extracts a string value from a Temporal search attribute
+// payload. Handles both Keyword and Text types gracefully.
+func extractPayloadString(payload *common.Payload) string {
+	if payload == nil || len(payload.Data) == 0 {
+		return ""
+	}
+	// Temporal Keyword/Text payloads are JSON-encoded strings: "value"
+	var s string
+	if err := json.Unmarshal(payload.Data, &s); err != nil {
+		return string(payload.Data)
+	}
+	return s
 }

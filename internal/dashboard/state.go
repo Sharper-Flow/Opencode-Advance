@@ -9,9 +9,11 @@ import (
 // ChangeRow represents a single ADV change in the dashboard.
 type ChangeRow struct {
 	ID          string `json:"id"`
+	ChangeID    string `json:"change_id"`
 	Title       string `json:"title"`
 	Status      string `json:"status"`
 	ActiveGate  string `json:"active_gate"`
+	CurrentGate string `json:"current_gate"`
 	TasksDone   int    `json:"tasks_done"`
 	TasksTotal  int    `json:"tasks_total"`
 	DoomLoop    bool   `json:"doom_loop"`

@@ -20,14 +20,16 @@ The following agents are owned by the Advance plugin and synced via `advance/scr
 
 | File               | Owned by |
 | ------------------ | -------- |
-| `adv.md`             | Advance  |
-| `plan.md`            | Advance  |
-| `adv-researcher.md`  | Advance  |
-| `tron.md`            | Advance  |
+| `adv.md`             | Advance (synced global)  |
+| `plan.md`            | Advance (synced global)  |
+| `adv-researcher.md`  | Advance (bundled global) |
+| `adv-engineer.md`    | Advance (bundled global) |
+| `adv-tron.md`        | Advance (bundled global) |
+| `adv-atc.md`         | Advance (bundled global) |
 
 If a file appears in both this directory and Advance's `.opencode/agents/`, the build pipeline will fail the duplicate-owner check in Phase 2.
 
-Recent Advance releases consolidated `scout -> plan` and `refine -> build`. `build.md` remains OCA-owned here, but Advance now patches its overlay block during sync.
+`build.md` remains OCA-owned here, but Advance patches its overlay block during sync.
 
 ## Status
 

@@ -127,9 +127,7 @@ Then walk the 7-gate workflow:
 
 ```
 /adv-discover phase0FoundationBrand
-/adv-agree phase0FoundationBrand
 /adv-design phase0FoundationBrand
-/adv-present phase0FoundationBrand
 /adv-prep phase0FoundationBrand
 /adv-apply phase0FoundationBrand
 ```

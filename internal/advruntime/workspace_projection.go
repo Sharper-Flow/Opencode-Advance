@@ -14,14 +14,14 @@ import (
 type WorktreeWorkspaceState struct {
 	Branch             string `json:"branch"`
 	Path               string `json:"path,omitempty"`
-	Materialized      bool   `json:"materialized"`
-	ChangeID          string `json:"changeId,omitempty"`
-	Status            string `json:"status"`                       // active, idle, setup_failed, materializing, pending_delete, merged, stale, deleted
-	SetupReady        bool   `json:"setupReady"`
+	Materialized       bool   `json:"materialized"`
+	ChangeID           string `json:"changeId,omitempty"`
+	Status             string `json:"status"` // active, idle, setup_failed, materializing, pending_delete, merged, stale, deleted
+	SetupReady         bool   `json:"setupReady"`
 	SetupFailureReason string `json:"setupFailureReason,omitempty"`
-	BaseRef           string `json:"baseRef,omitempty"`
-	HeadSha           string `json:"headSha,omitempty"`
-	Source            string `json:"source,omitempty"`
+	BaseRef            string `json:"baseRef,omitempty"`
+	HeadSha            string `json:"headSha,omitempty"`
+	Source             string `json:"source,omitempty"`
 }
 
 // WorkspaceProjection holds all projected workspace states for a project.
@@ -123,11 +123,11 @@ type EnrichedSession struct {
 	Path     string `json:"path"`
 
 	// ADV workspace projection (empty when ADV unavailable)
-	WorkspaceStatus    string `json:"workspaceStatus,omitempty"`
-	WorkspaceChangeID  string `json:"workspaceChangeId,omitempty"`
-	WorkspaceBranch    string `json:"workspaceBranch,omitempty"`
-	WorkspaceSetupReady bool  `json:"workspaceSetupReady,omitempty"`
-	WorkspaceFailure   string `json:"workspaceFailure,omitempty"`
+	WorkspaceStatus     string `json:"workspaceStatus,omitempty"`
+	WorkspaceChangeID   string `json:"workspaceChangeId,omitempty"`
+	WorkspaceBranch     string `json:"workspaceBranch,omitempty"`
+	WorkspaceSetupReady bool   `json:"workspaceSetupReady,omitempty"`
+	WorkspaceFailure    string `json:"workspaceFailure,omitempty"`
 }
 
 // EnrichSessionsWithWorkspaceState enriches OCA session data with ADV

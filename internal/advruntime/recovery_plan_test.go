@@ -18,7 +18,7 @@ func TestRecoveryPlanSynthesizer_EmptyReportReturnsNoSteps(t *testing.T) {
 func TestRecoveryPlanSynthesizer_SearchAttributeIssuesFirst(t *testing.T) {
 	report := NewReport(Config{})
 	report.SearchAttributes = []SearchAttributeStatus{
-		{Name: "AdvProjectId", Expected: "INDEXED_VALUE_TYPE_KEYWORD", Actual: "", Status: StatusFail},
+		{Name: "AdvChangeId", Expected: "INDEXED_VALUE_TYPE_KEYWORD", Actual: "", Status: StatusFail},
 	}
 	report.Summary.MissingSearchAttributes = 1
 
@@ -143,7 +143,7 @@ func TestRecoveryPlanSynthesizer_OrdersStepsCorrectly(t *testing.T) {
 	report := NewReport(Config{})
 	// All issue types present
 	report.SearchAttributes = []SearchAttributeStatus{
-		{Name: "AdvProjectId", Status: StatusFail},
+		{Name: "AdvChangeId", Status: StatusFail},
 	}
 	report.WorkflowQueues = []WorkflowQueueStatus{
 		{TaskQueue: "advance-proj", Status: StatusFail, Pollers: 0, RunningWorkflows: 10},
@@ -174,7 +174,7 @@ func TestRecoveryPlanSynthesizer_OrdersStepsCorrectly(t *testing.T) {
 func TestRecoveryPlanSynthesizer_NoMutation(t *testing.T) {
 	report := NewReport(Config{})
 	report.SearchAttributes = []SearchAttributeStatus{
-		{Name: "AdvProjectId", Status: StatusFail},
+		{Name: "AdvChangeId", Status: StatusFail},
 	}
 
 	synth := NewRecoveryPlanSynthesizer()

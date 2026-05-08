@@ -11,7 +11,7 @@ For user-facing documentation, see [`README.md`](README.md).
 
 - **Repo**: `https://github.com/Sharper-Flow/Opencode-Advance.git`
 - **Branch**: `trunk` (default), remote `origin`
-- **Language**: Go 1.22+ (CLI core), Bash (tmux/shell integration only), Markdown (design docs, proposals)
+- **Language**: Go 1.22+ (CLI core), Bash (tmux/shell integration only), TypeScript (OCA umbrella plugin), Markdown (design docs, proposals)
 - **Test framework**: Go stdlib `testing` + golden files; bash test scripts for shell integration
 
 ---
@@ -22,7 +22,7 @@ OpenCode Advance depends on Advance; Advance does not depend on OpenCode Advance
 
 - OpenCode Advance clones, builds, and wires the Advance plugin as part of `oca install` / `oca apply`
 - OpenCode Advance delegates all Advance-owned asset sync to `advance/scripts/sync-global.sh --fix`
-- OpenCode Advance does **not** duplicate any files that Advance owns: `adv-*.md` commands, ADV agents (`adv`, `plan`, `adv-researcher`, `tron`), ADV skills (`adv-*`), ADV overlays, or ADV instructions
+- OpenCode Advance does **not** duplicate any files that Advance owns: `adv-*.md` commands, ADV agents, ADV skills (`adv-*`), ADV overlays, or ADV instructions
 - OpenCode Advance owns the non-ADV slice of the environment: environment-level agents (`build`, `explore`, `librarian`, `general`, `mechanic`), instructions (rules.yaml, identity, shell_strategy, etc.), MCP server lifecycle, plugin management, providers, session/tmux UX
 
 This clean boundary is the central reason OpenCode Advance exists as a separate project. Each file in `~/.config/opencode/` has exactly one owner.
@@ -36,8 +36,9 @@ opencodeadvance/
 ├── stack.toml                          # THE source of truth (user creates; oca reads)
 ├── stack.example.toml                  # Complete example reference
 │
-├── cmd/oca/                            # CLI entry point (Go)
-│   └── main.go
+├── cmd/
+│   ├── oca/                            # CLI entry point (Go)
+│   └── session-debug/                  # Session state debug utility
 │
 ├── internal/                           # Internal Go packages
 │   ├── config/                         # stack.toml parser + schema validation
@@ -49,16 +50,24 @@ opencodeadvance/
 │   ├── session/                        # Tmux session lifecycle (create/list/attach/switch/kill/restart/reap)
 │   ├── install/                        # Prerequisite checks, shell profile management, install/uninstall orchestration
 │   ├── temporal/                       # Temporal dev-server supervision (start/stop/restart/logs/status)
-│   └── migrate/                        # open-chad → opencode-advance importer
+│   ├── migrate/                        # open-chad → opencode-advance importer
+│   ├── advruntime/                     # ADV runtime diagnostics (search attributes, workflow classifier, workspace projection, worker lock)
+│   ├── dashboard/                      # Operator dashboard (HTTP server, SSE, Temporal polling)
+│   ├── maintain/                       # Maintenance planner (merge candidates, rebuilds, cleanup)
+│   ├── occupancy/                      # Worktree occupancy tracking
+│   └── discord/                        # Discord Rich Presence integration
 │
 ├── assets/                             # Static files, copied as-is to ~/.config/opencode/
 │   ├── agents/                         # build.md, explore.md, librarian.md, general.md, mechanic.md
 │   ├── instructions/                   # identity.md, rules.yaml, shell_strategy.md, etc.
 │   ├── skills/                         # lgrep, mcp-selection, morph, worktree, prioritizer, caveman, caveman-commit, caveman-review
+│   ├── discord/                        # taglines.toml
 │   └── themes/
 │       ├── obsidian.json               # OpenCode UI theme (obsidian palette, indigo accent)
-│       ├── obsidian.tmux.conf          # Tmux 2-row status bar theme
-│       └── obsidian-light.tmux.conf    # Optional light variant (future)
+│       ├── obsidian-classic.json       # Classic variant
+│       ├── obsidian-mono.json          # Monochrome variant
+│       ├── ayu-dark.json               # Ayu-dark variant
+│       └── obsidian.tmux.conf          # Tmux 2-row status bar theme
 │
 ├── templates/                          # Go text/template files rendered by oca apply
 │   ├── opencode.json.gotmpl            # Merged into ~/.config/opencode/opencode.json
@@ -66,18 +75,19 @@ opencodeadvance/
 │   ├── tmux.conf.block.gotmpl          # Block injected into ~/.tmux.conf
 │   └── shell_profile.block.gotmpl      # Block injected into ~/.zshrc / ~/.bashrc
 │
-├── bin/                                # Shell-level entry points (post-install)
-│   ├── oca                             # Thin wrapper calling the Go binary
-│   ├── oc                              # Short alias (retains muscle memory)
-│   ├── cds                             # Scratch dir launcher
-│   └── ocashell.sh                     # Completion bootstrap
+├── plugins/oca/                        # OCA umbrella plugin (TypeScript, bun-built)
+│   └── src/                            # Pane state tracking, watchdog, session enrichment
 │
 ├── lib/                                # Shell-only helpers (tmux theming, boot splash)
 │   ├── palette.sh                      # Truecolor/256/mono palette + NO_COLOR handling
 │   ├── wordmark.sh                     # Compact 3-line wordmark renderer
 │   ├── boot_splash.sh                  # Boot splash with wordmark reveal + version line
 │   ├── session_lifecycle.sh            # tmux session creation/list primitives
-│   └── discord/                        # Discord Rich Presence integration
+│   ├── status_bar.sh                   # tmux status bar assembly
+│   ├── llm_gauge.sh                    # LLM provider quota gauges
+│   └── adv_status.sh                   # ADV change/gate parsing for status bar
+│
+├── brand/                              # Go wordmark renderer + brand assets
 │
 ├── tests/                              # Test suites
 │   ├── config_test.go                  # stack.toml parse/validate
@@ -87,28 +97,19 @@ opencodeadvance/
 │
 ├── docs/
 │   ├── design/                         # Architecture, brand, schema, CLI reference
-│   │   ├── architecture.md
-│   │   ├── brand.md
-│   │   ├── wordmark.md
-│   │   ├── palette.md
-│   │   ├── theme.md
-│   │   ├── stack-toml-schema.md
-│   │   └── cli-surface.md
 │   ├── proposals/                      # Implementation planning docs
-│   │   ├── v1-implementation.md        # Full v1.0 proposal content (for first ADV change)
-│   │   ├── phases.md                   # Phase sequencing
-│   │   └── first-boot.md               # How to initialize ADV in this repo
+│   ├── notes/                          # Working notes and research
 │   └── specs/                          # Generated spec docs (populated by ADV)
 │
 ├── .adv/                               # ADV in-repo state artifacts
 │   ├── specs/                          # Capability specs (written by ADV, git-tracked)
-│   └── archive/                        # In-repo archive bundles (`*/change.json`) written by ADV
-│                                       # Live mutable state (changes, wisdom, agenda, worker lock) lives in
+│   └── archive/                        # In-repo archive bundles written by ADV
+│                                       # Live mutable state lives in
 │                                       # $XDG_DATA_HOME/opencode/plugins/advance/{project-id}/
 │                                       # managed by Temporal workflows with file-backed persistence
 │
 └── .github/
-    └── workflows/                      # CI (populated in Phase 1)
+    └── workflows/                      # CI + release
 ```
 
 ---
@@ -117,12 +118,12 @@ opencodeadvance/
 
 This project is developed through the Advance spec-driven workflow. Every non-trivial change is an ADV change following the 7-gate lifecycle:
 
-1. **Proposal** — problem statement, success criteria, constraints, discovery agenda
-2. **Discovery** — context analysis, objectives, agreement (`/adv-discover` + `/adv-agree`)
-3. **Design** — architecture decisions with mandatory validator pass (`/adv-design` + `/adv-present`)
+1. **Proposal** — problem statement, success criteria, constraints (`/adv-proposal`)
+2. **Discovery** — context analysis, objectives, agreement (`/adv-discover`)
+3. **Design** — architecture decisions with mandatory validator pass (`/adv-design`)
 4. **Planning** — task graph synthesized from validated design (`/adv-prep`)
 5. **Execution** — TDD-driven implementation (`/adv-apply`)
-6. **Acceptance** — code review + user sign-off (`/adv-review` + `/adv-accept`)
+6. **Acceptance** — code review + user sign-off (`/adv-review`)
 7. **Release** — quality verification, spec deltas applied, git finalized (`/adv-harden` + `/adv-archive`)
 
 The v1.0 initial implementation is scoped in [`docs/proposals/v1-implementation.md`](docs/proposals/v1-implementation.md) and phased in [`docs/proposals/phases.md`](docs/proposals/phases.md).
@@ -165,13 +166,13 @@ At v1.0 release time, the user runs `oca migrate from-open-chad` which performs 
 | `~/.config/opencode/agents/librarian.md`      | **oca**           | Environment-level agent                            |
 | `~/.config/opencode/agents/general.md`        | **oca + overlay** | Base: oca. Advance injects ADV overlay block       |
 | `~/.config/opencode/agents/mechanic.md`       | **oca**           | Environment-level agent                            |
-| `~/.config/opencode/agents/adv.md`            | **Advance**       | ADV orchestrator agent (via sync-global.sh)        |
-| `~/.config/opencode/agents/plan.md`           | **Advance + overlay** | ADV agent with overlay block                       |
+| `~/.config/opencode/agents/adv.md`            | **Advance**       | ADV orchestrator agent (synced global)             |
+| `~/.config/opencode/agents/plan.md`           | **Advance**       | ADV planning agent (synced global)                 |
 | `~/.config/opencode/agents/adv-researcher.md` | **Advance**       | ADV research + validation agent (bundled global)   |
 | `~/.config/opencode/agents/adv-engineer.md`   | **Advance**       | ADV delegated code-writing executor (bundled global)|
-| `~/.config/opencode/agents/tron.md`           | **Advance**       | ADV agent (repo-local, `.opencode/agents/`)        |
+| `~/.config/opencode/agents/adv-tron.md`       | **Advance**       | ADV codebase recon agent (bundled global)          |
+| `~/.config/opencode/agents/adv-atc.md`        | **Advance**       | ADV autonomous pipeline agent (bundled global)     |
 | `~/.config/opencode/command/adv-*.md`         | **Advance**       | ADV slash commands                                 |
-| `~/.config/opencode/command/oca-*.md`         | **oca**           | OpenCode Advance slash commands (if any)          |
 | `~/.config/opencode/skills/adv-*/`            | **Advance**       | ADV methodology skills                             |
 | `~/.config/opencode/skills/lgrep/`            | **oca**           | Code exploration tool selection skill               |
 | `~/.config/opencode/skills/morph/`            | **oca**           | Edit tool selection skill                           |
@@ -192,7 +193,6 @@ At v1.0 release time, the user runs `oca migrate from-open-chad` which performs 
 | `~/.config/opencode/instructions/morph-tools.md` | **oca**        | Environment-level instruction                      |
 | `~/.config/opencode/instructions/worktree-guide.md` | **oca**     | Environment-level instruction                      |
 | `~/.config/opencode/instructions/caveman.md`  | **oca**           | Environment-level instruction                      |
-| `~/.config/opencode/instructions/ADV_*.md`    | **Advance**       | Advance instruction (path referenced)              |
 | `~/.config/vision/servers.yaml`               | **oca**           | Rendered from stack.toml                           |
 | `~/.tmux.conf` (OCA block only)               | **oca**           | Managed block, rest is user-owned                  |
 | `~/.zshrc` / `~/.bashrc` (OCA block only)     | **oca**           | Managed block, rest is user-owned                  |
@@ -204,23 +204,18 @@ At v1.0 release time, the user runs `oca migrate from-open-chad` which performs 
 
 Any file not in the "oca" or "Advance" column is user-owned and MUST NOT be touched by `oca apply`.
 
-Recent Advance changes consolidated shared agents: `scout -> plan` and `refine -> build`. OCA docs should not describe `scout.md` or `refine.md` as current shipped Advance assets.
-
 ### Advance Temporal migration
 
 Advance now uses **Temporal as its primary state backend**. Key implications for OCA:
 
-- State storage moved from JSON files to Temporal durable workflows (`changeWorkflow`, `projectWorkflow`)
+- State storage uses Temporal durable workflows (`changeWorkflow`, `projectWorkflow`)
 - File-backed JSON is the Temporal adapter's internal persistence layer (not a runtime fallback); `ADV_DISABLE_TEMPORAL=1` is a test/dev escape hatch only
-- Worker heartbeat tuning is Advance-owned: `ADV_WORKER_HEARTBEAT_STALE_MS` controls stale-heartbeat grace and `ADV_WORKER_HEARTBEAT_INTERVAL_MS` controls heartbeat write cadence. OCA only surfaces stale-heartbeat diagnostics.
-- OCA's Phase 5 managed the Temporal infrastructure (CLI, dev server, env vars) that Advance depends on (completeTemporalOnlyMigration and retireLegacyStorageBackend branches pending upstream)
-- New `adv-engineer` agent (bundled global) for delegated code-writing execution
-- `adv-researcher` promoted from repo-scoped to bundled global
+- Worker heartbeat tuning is Advance-owned: `ADV_WORKER_HEARTBEAT_STALE_MS` and `ADV_WORKER_HEARTBEAT_INTERVAL_MS`. OCA only surfaces stale-heartbeat diagnostics.
+- OCA's Phase 5 managed the Temporal infrastructure (CLI, dev server, env vars) that Advance depends on
 - Worker model: in-process (Node hosts) or out-of-process child (Bun hosts via `ADV_NODE_PATH`)
 - Continue-as-new prevents unbounded workflow history (configurable thresholds)
-- Current-era Advance repair work (`repairTemporalMigrationDebt`) provides cleanup and diagnostic tooling for Temporal/disk divergence. OCA should use that tooling for legacy in-repo `.adv/{changes,db,agenda*}` and non-bundle `.adv/archive` cleanup instead of manual deletion, and must preserve `.adv/specs/` plus valid historical `.adv/archive/*/change.json` bundles.
-- Landed Advance worker work (`boundParentProjectWorkflow`) uses one Temporal worker per project rather than one worker per OpenCode session. OCA doctor/status logic should avoid process-count assumptions and prefer service/workflow/heartbeat health checks.
-- Advance has a planned signal-driven change workflow refactor that will replace several current OCA-facing runtime assumptions. It is not yet OCA's runtime contract; keep current compatibility until the readiness gates in `docs/notes/2026-05-05-advance-signal-cutover-readiness.md` pass.
+- One Temporal worker per project (not per session) — OCA doctor/status logic should avoid process-count assumptions
+- Advance has a planned signal-driven change workflow refactor. Until readiness gates in `docs/notes/2026-05-05-advance-signal-cutover-readiness.md` pass, OCA should preserve current compatibility
 
 ---
 
@@ -237,5 +232,5 @@ Advance now uses **Temporal as its primary state backend**. Key implications for
 
 `.github/workflows/`:
 
-- `ci.yml` — shipped: on every PR and push to trunk runs `go test ./...`, `go vet ./...`, `gofmt -d .`
-- `release.yml` — Phase 8 (not yet shipped): on version tags (`v*`) goreleaser will build cross-platform binaries and publish to GitHub Releases
+- `ci.yml` — on every PR and push to trunk runs `go test ./...`, `go vet ./...`, `gofmt -d .`
+- `release.yml` — on version tags (`v*`) goreleaser builds cross-platform binaries and publishes to GitHub Releases

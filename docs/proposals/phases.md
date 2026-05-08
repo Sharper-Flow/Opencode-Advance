@@ -548,17 +548,14 @@ Every phase MUST:
 Every phase is developed as one or more ADV changes following the 7-gate workflow:
 
 1. `/adv-proposal` creates the change with the phase goal + deliverables as the proposal
-2. `/adv-discover` gathers context, analyzes current state, identifies objectives and knowledge gaps
-3. `/adv-agree` presents objectives and constraints for user acceptance
-4. `/adv-design` validates architecture decisions with mandatory `adv-researcher` validation
-5. `/adv-present` presents concise design overview for user review before planning
-6. `/adv-prep` expands the high-level tasks into a concrete task graph with TDD intent
-7. `/adv-apply` implements tasks one at a time with red/green TDD evidence
-8. `/adv-review` reviews the implementation across 12 dimensions
-9. `/adv-accept` presents deliverable summary and acceptance criteria checklist to user
-10. `/adv-harden` runs coverage/slop/doc checks
-11. `/adv-validate` checks the change against any specs created during the phase
-12. `/adv-archive` applies deltas and closes the change
+2. `/adv-discover` gathers context, analyzes current state, identifies objectives, and obtains user agreement
+3. `/adv-design` validates architecture decisions with mandatory `adv-researcher` validation
+4. `/adv-prep` expands the high-level tasks into a concrete task graph with TDD intent
+5. `/adv-apply` implements tasks one at a time with red/green TDD evidence
+6. `/adv-review` reviews the implementation and obtains user acceptance
+7. `/adv-harden` runs coverage/slop/doc checks
+8. `/adv-validate` checks the change against any specs created during the phase
+9. `/adv-archive` applies deltas and closes the change
 
 ### Phase dependencies
 

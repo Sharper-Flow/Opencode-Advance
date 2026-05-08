@@ -10,14 +10,22 @@ import (
 	operatorservicepb "go.temporal.io/api/operatorservice/v1"
 )
 
+// allCurrentAttrs is the full set of current Advance search attributes.
+var allCurrentAttrs = map[string]enumspb.IndexedValueType{
+	"AdvChangeId":         enumspb.INDEXED_VALUE_TYPE_KEYWORD,
+	"AdvChangeStatus":     enumspb.INDEXED_VALUE_TYPE_KEYWORD,
+	"AdvChangeTitle":      enumspb.INDEXED_VALUE_TYPE_KEYWORD,
+	"AdvCurrentGate":      enumspb.INDEXED_VALUE_TYPE_KEYWORD,
+	"AdvCurrentBucket":    enumspb.INDEXED_VALUE_TYPE_KEYWORD,
+	"AdvAffectedProjects": enumspb.INDEXED_VALUE_TYPE_KEYWORD_LIST,
+	"AdvWorktreeBranches": enumspb.INDEXED_VALUE_TYPE_KEYWORD_LIST,
+	"AdvWorktreePaths":    enumspb.INDEXED_VALUE_TYPE_KEYWORD_LIST,
+	"AdvCreatedAt":        enumspb.INDEXED_VALUE_TYPE_DATETIME,
+	"AdvLastSignalAt":     enumspb.INDEXED_VALUE_TYPE_DATETIME,
+}
+
 func TestSearchAttributeCheckerPassesWhenRequiredAttributesExist(t *testing.T) {
-	service := &fakeOperatorService{response: &operatorservicepb.ListSearchAttributesResponse{CustomAttributes: map[string]enumspb.IndexedValueType{
-		"AdvProjectId":      enumspb.INDEXED_VALUE_TYPE_KEYWORD,
-		"AdvChangeId":       enumspb.INDEXED_VALUE_TYPE_KEYWORD,
-		"AdvChangeStatus":   enumspb.INDEXED_VALUE_TYPE_KEYWORD,
-		"AdvActiveGate":     enumspb.INDEXED_VALUE_TYPE_KEYWORD,
-		"AdvDoomLoopActive": enumspb.INDEXED_VALUE_TYPE_BOOL,
-	}}}
+	service := &fakeOperatorService{response: &operatorservicepb.ListSearchAttributesResponse{CustomAttributes: allCurrentAttrs}}
 	checker := NewSearchAttributeChecker(service, Config{Namespace: "adv-test"})
 
 	report, err := checker.Check(context.Background())
@@ -39,8 +47,9 @@ func TestSearchAttributeCheckerPassesWhenRequiredAttributesExist(t *testing.T) {
 }
 
 func TestSearchAttributeCheckerDetectsMissingAttributes(t *testing.T) {
+	// Provide only one attribute to trigger missing detection.
 	service := &fakeOperatorService{response: &operatorservicepb.ListSearchAttributesResponse{CustomAttributes: map[string]enumspb.IndexedValueType{
-		"AdvProjectId": enumspb.INDEXED_VALUE_TYPE_KEYWORD,
+		"AdvChangeId": enumspb.INDEXED_VALUE_TYPE_KEYWORD,
 	}}}
 	checker := NewSearchAttributeChecker(service, Config{})
 
@@ -49,23 +58,25 @@ func TestSearchAttributeCheckerDetectsMissingAttributes(t *testing.T) {
 		t.Fatalf("Check: %v", err)
 	}
 
-	if report.Summary.Status != StatusFail || report.Summary.MissingSearchAttributes != 4 {
-		t.Fatalf("summary = %#v", report.Summary)
+	totalRequired := len(RequiredSearchAttributes())
+	if report.Summary.Status != StatusFail || report.Summary.MissingSearchAttributes != totalRequired-1 {
+		t.Fatalf("summary = %#v (want %d missing)", report.Summary, totalRequired-1)
 	}
-	missing := searchAttributeByName(report, "AdvChangeId")
+	missing := searchAttributeByName(report, "AdvChangeStatus")
 	if missing.Status != StatusFail || !strings.Contains(missing.Message, "missing") {
 		t.Fatalf("missing attr = %#v", missing)
 	}
 }
 
 func TestSearchAttributeCheckerDetectsWrongTypes(t *testing.T) {
-	service := &fakeOperatorService{response: &operatorservicepb.ListSearchAttributesResponse{CustomAttributes: map[string]enumspb.IndexedValueType{
-		"AdvProjectId":      enumspb.INDEXED_VALUE_TYPE_TEXT,
-		"AdvChangeId":       enumspb.INDEXED_VALUE_TYPE_KEYWORD,
-		"AdvChangeStatus":   enumspb.INDEXED_VALUE_TYPE_KEYWORD,
-		"AdvActiveGate":     enumspb.INDEXED_VALUE_TYPE_KEYWORD,
-		"AdvDoomLoopActive": enumspb.INDEXED_VALUE_TYPE_KEYWORD,
-	}}}
+	// Clone current attrs but flip one type.
+	wrongAttrs := make(map[string]enumspb.IndexedValueType, len(allCurrentAttrs))
+	for k, v := range allCurrentAttrs {
+		wrongAttrs[k] = v
+	}
+	wrongAttrs["AdvChangeId"] = enumspb.INDEXED_VALUE_TYPE_TEXT // wrong: should be Keyword
+
+	service := &fakeOperatorService{response: &operatorservicepb.ListSearchAttributesResponse{CustomAttributes: wrongAttrs}}
 	checker := NewSearchAttributeChecker(service, Config{})
 
 	report, err := checker.Check(context.Background())
@@ -76,7 +87,7 @@ func TestSearchAttributeCheckerDetectsWrongTypes(t *testing.T) {
 	if report.Summary.Status != StatusFail {
 		t.Fatalf("summary = %#v", report.Summary)
 	}
-	wrong := searchAttributeByName(report, "AdvProjectId")
+	wrong := searchAttributeByName(report, "AdvChangeId")
 	if wrong.Status != StatusFail || wrong.Actual != "INDEXED_VALUE_TYPE_TEXT" || wrong.Expected != "INDEXED_VALUE_TYPE_KEYWORD" {
 		t.Fatalf("wrong attr = %#v", wrong)
 	}

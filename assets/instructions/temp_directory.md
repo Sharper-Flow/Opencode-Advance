@@ -1,45 +1,40 @@
-# open-chad: Dedicated Temp & Cache Directory Policy
+# OpenCode Advance: Temp & Cache Directory Policy
 
 ## Where temp/cache files live
 
-open-chad uses a dedicated cache directory instead of scattering files across `/tmp`.
+OpenCode Advance uses a dedicated cache directory instead of scattering files across `/tmp`.
 
-The location is set by the `OPEN_CHAD_CACHE_DIR` environment variable, which is
-resolved at startup by `lib/opencode_env.sh`:
+The location is set by the `OCA_CACHE_DIR` environment variable, resolved by the
+`oca` CLI and shell integration:
 
 | Condition | Resolved Path |
 |-----------|---------------|
-| `$XDG_RUNTIME_DIR` is set | `$XDG_RUNTIME_DIR/open-chad/` |
-| `$XDG_RUNTIME_DIR` is unset (macOS, containers) | `/tmp/open-chad-$USER/` |
-| `OPEN_CHAD_CACHE_DIR` is pre-set | That value is used as-is (no override) |
+| `$XDG_RUNTIME_DIR` is set | `$XDG_RUNTIME_DIR/opencode-advance/` |
+| `$XDG_RUNTIME_DIR` is unset (macOS, containers) | `/tmp/opencode-advance-$USER/` |
+| `OCA_CACHE_DIR` is pre-set | That value is used as-is (no override) |
 
 The directory is created with owner-only permissions (`0700`) and is guaranteed
-to exist before any script that sources `opencode_env.sh` runs.
+to exist before any OCA operation that needs it.
 
 ## Files in the cache directory
 
 | File | Written by | Read by | Content |
 |------|-----------|---------|---------|
-| `metrics` | `collect_metrics.sh` | `status_right.sh` | `"CPU% RAM% LOAD_AVG"` |
-| `zai` | `collect_metrics.sh` | `status_right.sh` | integer 0–100 or empty |
-| `copilot` | `collect_metrics.sh` | `status_right.sh` | integer 0–100 or empty |
-| `claude` | `collect_metrics.sh` | `status_right.sh` | integer 0–100 or empty |
-| `codex` | `collect_metrics.sh` | `status_right.sh` | integer 0–100 or empty |
-| `metrics.lock` | `collect_metrics.sh` | `collect_metrics.sh` | PID of running collector |
+| `adv_status` | `lib/adv_status.sh` | tmux status bar | ADV change summary cache |
+| `temporal_health` | `lib/adv_status.sh` | tmux status bar | Temporal reachability probe result |
+| `temporal.env` | `internal/render/temporal.go` | `lib/adv_status.sh` | `ADV_TEMPORAL_ADDRESS=...` |
 
-All writes are atomic: data is written to a `.$$` temp file then `mv -f`'d to
-the final path to prevent partial reads.
+All writes are atomic: data is written to a temp file then `mv`'d to the final
+path to prevent partial reads.
 
 ## Cleanup
 
-Files older than 7 days are removed from `$OPEN_CHAD_CACHE_DIR` once per
-collector daemon startup (not on every launcher invocation). Active cache files
-are refreshed every 30 seconds, so they are never stale when the collector runs.
+Cache files are short-lived (10s TTL for status bar polling). Stale files are
+overwritten on the next poll cycle. No periodic cleanup daemon is needed.
 
 ## Why not `/tmp` directly?
 
 - `/tmp` is world-writable and full of unrelated process artifacts
-- Flat `/tmp/open-chad-*` names pollute the global namespace
 - `$XDG_RUNTIME_DIR` is user-private (`0700`) and auto-cleaned on logout
 - A single subtree can be approved once in OpenCode's file access policy
 
@@ -48,5 +43,6 @@ are refreshed every 30 seconds, so they are never stale when the collector runs.
 When creating temporary files during a session, prefer:
 - `$TMPDIR` (if set, points to a per-session safe location)
 - `$(mktemp)` or `$(mktemp -d)` (respects `$TMPDIR` automatically)
+- `/tmp/opencode` (pre-approved for OpenCode agent temporary work)
 
-Do not hardcode `/tmp/` paths when `$TMPDIR` or `$OPEN_CHAD_CACHE_DIR` are available.
+Do not hardcode `/tmp/` paths when `$TMPDIR` or `$OCA_CACHE_DIR` are available.

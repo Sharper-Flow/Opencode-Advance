@@ -27,11 +27,16 @@ func NewSearchAttributeChecker(service OperatorService, config Config) *SearchAt
 
 func RequiredSearchAttributes() map[string]enumspb.IndexedValueType {
 	return map[string]enumspb.IndexedValueType{
-		"AdvProjectId":      enumspb.INDEXED_VALUE_TYPE_KEYWORD,
-		"AdvChangeId":       enumspb.INDEXED_VALUE_TYPE_KEYWORD,
-		"AdvChangeStatus":   enumspb.INDEXED_VALUE_TYPE_KEYWORD,
-		"AdvActiveGate":     enumspb.INDEXED_VALUE_TYPE_KEYWORD,
-		"AdvDoomLoopActive": enumspb.INDEXED_VALUE_TYPE_BOOL,
+		"AdvChangeId":         enumspb.INDEXED_VALUE_TYPE_KEYWORD,
+		"AdvChangeStatus":     enumspb.INDEXED_VALUE_TYPE_KEYWORD,
+		"AdvChangeTitle":      enumspb.INDEXED_VALUE_TYPE_KEYWORD,
+		"AdvCurrentGate":      enumspb.INDEXED_VALUE_TYPE_KEYWORD,
+		"AdvCurrentBucket":    enumspb.INDEXED_VALUE_TYPE_KEYWORD,
+		"AdvAffectedProjects": enumspb.INDEXED_VALUE_TYPE_KEYWORD_LIST,
+		"AdvWorktreeBranches": enumspb.INDEXED_VALUE_TYPE_KEYWORD_LIST,
+		"AdvWorktreePaths":    enumspb.INDEXED_VALUE_TYPE_KEYWORD_LIST,
+		"AdvCreatedAt":        enumspb.INDEXED_VALUE_TYPE_DATETIME,
+		"AdvLastSignalAt":     enumspb.INDEXED_VALUE_TYPE_DATETIME,
 	}
 }
 
