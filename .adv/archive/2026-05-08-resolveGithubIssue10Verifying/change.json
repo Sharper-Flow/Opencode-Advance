@@ -1,0 +1,154 @@
+{
+  "id": "resolveGithubIssue10Verifying",
+  "title": "Resolve GitHub issue #10 by verifying Advance agent ownership docs and adding a guard against stale agent references",
+  "status": "archived",
+  "created_at": "2026-05-04T19:52:11.483Z",
+  "tasks": [
+    {
+      "id": "tk-ab662cdad03b",
+      "title": "Add TestDocsNoStaleAgentNames guard test to tests/polish_docs_test.go",
+      "type": "code",
+      "section": "implementation",
+      "status": "done",
+      "priority": 0,
+      "created_at": "2026-05-08T23:31:12.836Z",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-08T23:31:22.608Z",
+      "verification": "Added TestDocsNoStaleAgentNames to polish_docs_test.go. Test asserts AGENTS.md and assets/agents/README.md contain no scout.md or refine.md references. All 18 docs audit files committed alongside.",
+      "summary": "Added TestDocsNoStaleAgentNames to polish_docs_test.go. Test asserts AGENTS.md and assets/agents/README.md contain no scout.md or refine.md references. All 18 docs audit files committed alongside.",
+      "implementation_summary": "Added TestDocsNoStaleAgentNames to polish_docs_test.go. Test asserts AGENTS.md and assets/agents/README.md contain no scout.md or refine.md references. All 18 docs audit files committed alongside.",
+      "filesTouched": [],
+      "touched_files": [],
+      "completedAt": "2026-05-08T23:32:49.398Z",
+      "completed_at": "2026-05-08T23:32:49.398Z"
+    },
+    {
+      "id": "tk-6da1fa94107d",
+      "title": "Verify AGENTS.md and assets/agents/README.md are clean of scout.md/refine.md transitional wording",
+      "type": "code",
+      "section": "verification",
+      "status": "done",
+      "priority": 0,
+      "created_at": "2026-05-08T23:31:12.848Z",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-08T23:32:49.402Z",
+      "verification": "Verified: AGENTS.md and assets/agents/README.md contain zero references to scout.md or refine.md. No file changes needed.",
+      "summary": "Verified: AGENTS.md and assets/agents/README.md contain zero references to scout.md or refine.md. No file changes needed.",
+      "implementation_summary": "Verified: AGENTS.md and assets/agents/README.md contain zero references to scout.md or refine.md. No file changes needed.",
+      "filesTouched": [],
+      "touched_files": [],
+      "completedAt": "2026-05-08T23:33:01.500Z",
+      "completed_at": "2026-05-08T23:33:01.500Z"
+    },
+    {
+      "id": "tk-381fb006e46d",
+      "title": "Run full test suite (go test ./...) and verify all pass",
+      "type": "code",
+      "section": "verification",
+      "status": "done",
+      "priority": 0,
+      "created_at": "2026-05-08T23:31:12.850Z",
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-08T23:33:01.504Z",
+      "verification": "go test ./... — all 18 packages pass, including new TestDocsNoStaleAgentNames. 0 failures.",
+      "summary": "go test ./... — all 18 packages pass, including new TestDocsNoStaleAgentNames. 0 failures.",
+      "implementation_summary": "go test ./... — all 18 packages pass, including new TestDocsNoStaleAgentNames. 0 failures.",
+      "filesTouched": [],
+      "touched_files": [],
+      "completedAt": "2026-05-08T23:33:37.602Z",
+      "completed_at": "2026-05-08T23:33:37.602Z"
+    },
+    {
+      "id": "tk-6f8afbda3ade",
+      "title": "Comment on GitHub issue #10 with audit summary and close",
+      "type": "code",
+      "section": "verification",
+      "status": "done",
+      "priority": 0,
+      "created_at": "2026-05-08T23:31:12.851Z",
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-08T23:33:37.606Z",
+      "verification": "GitHub issue #10 closed with full audit summary. Issue Sharper-Flow/Opencode-Advance#10.",
+      "summary": "GitHub issue #10 closed with full audit summary. Issue Sharper-Flow/Opencode-Advance#10.",
+      "implementation_summary": "GitHub issue #10 closed with full audit summary. Issue Sharper-Flow/Opencode-Advance#10.",
+      "filesTouched": [],
+      "touched_files": [],
+      "completedAt": "2026-05-08T23:34:02.654Z",
+      "completed_at": "2026-05-08T23:34:02.654Z"
+    }
+  ],
+  "deltas": {},
+  "wisdom": [],
+  "gates": {
+    "proposal": {
+      "status": "done",
+      "completed_at": "2026-05-04T19:52:11.551Z",
+      "completed_by": "agent",
+      "notes": "User replied `approve`; proposal accepted for GitHub issue #10 documentation/stale-agent guard work."
+    },
+    "discovery": {
+      "status": "done",
+      "completed_at": "2026-05-08T23:30:57.860Z",
+      "completed_by": "agent",
+      "approval_evidence": "Discovery confirms: AGENTS.md already clean, stale.go already guards runtime, missing docs guard test. Agreement recorded."
+    },
+    "design": {
+      "status": "done",
+      "completed_at": "2026-05-08T23:31:06.424Z",
+      "completed_by": "agent",
+      "approval_evidence": "Simple docs guard test. No architectural decisions. Skipping independent validator — single test function, no cross-cutting impact."
+    },
+    "planning": {
+      "status": "done",
+      "completed_at": "2026-05-08T23:31:18.885Z",
+      "completed_by": "agent",
+      "approval_evidence": "4 tasks: add guard test, verify docs clean, run full suite, close GitHub issue. All mechanical. Requesting user approval."
+    },
+    "execution": {
+      "status": "done",
+      "completed_at": "2026-05-08T23:34:07.236Z",
+      "completed_by": "agent",
+      "approval_evidence": "All 4 tasks complete: guard test added, docs verified clean, suite passes (18/18), issue #10 closed."
+    },
+    "acceptance": {
+      "status": "done",
+      "completed_at": "2026-05-08T23:34:14.240Z",
+      "completed_by": "agent",
+      "approval_evidence": "All 5 AC met. No review findings. Issue #10 closed with evidence."
+    },
+    "release": {
+      "status": "done",
+      "completed_at": "2026-05-08T23:35:36.113Z",
+      "completed_by": "agent",
+      "approval_evidence": "Validation passed. No spec deltas (docs guard only). 3 benign warnings. Archive and merge."
+    }
+  },
+  "reentry_history": [],
+  "adv_project_id": "cdae139e16c8cbaa4ef2ebf35dda326e826e93bc",
+  "clarify_findings": [
+    {
+      "code": "CLARIFY_UNCLEAR_SCOPE",
+      "severity": "warning",
+      "message": "Proposal has no Scope section. What files and modules will be affected?",
+      "recorded_at": "2026-05-08T23:17:14.782Z"
+    },
+    {
+      "code": "CLARIFY_MISSING_ERROR_HANDLING",
+      "severity": "warning",
+      "message": "Proposal describes behavior that could fail but doesn't mention error handling or rollback. What happens when things go wrong?",
+      "recorded_at": "2026-05-08T23:17:14.782Z"
+    }
+  ]
+}
