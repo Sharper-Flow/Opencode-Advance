@@ -554,7 +554,7 @@ Flags:
 
 Behavior:
 
-- Search attributes: verifies required ADV attrs (AdvProjectId, AdvChangeId, etc.) are present and correct
+- Search attributes: verifies required ADV attrs (AdvChangeId, AdvChangeStatus, AdvChangeTitle, AdvAffectedProjects, AdvCurrentGate, AdvCurrentBucket, AdvLastSignalAt, AdvCreatedAt, AdvWorktreeBranches, AdvWorktreePaths) are present and correct
 - Workflow queues: lists Running ADV workflows, checks poller counts, flags stale queues
 - Session debt: scans OpenCode SQLite DB for stale blank assistant messages
 - Worktree census: counts active/stale OCA worktrees and orphan ADV state roots

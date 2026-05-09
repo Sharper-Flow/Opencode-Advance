@@ -13,7 +13,7 @@
 | **Frontend stack** | Datastar + server-rendered HTML + Tailwind | No Node bundler, no JS framework, no JS table lib — matches Go-first single-maintainer reality |
 | **Binary delivery** | Single Go binary via `//go:embed` | PocketBase / Caddy / Coder pattern — proven for ops tools |
 | **Real-time** | Server polls Temporal (gRPC, 2-5s) → SSE push to browser | All ops dashboards poll; SSE is cleanest server→client push for single-user |
-| **Temporal access** | `client.ListWorkflow` + existing search attributes | `AdvProjectId`/`AdvChangeId`/`AdvActiveGate`/`AdvDoomLoopActive` already registered |
+| **Temporal access** | `client.ListWorkflow` + existing search attributes | `AdvChangeId`/`AdvChangeStatus`/`AdvChangeTitle`/`AdvAffectedProjects`/`AdvCurrentGate`/`AdvCurrentBucket`/`AdvLastSignalAt`/`AdvCreatedAt`/`AdvWorktreeBranches`/`AdvWorktreePaths` already registered |
 | **tmux state** | Control-mode client (`tmux -Loca -C`), parse `%`-notifications | Event-driven, no polling — iTerm2 pattern |
 | **v1.1 scope** | Read-only unified table | Validate UX, defer auth complexity, ship faster |
 | **Cross-host** | Out of scope for v1.x; pulled in by long-term session-resume goal (see below) | Local-only loopback first; design REST endpoints host-scoped but no federation layer until session resume lands |

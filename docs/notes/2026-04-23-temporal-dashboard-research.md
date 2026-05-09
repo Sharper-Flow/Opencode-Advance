@@ -76,13 +76,18 @@ Advance exposes a rich query/update API through two durable workflows:
 
 Workflows register custom search attributes for external querying:
 
-- `AdvProjectId` — project filter
-- `AdvChangeId` — change filter
-- `AdvChangeStatus` — status filter (draft/active/completed/cancelled)
-- `AdvActiveGate` — current gate
-- `AdvDoomLoopActive` — doom-loop flag
+- `AdvChangeId` — change filter (Keyword)
+- `AdvChangeStatus` — status filter (Keyword)
+- `AdvChangeTitle` — change title (Keyword)
+- `AdvAffectedProjects` — project filter (KeywordList)
+- `AdvCurrentGate` — current gate (Keyword)
+- `AdvCurrentBucket` — priority bucket (Keyword)
+- `AdvLastSignalAt` — last signal timestamp (Datetime)
+- `AdvCreatedAt` — creation timestamp (Datetime)
+- `AdvWorktreeBranches` — worktree branches (KeywordList)
+- `AdvWorktreePaths` — worktree paths (KeywordList)
 
-Queryable via `client.workflow.list({ query: 'AdvProjectId = "proj1"' })`.
+Queryable via `client.workflow.list({ query: 'AdvChangeStatus = "active"' })`.
 
 ### Environment Variables
 
