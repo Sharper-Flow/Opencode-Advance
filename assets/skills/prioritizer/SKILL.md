@@ -38,7 +38,7 @@ For the specific decision domain, identify:
 - What does the ecosystem recommend?
 - Are there known pitfalls with any approach?
 
-Use Context7 for library docs, Kagi for broader context, grep.app for real-world patterns.
+Use Context7 for library docs, Kagi for broader context, gh_grep_searchGitHub for real-world patterns.
 
 ### Phase 3: Draft Criteria Questions
 

@@ -1,7 +1,7 @@
 ---
 name: mcp-selection
-description: "MCP tool selection guide — use when choosing between Kagi, Context7, grep.app, Firecrawl, Playwright, or other MCP tools for a task. Provides decision matrix and anti-patterns."
-keywords: ["mcp", "tool-selection", "context7", "kagi", "grep.app", "firecrawl", "playwright", "documentation", "web-search"]
+description: "MCP tool selection guide — use when choosing between Kagi, Context7, gh_grep, Firecrawl, Playwright, or other MCP tools for a task. Provides decision matrix and anti-patterns."
+keywords: ["mcp", "tool-selection", "context7", "kagi", "gh_grep", "firecrawl", "playwright", "documentation", "web-search"]
 license: MIT
 metadata:
   priority: high
@@ -47,25 +47,18 @@ Load this skill when you need to decide **which MCP tool** to use for a task. If
 **Primary: Grep by Vercel (`gh_grep`)**
 - Use `gh_grep_searchGitHub` to find real-world usage examples on GitHub
 - Great for: implementation patterns, API usage, seeing how others solved problems
-- Filter by language with `langFilter`, by repo with `repoFilter`
+- Filter by language with `language` (array), by repo with `repo` (string)
 
 **Avoid**: Web searching for code examples when `gh_grep` can find them directly
 
 ## Web Scraping & Data Extraction
 
-**Primary: Firecrawl (`firecrawl`) — always-on, no add needed**
+**Primary: Firecrawl (`firecrawl`) — typically available in standard deployments**
 - Use `firecrawl_firecrawl_scrape` for single page content extraction
 - Use `firecrawl_firecrawl_crawl` for multi-page crawl (async — returns job ID)
 - Use `firecrawl_firecrawl_check_crawl_status` to poll crawl job results
 
 **When to use over Kagi**: When you need the full page content, structured data, or JS-rendered pages
-
-## Academic Papers
-
-**Primary: arXiv (`arxiv-mcp`)**
-- Use `search_papers` for finding research papers
-- Use `download_paper` and `read_paper` for full paper content
-- Best for: AI/ML research, computer science, physics, math papers
 
 ## Browser Automation (Playwright - if available)
 
@@ -92,10 +85,10 @@ Load this skill when you need to decide **which MCP tool** to use for a task. If
 |------|------|-----|
 | "Search for X" | Kagi | Purpose-built for search |
 | "How do I use React hooks?" | Context7 | Official documentation |
-| "Show me examples of useEffect" | grep.app | Real-world code |
+| "Show me examples of useEffect" | gh_grep | Real-world code |
 | "Get content from example.com" | Firecrawl | Content extraction |
 | "Summarize this article" | Kagi summarizer | Built-in summarization |
-| "Find recent AI papers" | arXiv | Academic paper search |
+| "Find recent AI papers" | Kagi | General web search |
 | "Click the login button" | Playwright | Browser automation |
 
 ## Anti-Patterns to Avoid
@@ -107,5 +100,5 @@ Load this skill when you need to decide **which MCP tool** to use for a task. If
 
 ## Keywords
 mcp tool selection, which tool to use, kagi vs context7, web search, documentation lookup,
-code examples, web scraping, browser automation, playwright, firecrawl, grep.app, arxiv,
+code examples, web scraping, browser automation, playwright, firecrawl, gh_grep,
 fetch, url content, tool choice, decision matrix
