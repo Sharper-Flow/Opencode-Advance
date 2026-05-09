@@ -2,6 +2,7 @@ import { type Plugin } from "@opencode-ai/plugin";
 import { xdgStateHome, atomicWriteJSON, readJSON, deleteStateFile } from "./state-file";
 import { parseSocketFromTmux, sanitizePaneId } from "./tmux";
 import { initWatchdog, handleWatchdogEvent } from "./watchdog";
+import { deriveChangeID } from "./change";
 import * as path from "path";
 import { execFileSync } from "child_process";
 
@@ -11,20 +12,6 @@ function stateFilePath(input: { directory?: string } | null): string | null {
   const socket = parseSocketFromTmux(process.env.TMUX);
   const sanitized = sanitizePaneId(paneId);
   return xdgStateHome("oca", "panes", socket, `${sanitized}.json`);
-}
-
-/**
- * Build v2 pane state enrichment. Best-effort: fields derived from env
- * are only included when the source data is available.
- */
-/**
- * Derive the ADV change ID from a git branch name.
- * Returns the change ID if branch is "change/{id}", empty string otherwise.
- */
-export function deriveChangeID(branch: string): string {
-  if (!branch || !branch.startsWith("change/")) return "";
-  const id = branch.slice("change/".length);
-  return id || "";
 }
 
 function buildV2State(info: { id: string; directory?: string }): Record<string, unknown> {

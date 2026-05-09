@@ -183,6 +183,14 @@ function handleWatchdogEvent(event) {
   }
 }
 
+// src/change.ts
+function deriveChangeID(branch) {
+  if (typeof branch !== "string" || !branch.startsWith("change/"))
+    return "";
+  const id = branch.slice("change/".length);
+  return id || "";
+}
+
 // src/index.ts
 import * as path2 from "path";
 import { execFileSync } from "child_process";
@@ -193,12 +201,6 @@ function stateFilePath2(input) {
   const socket = parseSocketFromTmux(process.env.TMUX);
   const sanitized = sanitizePaneId(paneId);
   return xdgStateHome("oca", "panes", socket, `${sanitized}.json`);
-}
-function deriveChangeID(branch) {
-  if (!branch || !branch.startsWith("change/"))
-    return "";
-  const id = branch.slice("change/".length);
-  return id || "";
 }
 function buildV2State(info) {
   const now = Date.now();
@@ -292,6 +294,5 @@ var plugin = async (input) => {
 };
 var src_default = plugin;
 export {
-  deriveChangeID,
   src_default as default
 };
