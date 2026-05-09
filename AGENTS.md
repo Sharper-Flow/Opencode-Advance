@@ -24,21 +24,22 @@ OpenCode Advance depends on Advance; Advance does not depend on OpenCode Advance
 
 ### Litmus Test for Ownership
 
-> **"If OCA did not exist, would Advance still need this to function correctly?"**
+Two-step test. Default bias is toward Advance:
 
-| Answer | Owner |
-|--------|-------|
-| Yes | **Advance** |
-| No — exists to enhance the experience | **OCA** |
+1. **Capability test**: If OCA did not exist, *could* Advance implement this within its scope as an OpenCode plugin? Yes → **Advance**.
+2. **Plugin-feasibility test**: Is this something that *can't* be done with just an OpenCode plugin (external orchestration, runs before plugins load, spans sessions, host-environment integration, non-plugin surface)? Yes → **OCA**.
+
+Stated as one rule: **Advance owns everything achievable as a plugin. OCA owns only what plugins fundamentally can't do.**
 
 Examples:
 
-- Git mutation guard → **Advance** (its own workflows depend on it)
-- TMUX window management → **OCA** (Advance never needed tmux)
-- Session debt detection → **Advance** (used by `adv_status` diagnostics)
-- Surfacing session debt in tmux status bar → **OCA** (enhancement around an Advance signal)
-- ADV instruction loading scope → **Advance** (controls its own footprint)
-- Config rendering (`stack.toml` → `opencode.json`) → **OCA** (declarative config-as-code is enhancement)
+- Git mutation guard → **Advance** (plugin hook can intercept bash)
+- Session debt detection → **Advance** (plugin can query SQLite)
+- ADV instruction footprint → **Advance** (plugin owns its own assets)
+- Cross-project ADV CLI helper → **Advance** (script ships with the plugin)
+- TMUX window management → **OCA** (plugin can't own multi-session topology, named sockets, persistence across OpenCode restarts)
+- `stack.toml` → `opencode.json` rendering → **OCA** (config is read before plugins load)
+- Status bar / dashboard / remote access → **OCA** (plugin produces signals; OCA owns the surfaces)
 
 ### Working agreements
 

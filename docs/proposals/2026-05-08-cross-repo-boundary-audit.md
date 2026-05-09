@@ -20,23 +20,31 @@ This matches the existing dependency direction:
 
 ## Litmus Test
 
-For any feature, capability, or piece of code, ask:
+Two-step test. Default bias is toward Advance:
 
-> **"If OCA did not exist, would Advance still need this to function correctly?"**
+1. **Capability test**: If OCA did not exist, *could* Advance implement this within its scope as an OpenCode plugin?
+   - Yes → **Advance owns it**
+   - No → see test 2
 
-| Answer | Owner |
-|--------|-------|
-| Yes | **Advance** |
-| No — exists to enhance the experience | **OCA** |
+2. **Plugin-feasibility test**: Is this something that *can't* be done with just an OpenCode plugin? (Requires external orchestration, runs before plugins load, spans sessions, integrates with the host environment, exposes a non-plugin surface.)
+   - Yes → **OCA owns it**
 
-Examples:
+Stated as one rule: **Advance owns everything achievable as a plugin. OCA owns only what plugins fundamentally can't do.**
 
-- Git mutation guard → **Advance** (Advance's own workflows depend on it; without OCA, Advance still needs it)
-- TMUX window management → **OCA** (Advance never needed tmux to function; it's pure environment enhancement)
-- Session debt detection logic → **Advance** (Advance uses it in `adv_status` diagnostics)
-- Surfacing session debt in tmux status bar → **OCA** (enhancement around an Advance signal)
-- ADV instruction loading scope → **Advance** (Advance must control its own instruction footprint)
-- Config rendering (`stack.toml` → `opencode.json`) → **OCA** (declarative config-as-code is enhancement)
+### Examples
+
+| Capability | Test 1 (could Advance do it as a plugin?) | Owner |
+|------------|------------------------------------------|-------|
+| Git mutation guard | Yes — plugin tool/hook intercepts bash | **Advance** |
+| Session debt detection | Yes — plugin can query SQLite | **Advance** |
+| ADV instruction footprint | Yes — plugin owns its own assets | **Advance** |
+| Cross-project ADV CLI helper (`opencode-adv.sh`) | Yes — script ships with the plugin | **Advance** |
+| TMUX session/window management | No — plugin can spawn tmux but can't own a multi-session topology, named socket, or persistence across OpenCode restarts | **OCA** |
+| `stack.toml` → `opencode.json` rendering | No — `opencode.json` is read before plugins load | **OCA** |
+| Status bar / dashboard surfaces | No — plugin can expose data but can't own a tmux status bar, HTML dashboard, or remote endpoint | **OCA** |
+| Remote access (future) | No — plugin runs inside one OpenCode session; remote requires a daemon outside any session | **OCA** |
+| Multi-project session orchestration | No — plugin runs in one session at a time | **OCA** |
+| Surfacing Advance signals (worker health, session debt) in user-visible places | Plugin produces the signal; surfacing in tmux/doctor/dashboard is outside the plugin | **Advance produces, OCA surfaces** |
 
 ---
 
