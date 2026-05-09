@@ -7,6 +7,7 @@ import {
 } from "./state-file";
 import { parseSocketFromTmux, sanitizePaneId } from "./tmux";
 import { initWatchdog, handleWatchdogEvent } from "./watchdog";
+import { deriveBranchSafety, deriveChangeID } from "./change";
 import * as path from "path";
 import { execFileSync } from "child_process";
 
@@ -16,38 +17,6 @@ function stateFilePath(input: { directory?: string } | null): string | null {
   const socket = parseSocketFromTmux(process.env.TMUX);
   const sanitized = sanitizePaneId(paneId);
   return xdgStateHome("oca", "panes", socket, `${sanitized}.json`);
-}
-
-/**
- * Build v2 pane state enrichment. Best-effort: fields derived from env
- * are only included when the source data is available.
- */
-/**
- * Derive the ADV change ID from a git branch name.
- * Returns the change ID if branch is "change/{id}", empty string otherwise.
- */
-export function deriveChangeID(branch: string): string {
-  if (!branch || !branch.startsWith("change/")) return "";
-  const id = branch.slice("change/".length);
-  return id || "";
-}
-
-export function deriveBranchSafety(input: {
-  isMainCheckout: boolean;
-  isWorktree: boolean;
-  branch?: string;
-  defaultBranch?: string;
-}): "worktree" | "safe_main_checkout" | "unsafe_main_branch" | "unknown" {
-  if (input.isWorktree) return "worktree";
-  if (!input.isMainCheckout) return "unknown";
-  if (
-    input.defaultBranch &&
-    input.branch &&
-    input.branch !== input.defaultBranch
-  ) {
-    return "unsafe_main_branch";
-  }
-  return "safe_main_checkout";
 }
 
 function normalizeDefaultBranch(raw: string): string {

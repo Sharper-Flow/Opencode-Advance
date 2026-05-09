@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { deriveBranchSafety, deriveChangeID } from "./index";
+import { deriveBranchSafety, deriveChangeID } from "./change";
 
 // ── deriveChangeID tests ───────────────────────────────────────────────────
 
@@ -24,6 +24,10 @@ describe("deriveChangeID", () => {
 
   test("returns empty for bare 'change/'", () => {
     expect(deriveChangeID("change/")).toBe("");
+  });
+
+  test("returns empty for non-string plugin-host input", () => {
+    expect(deriveChangeID({ directory: "/repo" } as unknown as string)).toBe("");
   });
 });
 

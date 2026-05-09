@@ -11,7 +11,7 @@ function atomicWriteJSON(filePath, data) {
   const dir = path.dirname(filePath);
   fs.mkdirSync(dir, { recursive: true });
   const tmpFile = `${filePath}.${process.pid}.tmp`;
-  fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), { encoding: "utf8" });
+  fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), { encoding: "utf8", mode: 384 });
   fs.renameSync(tmpFile, filePath);
 }
 function readJSON(filePath) {
@@ -67,6 +67,12 @@ function writePaneState(filePath, state) {
 }
 var trackers = new Map;
 var checkInterval = null;
+function stopWatchdog() {
+  if (!checkInterval)
+    return;
+  clearInterval(checkInterval);
+  checkInterval = null;
+}
 function bumpSession(filePath, paneState, config, $shell) {
   const wd = paneState.watchdog || {
     enabled: true,
@@ -114,8 +120,11 @@ function checkHang(config, $shell) {
 }
 function initWatchdog(input) {
   const config = readConfig();
-  if (!config.enabled)
+  if (!config.enabled) {
+    stopWatchdog();
     return;
+  }
+  stopWatchdog();
   checkInterval = setInterval(() => {
     checkHang(config, input.$);
   }, 60000);
@@ -174,7 +183,27 @@ function handleWatchdogEvent(event) {
   }
 }
 
+// src/change.ts
+function deriveChangeID(branch) {
+  if (typeof branch !== "string" || !branch.startsWith("change/"))
+    return "";
+  const id = branch.slice("change/".length);
+  return id || "";
+}
+function deriveBranchSafety(input) {
+  if (input.isWorktree)
+    return "worktree";
+  if (!input.isMainCheckout)
+    return "unknown";
+  if (input.defaultBranch && input.branch && input.branch !== input.defaultBranch) {
+    return "unsafe_main_branch";
+  }
+  return "safe_main_checkout";
+}
+
 // src/index.ts
+import * as path2 from "path";
+import { execFileSync } from "child_process";
 function stateFilePath2(input) {
   const paneId = process.env.TMUX_PANE;
   if (!paneId)
@@ -183,10 +212,105 @@ function stateFilePath2(input) {
   const sanitized = sanitizePaneId(paneId);
   return xdgStateHome("oca", "panes", socket, `${sanitized}.json`);
 }
+function normalizeDefaultBranch(raw) {
+  return raw.replace(/^origin\//, "").trim();
+}
+function buildV2State(info) {
+  const now = Date.now();
+  const state = {
+    schemaVersion: 2,
+    sessionID: info.id,
+    directory: info.directory,
+    ts: now,
+    startedAt: now,
+    lastSeenAt: now
+  };
+  const paneId = process.env.TMUX_PANE;
+  const socket = parseSocketFromTmux(process.env.TMUX);
+  if (paneId)
+    state.paneID = paneId;
+  if (socket && socket !== "oca")
+    state.socket = socket;
+  else if (process.env.TMUX)
+    state.socket = socket;
+  const agent = process.env.OPENCODE_AGENT;
+  if (agent)
+    state.agent = agent;
+  const dir = info.directory;
+  if (dir) {
+    try {
+      const git = (args) => execFileSync("git", args, {
+        cwd: dir,
+        encoding: "utf8",
+        timeout: 2000,
+        stdio: ["ignore", "pipe", "ignore"]
+      }).trim();
+      const gitRoot = git([
+        "rev-parse",
+        "--path-format=absolute",
+        "--show-toplevel"
+      ]);
+      if (gitRoot) {
+        state.gitRoot = gitRoot;
+        state.worktreePath = gitRoot;
+      }
+      const commonDir = git([
+        "rev-parse",
+        "--path-format=absolute",
+        "--git-common-dir"
+      ]);
+      if (commonDir) {
+        const gitCommonDir = path2.resolve(dir, commonDir);
+        const mainCheckoutPath = path2.dirname(gitCommonDir);
+        state.gitCommonDir = gitCommonDir;
+        state.mainCheckoutPath = mainCheckoutPath;
+        state.isMainCheckout = gitRoot ? path2.resolve(gitRoot) === path2.resolve(mainCheckoutPath) : false;
+      }
+      let defaultBranch = "";
+      try {
+        defaultBranch = normalizeDefaultBranch(git(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]));
+      } catch {
+        try {
+          defaultBranch = git([
+            "rev-parse",
+            "--abbrev-ref",
+            "origin/HEAD"
+          ]).replace(/^origin\//, "");
+        } catch {}
+      }
+      if (defaultBranch)
+        state.defaultBranch = defaultBranch;
+      const rootCommit = git(["rev-list", "--max-parents=0", "HEAD"]);
+      if (rootCommit) {
+        state.projectId = rootCommit;
+      }
+      const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
+      if (branch && branch !== "HEAD") {
+        state.worktreeBranch = branch;
+        const cid = deriveChangeID(branch);
+        if (cid)
+          state.changeID = cid;
+      }
+      if (gitRoot) {
+        state.branchSafety = deriveBranchSafety({
+          isMainCheckout: state.isMainCheckout === true,
+          isWorktree: state.isMainCheckout === false,
+          branch: typeof state.worktreeBranch === "string" ? state.worktreeBranch : undefined,
+          defaultBranch
+        });
+      }
+    } catch {}
+  }
+  const role = process.env.OCA_PANE_ROLE || agent;
+  if (role)
+    state.role = role;
+  return state;
+}
 var plugin = async (input) => {
   initWatchdog(input);
   return {
     async event({ event }) {
+      handleWatchdogEvent(event);
       switch (event.type) {
         case "session.created": {
           const info = event.properties?.info;
@@ -195,11 +319,7 @@ var plugin = async (input) => {
           const filePath = stateFilePath2(null);
           if (!filePath)
             break;
-          atomicWriteJSON(filePath, {
-            sessionID: info.id,
-            directory: info.directory,
-            ts: Date.now()
-          });
+          atomicWriteJSON(filePath, buildV2State(info));
           break;
         }
         case "session.deleted": {
@@ -215,9 +335,6 @@ var plugin = async (input) => {
           }
           break;
         }
-        default:
-          handleWatchdogEvent(event);
-          break;
       }
     }
   };

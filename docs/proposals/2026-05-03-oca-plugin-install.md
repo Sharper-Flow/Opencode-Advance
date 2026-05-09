@@ -22,18 +22,18 @@ This proposal was discovered during reconnaissance prep work for the OCA 5-chang
 
 ## TL;DR
 
-The OCA umbrella plugin (`plugins/oca/`, package `@sharperflow/oca-plugin`) provides session-pane state tracking and the watchdog primitive that OCA changes #1 (Pattern B) and #2 (hibernation) build on. Plugin source exists in the OCA repo but is not registered in the operator's `opencode.json` plugin array — `~/.config/opencode/plugins/` and `~/.local/state/oca/panes/` both don't exist for this user. Add the plugin to opencode.json, verify pane state starts being written, and unblock #1/#2.
+The OCA umbrella plugin (`plugins/oca/`, package `@sharperflow/oca-plugin`) provides session-pane state tracking and the watchdog primitive that OCA changes #1 (Pattern B) and #2 (hibernation) build on. Plugin source exists in the OCA repo but is not registered in the operator's `opencode.json` plugin array. Add the plugin to opencode.json, verify plugin-loaded pane state is written, and unblock #1/#2.
 
 ---
 
 ## Problem Statement
 
-### Verified empirical state (2026-05-03)
+### Verified empirical state (refreshed 2026-05-09)
 
 - Plugin source: `~/dev/opencodeadvance/plugins/oca/{src/index.ts, dist/index.js, package.json}` — exists, package name `@sharperflow/oca-plugin`, version 0.1.0.
 - `~/.config/opencode/opencode.json` `plugin` array contains 5 entries (ADV, claude-max, morph-fast-apply, vision, opencode-openai-codex-auth) — **NOT including the OCA umbrella plugin**.
-- `~/.config/opencode/plugins/` directory does not exist → no opencode-managed install.
-- `~/.local/state/oca/panes/` directory does not exist → no pane state being written.
+- `plugins/oca/dist/index.js` exists; execution should rebuild once before install verification.
+- `~/.local/state/oca/panes/` now exists from prior testing, so acceptance must verify fresh plugin-loaded writes rather than directory creation alone.
 - `~/dev/opencodeadvance/stack.toml` does not exist → operator has no stack-driven config (only `stack.example.toml` reference).
 - `oca` Go CLI is presumably installed (consistent with operator workflow), but the **plugin** half of OCA — the part that runs inside opencode and writes pane state — is not loaded.
 
@@ -69,12 +69,12 @@ Both #1 and #2 implicitly assume the plugin is loaded. This change makes that as
 
 ## Acceptance Criteria (operator-verifiable)
 
-1. Verify pre-state: `python3 -c "import json; print(len(json.load(open('/home/jrede/.config/opencode/opencode.json'))['plugin']))"` returns 5; `~/.local/state/oca/panes/` does not exist.
+1. Verify pre-state: `python3 -c "import json; print(len(json.load(open('/home/jrede/.config/opencode/opencode.json'))['plugin']))"` returns 5 and the OCA plugin path is absent.
 2. Apply the install (per chosen Option A or B from §Resolution Options).
 3. Verify post-state: plugin array now contains 6 entries including OCA umbrella plugin path.
 4. Restart OpenCode entirely.
 5. Open a fresh OCA session via `oca` (or `oca session new`); start opencode in the pane.
-6. Verify `~/.local/state/oca/panes/<socket>/<paneId>.json` exists and contains valid JSON matching the `paneState` schema.
+6. Verify `~/.local/state/oca/panes/<socket>/<paneId>.json` is freshly written after plugin load and contains valid JSON matching the `paneState` schema.
 7. Run `oca pane restart-tui --force` from inside the pane; verify it resumes via `opencode -s <session-id>` (not `--continue`).
 8. No regression: spawn a test ADV change via `/adv-status` and confirm ADV plugin still works correctly.
 
