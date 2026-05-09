@@ -183,7 +183,7 @@ At v1.0 release time, the user runs `oca migrate from-open-chad` which performs 
 | File / dir                                  | Owner         | Notes                                              |
 | ------------------------------------------- | ------------- | -------------------------------------------------- |
 | `stack.toml`                                  | **user**          | Source of truth. User edits. `oca` reads.            |
-| `~/.config/opencode/opencode.json`            | **oca**           | Rendered from stack.toml + plugin-provided fragments |
+| `~/.config/opencode/opencode.json`            | **oca + Advance** | Section-level ownership per `docs/design/opencode-json-section-contract.md` |
 | `~/.config/opencode/agents/build.md`          | **oca + overlay** | Base: oca. Advance injects ADV overlay block       |
 | `~/.config/opencode/agents/explore.md`        | **oca**           | Environment-level agent                            |
 | `~/.config/opencode/agents/librarian.md`      | **oca**           | Environment-level agent                            |

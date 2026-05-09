@@ -119,6 +119,8 @@ The `internal/advruntime/workspace_projection.go` Go reader of `snapshot.json` i
 
 Tracked: OCA #26 retitled to "Document opencode.json section ownership contract." No code consolidation needed; the duplication is required by the standalone-Advance principle.
 
+**Contract documented:** `docs/design/opencode-json-section-contract.md` — full section ownership matrix, merge semantics, write ordering, and discipline rules.
+
 ---
 
 ### O4. Session Debt Scan — Advance owns; OCA consumes
