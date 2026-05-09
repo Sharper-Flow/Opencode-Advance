@@ -28,6 +28,9 @@ describe("deriveChangeID", () => {
 
   test("returns empty for non-string plugin-host input", () => {
     expect(deriveChangeID({ directory: "/repo" } as unknown as string)).toBe("");
+    expect(deriveChangeID(null as unknown as string)).toBe("");
+    expect(deriveChangeID(undefined as unknown as string)).toBe("");
+    expect(deriveChangeID(42 as unknown as string)).toBe("");
   });
 });
 
