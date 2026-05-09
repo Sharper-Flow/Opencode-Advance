@@ -9,25 +9,26 @@ import (
 	"strings"
 )
 
-func CheckSessionGate(ctx context.Context, _ Options) GateReport {
-	blockers := activeOpenCodeProcessBlockers(ctx)
+func CheckSessionGate(ctx context.Context, opts Options) GateReport {
+	blockers := activeOpenCodeProcessBlockers(ctx, opts.ProjectRoot)
 	if len(blockers) > 0 {
 		return GateReport{Status: GateStatusBlocked, Blockers: blockers}
 	}
 	return GateReport{Status: GateStatusPass}
 }
 
-func activeOpenCodeProcessBlockers(ctx context.Context) []Blocker {
+func activeOpenCodeProcessBlockers(ctx context.Context, projectRoot string) []Blocker {
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return nil
 	}
 	self := os.Getpid()
+	projectRoot = normalizeProjectRoot(projectRoot)
 	processes := make([]processInfo, 0, len(entries))
 	for _, entry := range entries {
 		select {
 		case <-ctx.Done():
-			return buildOpenCodeProcessBlockers(processes, self)
+			return buildOpenCodeProcessBlockers(processes, self, projectRoot)
 		default:
 		}
 		if !entry.IsDir() {
@@ -45,39 +46,65 @@ func activeOpenCodeProcessBlockers(ctx context.Context) []Blocker {
 			pid:  pid,
 			ppid: readProcessParentPID(entry.Name()),
 			name: strings.TrimSpace(string(comm)),
+			cwd:  readProcessCWD(entry.Name()),
 		})
 	}
-	return buildOpenCodeProcessBlockers(processes, self)
+	return buildOpenCodeProcessBlockers(processes, self, projectRoot)
 }
 
 type processInfo struct {
 	pid  int
 	ppid int
 	name string
+	cwd  string
 }
 
-func buildOpenCodeProcessBlockers(processes []processInfo, self int) []Blocker {
+func buildOpenCodeProcessBlockers(processes []processInfo, self int, projectRoot string) []Blocker {
 	ancestorPIDs := callerAncestorPIDs(processes, self)
 	var blockers []Blocker
 	for _, process := range processes {
 		if process.pid == self || process.name != "opencode" {
 			continue
 		}
+		if !processInProject(process, projectRoot) {
+			continue
+		}
 		if ancestorPIDs[process.pid] {
 			blockers = append(blockers, Blocker{
 				Code:    "CALLER_OPENCODE_PROCESS",
-				Message: fmt.Sprintf("caller OpenCode process pid %d is still running", process.pid),
-				Hint:    "run `oca maintain --execute` from an external shell after closing OpenCode sessions; commands launched inside OpenCode self-block by design",
+				Message: fmt.Sprintf("caller OpenCode process pid %d is still running in project %s", process.pid, projectRoot),
+				Hint:    "run `oca maintain --execute` from an external shell after closing OpenCode sessions for this project; OpenCode sessions in other repos do not block",
 			})
 			continue
 		}
 		blockers = append(blockers, Blocker{
 			Code:    "ACTIVE_OPENCODE_PROCESS",
-			Message: fmt.Sprintf("opencode pid %d is still running", process.pid),
-			Hint:    "close OpenCode/OCA sessions before running `oca maintain --execute`",
+			Message: fmt.Sprintf("opencode pid %d is still running in project %s", process.pid, projectRoot),
+			Hint:    "close OpenCode/OCA sessions for this project before running `oca maintain --execute`",
 		})
 	}
 	return blockers
+}
+
+func processInProject(process processInfo, projectRoot string) bool {
+	if projectRoot == "" || projectRoot == "." || process.cwd == "" {
+		return false
+	}
+	cwd := normalizeProjectRoot(process.cwd)
+	return cwd == projectRoot || strings.HasPrefix(cwd, projectRoot+string(os.PathSeparator))
+}
+
+func normalizeProjectRoot(projectRoot string) string {
+	if projectRoot == "" {
+		return ""
+	}
+	if abs, err := filepath.Abs(projectRoot); err == nil {
+		projectRoot = abs
+	}
+	if resolved, err := filepath.EvalSymlinks(projectRoot); err == nil {
+		projectRoot = resolved
+	}
+	return filepath.Clean(projectRoot)
 }
 
 func callerAncestorPIDs(processes []processInfo, self int) map[int]bool {
@@ -111,4 +138,12 @@ func readProcessParentPID(pidDir string) int {
 		return 0
 	}
 	return ppid
+}
+
+func readProcessCWD(pidDir string) string {
+	cwd, err := os.Readlink(filepath.Join("/proc", pidDir, "cwd"))
+	if err != nil {
+		return ""
+	}
+	return cwd
 }
