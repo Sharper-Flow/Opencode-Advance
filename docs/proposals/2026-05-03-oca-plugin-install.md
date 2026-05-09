@@ -48,12 +48,12 @@ Both #1 and #2 implicitly assume the plugin is loaded. This change makes that as
 
 ## Success Criteria
 
-- [ ] `~/.config/opencode/opencode.json` `plugin` array contains an entry pointing to the OCA umbrella plugin (path or npm-style identifier — discovery item).
-- [ ] After restart, the plugin loads cleanly (no error in opencode session start).
-- [ ] When operator launches an OCA tmux session and starts opencode in a pane, `~/.local/state/oca/panes/<socket>/<paneId>.json` is created with the canonical `paneState` schema (`sessionID`, `directory`, `ts`).
+- [x] `~/.config/opencode/opencode.json` `plugin` array contains an entry pointing to the OCA umbrella plugin (path or npm-style identifier — discovery item).
+- [x] After restart, the plugin loads cleanly (no error in opencode session start).
+- [x] When operator launches an OCA tmux session and starts opencode in a pane, `~/.local/state/oca/panes/<socket>/<paneId>.json` is created with the canonical `paneState` schema (`sessionID`, `directory`, `ts`).
 - [ ] `oca pane restart-tui` (existing command) reads the state file and resumes via `opencode -s <session-id>` (not the `--continue` fallback).
-- [ ] No regression in existing 5 plugins (ADV, claude-max, morph-fast-apply, vision, codex-auth).
-- [ ] Install procedure is documented + idempotent (re-running doesn't break anything).
+- [x] No regression in existing 5 plugins (ADV, claude-max, morph-fast-apply, vision, codex-auth).
+- [x] Install procedure is documented + idempotent (re-running doesn't break anything).
 
 ---
 
