@@ -1,252 +1,270 @@
-# Cross-Repo Boundary Audit: Advance vs OCA
+# Cross-Repo Boundary: Advance vs OCA
 
-**Date:** 2026-05-08
+**Date:** 2026-05-08 (revised 2026-05-09)
 **Status:** Draft
 **Repos:** Sharper-Flow/Opencode-Advance (OCA) + Sharper-Flow/Advance (ADV)
 
 ---
 
-## Overview
+## Principle
 
-OCA and Advance share two filesystem trees and one database. This document catalogs every overlap, collision risk, and misplaced ownership, then proposes refactoring into a clean boundary.
+**Advance must work standalone. OCA enhances.**
 
-**Principle:** OCA owns the environment layer (tmux, config rendering, session lifecycle, health checks, diagnostics). Advance owns the workflow layer (changes, gates, tasks, specs, worktree state). When both need the same data, OCA is the infrastructure provider and Advance is the consumer.
+Advance is a complete, self-sufficient spec-driven workflow plugin. A user can install Advance into a stock OpenCode environment and have a fully functional system. OCA is the deluxe environment layer that wraps an Advance install with quality-of-life features: tmux integration, multi-project session orchestration, unified status surfaces, remote access (future), and config-as-code via `stack.toml`.
 
----
+This matches the existing dependency direction:
 
-## Overlap Map
+> OpenCode Advance depends on Advance; Advance does not depend on OpenCode Advance.
 
-### O1. TMUX Operations (HIGH — ~2,073 LOC misplaced in Advance)
+— `AGENTS.md`
 
-**Current state:** Advance contains a full tmux infrastructure layer.
+## Litmus Test
 
-| File (Advance) | LOC | What it does |
-|---|---|---|
-| `plugin/src/tools/worktree/terminal.ts` | 1,115 | `openTmuxWindow()`, cross-platform terminal spawning, mutex, `detectTerminalType()` |
-| `plugin/src/events/terminal.ts` | 924 | `rename-window`, TTY detection, tab title construction, terminal alerts |
-| `plugin/src/utils/terminal-detect.ts` | 34 | `isTmux()` check |
+For any feature, capability, or piece of code, ask:
 
-**Collision risk:**
-- Advance uses default tmux socket; OCA uses `-L oca` named socket → windows created by Advance are invisible to OCA session management
-- Advance's `openTmuxWindow` creates windows on whatever session is active → ignores OCA's Pattern B per-project session topology
-- Both implement mutex serialization independently
+> **"If OCA did not exist, would Advance still need this to function correctly?"**
 
-**OCA already has:**
-- `internal/session/session.go` (757 LOC) — full session lifecycle
-- `cmd/oca/session.go` — `oca session ensure-window --session X --name Y --dir Z`
-- `Manager.EnsureWindow()`, `Manager.ListWindows()`, `Manager.killWindow()`
+| Answer | Owner |
+|--------|-------|
+| Yes | **Advance** |
+| No — exists to enhance the experience | **OCA** |
 
-**Proposal:**
-- OCA adds `oca session rename-window --target X --title Y`
-- Advance replaces `openTmuxWindow()` → calls `oca session ensure-window`
-- Advance replaces `rename-window` → calls `oca session rename-window`
-- Advance deletes ~1,500 LOC of tmux infrastructure, keeps ~500 LOC of title construction logic (`buildTabTitle`, `generateProjectShortname`, `updateTerminalStatus` intent)
-- Full plan in this document's § TMUX Refactor below
+Examples:
+
+- Git mutation guard → **Advance** (Advance's own workflows depend on it; without OCA, Advance still needs it)
+- TMUX window management → **OCA** (Advance never needed tmux to function; it's pure environment enhancement)
+- Session debt detection logic → **Advance** (Advance uses it in `adv_status` diagnostics)
+- Surfacing session debt in tmux status bar → **OCA** (enhancement around an Advance signal)
+- ADV instruction loading scope → **Advance** (Advance must control its own instruction footprint)
+- Config rendering (`stack.toml` → `opencode.json`) → **OCA** (declarative config-as-code is enhancement)
 
 ---
 
-### O2. ADV State File Reads (HIGH — fragile coupling to internal format)
+## Ownership Map
 
-**Current state:** OCA reads ADV's internal state files directly from the filesystem.
-
-| OCA file | What it reads | ADV source |
-|---|---|---|
-| `internal/advruntime/workspace_projection.go` | `$XDG_DATA_HOME/opencode/plugins/advance/{pid}/snapshot.json` | ADV Temporal ticker writes snapshot |
-| `lib/adv_status.sh` (15 functions, 442 LOC) | `{pid}/changes/{id}/change.json`, `snapshot.json`, `temporal.env` | ADV Temporal workflows |
-| `internal/advruntime/session_debt.go` (388 LOC) | `$XDG_DATA_HOME/opencode/opencode.db` (SQLite) | OpenCode core |
-
-**Collision risk:**
-- `snapshot.json` format is ADV-internal. If ADV changes schema (signal cutover), OCA breaks silently (returns empty).
-- `change.json` path and structure is Temporal adapter persistence format. Not a public API.
-- `adv_status.sh` reads 3 different ADV-internal file formats with `jq` from shell — no contract, no versioning.
-
-**Advance also reads the same data:**
-- `plugin/src/utils/opencode-session-debt.ts` (237 LOC) — same SQLite scan for blank assistant rows
-- `plugin/src/storage/store-disk.ts` — reads/writes the same `$XDG_DATA_HOME/opencode/plugins/advance/` tree
-
-**Proposal:**
-- OCA should stop reading ADV internal state files directly
-- Option A: ADV exposes a thin CLI or HTTP endpoint (`adv status --format json`) that OCA calls instead of parsing files
-- Option B: OCA calls `oca doctor --scope adv-runtime --format json` (already exists) which uses `advruntime` package to read state through Go APIs
-- `adv_status.sh` should be rewritten to call `oca adv-status` (new Go subcommand) instead of parsing ADV files with `jq`
-- Session debt scan should be deduplicated — one authoritative scanner, the other calls it
+| Domain | Advance | OCA |
+|--------|---------|-----|
+| **Workflow** | Changes, gates, tasks, specs, validators, review, hardening | — |
+| **Temporal** | Workflows, activities, search attributes, state machines, worker | Dev server supervision (`oca temporal start/stop`) |
+| **Agents** | All ADV agents (adv, plan, build, adv-engineer, etc.), instruction content | Environment agents (build, explore, librarian, mechanic) |
+| **Tools** | All `adv_*` MCP tools, `/adv-*` slash commands | `oca doctor`, `oca apply`, `oca session`, `oca adv-status` |
+| **Plugins** | Plugin runtime (its own tools/hooks/events) | Plugin install + wiring into `opencode.json` |
+| **Git** | Mutation guard policy + enforcement (its own workflows need it) | Worktree lifecycle helpers (`oca session` integrates) |
+| **State** | Authoritative state for changes/tasks/gates/specs/worktrees | Reads ADV state for surfacing only |
+| **Tmux** | Zero tmux code | Full tmux ownership (sessions, windows, status bar) |
+| **Diagnostics** | `adv_status`, `adv_temporal_diagnose` (its own diagnostics) | `oca doctor` (extends ADV signals + adds environment checks) |
+| **Config** | Writes its own assets (agents, commands, skills, instructions) into `~/.config/opencode/` | Renders `opencode.json` from `stack.toml`; manages MCP, providers, permissions |
+| **Surfaces** | MCP tools, slash commands, file artifacts | Status bar, doctor, future dashboard, remote access |
 
 ---
 
-### O3. OpenCode Config Tree Writes (MEDIUM — same target, different scopes)
+## Overlap Re-classification
 
-**Current state:** Both repos write to `~/.config/opencode/`.
+Five overlaps were catalogued in the original audit. Under the cleaner principle, the recommendations shift:
 
-| OCA writes (`oca apply`) | Advance writes (`sync-global.sh --fix`) |
-|---|---|
-| `opencode.json` — MCP, plugins, providers, permissions, watcher, LSP, toggles, skills, commands, formatters | `opencode.json` — agent config (provider variants, prompts), plugin entry, instruction entries |
-| `skills/{lgrep,morph,prioritizer,...}/` — OCA-owned skills | `skills/adv-*/` — ADV-owned skills |
-| `instructions/{identity,rules,...}.md` — OCA-owned instructions | Overlay blocks injected into shared agent files |
-| Rendered from `stack.toml` (declarative) | Rendered from `.opencode/` tree in plugin source |
+### O1. TMUX Operations — OCA owns end to end
 
-**Collision risk:**
-- Both write `opencode.json` — OCA merges specific sections (`.mcp`, `.plugin`, `.instructions`); Advance patches the same file for `.plugin` and agent config
-- If OCA runs `oca apply` after `sync-global.sh --fix`, OCA's JSON merge preserves user-owned keys but could reorder/reformat
-- If Advance runs `sync-global.sh --fix` after `oca apply`, it could overwrite agent config that OCA also manages
+**Current:** Advance has ~2,073 LOC of tmux infrastructure.
 
-**Current mitigation:**
-- OCA uses section-scoped JSON merge (only touches `.mcp`, `.plugin`, `.instructions`, declared keys)
-- Advance's `sync-global.sh` uses `jq` patches that only touch ADV-specific keys
-- Both preserve unknown keys
-- OCA's `adv-assets` doctor scope detects ownership drift
+**Under principle:** Advance never needed tmux. OCA owns it.
 
-**Proposal:**
-- The current separation is **mostly correct** — OCA owns config structure, Advance owns agent/command/skill content
-- Remaining risk: both write `.plugin` array entries. OCA adds the plugin path; Advance verifies it exists. This is currently non-conflicting but fragile.
-- Long-term: OCA should be the sole writer of `opencode.json`. Advance should write agent/command/skill files only and delegate JSON config patches to OCA. This is tracked as M2 (apply lifecycle parity) and M3 (plugin install) in the OCA reliability queue.
+**Action:** Advance deletes its tmux code and calls OCA CLI instead (`oca session ensure-window`, `oca session rename-window`). Tracked: OCA #23.
+
+**Fallback:** When `oca` is not on PATH, Advance falls back to a thin direct `tmux new-window` (~30 LOC). Optional behavior, not required for Advance to function in non-tmux environments.
 
 ---
 
-### O4. Session Debt Scan (MEDIUM — 625 LOC duplicated)
+### O2. ADV State File Reads — Advance exposes a stable surface
 
-**Current state:** Both repos independently scan the same OpenCode SQLite database for stale blank assistant messages.
+**Current:** OCA's `adv_status.sh` (442 LOC shell + `jq`) parses Advance's internal state files (`change.json`, `snapshot.json`, `temporal.env`).
 
-| Repo | File | LOC | What it does |
-|---|---|---|---|
-| OCA | `internal/advruntime/session_debt.go` | 388 | SQL query, classification, threshold logic |
-| ADV | `plugin/src/utils/opencode-session-debt.ts` | 237 | Same SQL query, same classification, same thresholds |
+**Under principle:** Advance owns its state format. OCA must not couple to Advance internals; it reads through a stable surface.
 
-**Collision risk:** No write collision (both read-only). But the duplication means threshold changes must be made in two places.
+**Action:**
 
-**Proposal:**
-- OCA owns the session debt scan (runs outside OpenCode agent context, in `oca doctor` and `adv_status.sh`)
-- Advance should call OCA's scan or share the threshold constant
-- Short-term: document the duplication and ensure thresholds match
-- Long-term: Advance calls `oca doctor --scope adv-runtime --format json` for session debt data
+1. Advance exposes a stable read surface — either:
+   - CLI: `adv status --format json` (recommended; works from any context)
+   - Or a documented JSON projection at a known path
+2. OCA replaces `adv_status.sh` with `oca adv-status` Go subcommand that calls Advance's stable surface. Tracked: OCA #24.
+3. The shell parser of internals is deleted entirely.
 
----
-
-### O5. Worktree Registry (LOW — correct read-only coupling)
-
-**Current state:** OCA reads ADV's worktree registry (via `snapshot.json`) for session enrichment.
-
-**Collision risk:** Minimal — OCA is read-only, ADV is authoritative.
-
-**Proposal:** Keep as-is but formalize the contract. When signal cutover lands, `snapshot.json` may go away and OCA will need a different data source. Tracked in `docs/notes/2026-05-05-advance-signal-cutover-readiness.md`.
+The `internal/advruntime/workspace_projection.go` Go reader of `snapshot.json` is similarly upgraded to call the stable surface or accept that it consumes a documented contract.
 
 ---
 
-### O6. Search Attribute Knowledge (LOW — already aligned)
+### O3. opencode.json writes — Section discipline, document the contract
 
-**Current state:** OCA's `internal/advruntime/search_attributes.go` maintains its own copy of ADV's search attribute list. Both must match.
+**Current:** Both write `opencode.json` to different sections.
 
-**Current mitigation:** OCA was updated to match Advance's `ADV_SEARCH_ATTRIBUTES` constant in this session. `TestSearchAttribute*` tests cover it.
+**Under principle:** Advance must be installable without OCA, so Advance must wire itself into `opencode.json` (declare plugin path, instructions, agents). OCA's value-add is the *declarative source of truth* (`stack.toml`). Both writers are correct.
 
-**Proposal:** Accept the duplication — it's 10 key-value pairs. Add a comment in OCA pointing to the Advance source. No structural change needed.
+**Action:** Document the section contract:
+
+| Section | Owner |
+|---------|-------|
+| `.mcp` | OCA (renders from `stack.toml`) |
+| `.plugin` | Both: OCA renders OCA-declared plugins; Advance adds itself |
+| `.instructions` | Both: OCA renders OCA-declared instructions; Advance adds its own |
+| `.agent` (provider variants, ADV agent prompts) | Advance |
+| `.permission`, `.lsp`, `.formatter`, `.theme`, etc. | OCA (renders from `stack.toml`) |
+| Unknown keys | Both preserve |
+
+Tracked: OCA #26 retitled to "Document opencode.json section ownership contract." No code consolidation needed; the duplication is required by the standalone-Advance principle.
 
 ---
 
-## Refactoring Priority
+### O4. Session Debt Scan — Advance owns; OCA consumes
 
-| Priority | Overlap | Effort | Impact |
-|---|---|---|---|
-| **1** | O1: TMUX boundary | 2-4 days (cross-repo) | Eliminates socket conflicts, session topology issues, ~1,500 LOC deletion |
-| **2** | O2: State file reads → API boundary | 1-2 days (OCA) | Makes OCA resilient to ADV schema changes |
-| **3** | O4: Session debt dedup | 0.5 day | Small but eliminates threshold drift |
-| **4** | O3: Config tree writes | Tracked (M2/M3) | Already in OCA reliability queue |
-| **5** | O5/O6 | No action | Accept current coupling |
+**Current:** Both repos independently scan OpenCode SQLite. OCA: 388 LOC. Advance: 237 LOC.
+
+**Under principle:** Advance needs session debt detection for its own diagnostics (`adv_status`, agent context). OCA needs the *signal* for surfacing in `oca doctor` and `oca adv-status`, but should not duplicate the scan.
+
+**Action (reverses original recommendation):**
+
+- Advance keeps `plugin/src/utils/opencode-session-debt.ts` (its diagnostic logic)
+- OCA deletes `internal/advruntime/session_debt.go`
+- OCA reads the signal from Advance via `adv status --format json` (the same stable surface from O2)
+- Threshold logic lives once, in Advance
+- Tracked: OCA #25 retitled to "Read session debt from Advance instead of duplicating scan"
 
 ---
 
-## § TMUX Refactor (O1 — Detailed Plan)
+### O5. Worktree Registry — already clean
+
+Advance owns worktree state. OCA reads `snapshot.json` for session enrichment.
+
+**Under principle:** Already correct. Formalize via the same stable read surface (O2) when convenient. No urgency.
+
+---
+
+### O6. Search Attribute Knowledge — already clean
+
+OCA's `internal/advruntime/search_attributes.go` mirrors Advance's `ADV_SEARCH_ATTRIBUTES` for dashboard rendering.
+
+**Under principle:** Advance owns the canonical list. OCA's mirror is enhancement (powering the dashboard); duplication is acceptable for a 10-entry static list. Documented coupling.
+
+**Action:** Add a comment in OCA pointing to the Advance source. No structural change.
+
+---
+
+## Refactor Priority
+
+| Priority | Item | Effort | Impact |
+|---------|------|--------|--------|
+| 1 | O1: TMUX boundary (OCA #23) | 2-4 days cross-repo | ~1,500 LOC deletion in Advance, eliminates socket conflicts |
+| 2 | O2: Stable Advance read surface (OCA #24 + new ADV issue) | 1-2 days each repo | Decouples OCA from Advance internals |
+| 3 | O4: OCA stops scanning session debt (OCA #25 reversed) | 0.5 day | Removes 388 LOC duplicate |
+| 4 | O3: Document section contract (OCA #26 reframed) | 0.5 day | Pure documentation |
+| 5 | O5/O6 | None | Accept |
+
+---
+
+## Implications for Open Issues
+
+### Issues that were OCA candidates but stay in Advance
+
+Under the standalone-Advance principle, these stay in Advance because Advance needs them to function:
+
+| # | Title | Why Advance |
+|---|-------|-------------|
+| ADV #102 | Git mutation guard blocks archive push | Guard is Advance's own workflow tooling |
+| ADV #92 | Session debt framing in `adv_status` | Advance's own diagnostic text |
+| ADV #91 | Classify blank rows orphan-vs-live | Advance's own session-debt logic |
+| ADV #85 | Programmatic git mutation guard | Advance's own guard |
+| ADV #72 | Scope ADV instruction load | Advance must control its own instruction footprint |
+| ADV #71 | `opencode-adv.sh` CLI helper | Advance's own helper for cross-project ADV calls |
+
+### Issues that move to OCA
+
+| Source | Target | Why OCA |
+|--------|--------|---------|
+| ADV #74 | OCA #23 | Tmux integration is pure environment enhancement |
+| ADV #70 | OCA #31 | Surfacing worker exhaustion across user-visible paths is OCA |
+
+### Borderline candidates (defer)
+
+| # | Title | Note |
+|---|-------|------|
+| ADV #96 | Cross-project session view | Multi-project orchestration leans OCA, but `adv_session_list` is also useful inside Advance. Re-evaluate after the stable read surface (O2) lands. |
+
+---
+
+## TMUX Refactor Plan (O1)
+
+(unchanged from original audit)
 
 ### Phase 1: OCA adds CLI surface
 
-| Task | Description |
-|---|---|
-| Add `oca session rename-window` | `--target <session:window> --title <title>`. Wraps `tmux -L oca rename-window`. |
-| Add `oca terminal detect` | Returns terminal type. For ADV to query context. |
-| Add `oca session current` | Returns current session name, window name, pane ID. |
-| Add `oca adv-status` | Go subcommand replacing `adv_status.sh`. Reads ADV state through `advruntime` package, outputs status bar text or JSON. |
+- `oca session rename-window --target <session:window> --title <title>`
+- `oca terminal detect`
+- `oca session current`
+- `oca adv-status` (covers O2 too)
 
-### Phase 2: Advance migrates worktree window creation
+### Phase 2: Advance migrates window creation
 
-| Task | Description |
-|---|---|
-| Replace `openTerminal()` with CLI call | `openTmuxWindow` → `execFileSync("oca", ["session", "ensure-window", ...])` |
-| Remove cross-platform terminal code | Delete `openMacOSTerminal`, `openLinuxTerminal`, `openWindowsTerminal`, `openWSLTerminal` |
-| Remove `detectTerminalType()` | Replace with `process.env.TMUX` check |
-| Remove `tmuxMutex` | OCA named socket handles serialization |
+- Replace `openTerminal()` → `execFileSync("oca", ["session", "ensure-window", ...])`
+- Delete `openMacOSTerminal`, `openLinuxTerminal`, `openWindowsTerminal`, `openWSLTerminal`
+- Replace `detectTerminalType()` with `process.env.TMUX` check
+- Remove `tmuxMutex` (OCA named socket handles serialization)
 
 ### Phase 3: Advance migrates tab title management
 
-| Task | Description |
-|---|---|
-| Replace `setTitle()` tmux branch | Call `oca session rename-window` or emit event to OCA plugin |
-| Keep `buildTabTitle()` logic | Title construction stays in ADV |
-| Keep non-tmux fallback | `/dev/tty` and `stdout` write stays in ADV |
-| Keep `updateTerminalStatus()` intent | Decision logic stays; execution delegated |
+- Replace `setTitle()` tmux branch → `oca session rename-window`
+- Keep `buildTabTitle()` logic in Advance
+- Keep non-tmux fallback (`/dev/tty`, stdout)
+- Keep `updateTerminalStatus()` decision logic; delegate execution
 
 ### Phase 4: Cleanup
 
-| Task | Description |
-|---|---|
-| Delete ~1,500 LOC from Advance | `terminal.ts` shrinks from 1,115 → ~200 LOC |
-| Shrink `events/terminal.ts` | Remove tmux-specific branches, keep TTY + title logic |
-| Update `adv-worktree` skill | Document delegation to OCA |
-| Update AGENTS.md | Record the tmux ownership boundary |
+- Delete ~1,500 LOC from Advance
+- Shrink `events/terminal.ts` (remove tmux branches, keep TTY + title logic)
+- Update `adv-worktree` skill to document delegation
+- Update `AGENTS.md` to record the boundary
 
 ### Fallback
 
-If `oca` binary is not available when Advance tries to open a window, fall back to direct `tmux new-window` call (keep thin 30-line fallback path).
+`oca` not on PATH → thin direct `tmux new-window` call (~30 LOC). Optional; Advance must function without tmux.
 
 ---
 
-## § State File Reads (O2 — Detailed Plan)
+## Stable Read Surface (O2)
 
-### Current `adv_status.sh` reads (all should move to Go)
-
-```
-changes/{id}/change.json  →  active change status
-snapshot.json             →  workspace state, worktree registry
-temporal.env              →  Temporal server address
-```
-
-### Proposal: `oca adv-status` subcommand
+Advance to add (new ADV issue):
 
 ```bash
-# Status bar text (replaces adv_status.sh output)
-oca adv-status --format text
+# Status bar text
+adv status --format text
 
-# Machine-readable (replaces direct file reads)
-oca adv-status --format json
+# Machine-readable
+adv status --format json
 
 # Specific queries
-oca adv-status --query active-change
-oca adv-status --query worktrees
-oca adv-status --query temporal-health
+adv status --query active-change
+adv status --query worktrees
+adv status --query temporal-health
+adv status --query session-debt
 ```
 
-Implementation: thin CLI wrapper around `advruntime` package functions. Shell status bar calls `oca adv-status` instead of `jq` parsing.
-
-### Session debt dedup (O4)
-
-- OCA owns `internal/advruntime/session_debt.go` — authoritative scanner
-- Advance imports threshold constant from shared location, or calls `oca doctor --scope adv-runtime --format json` for debt data
-- Delete `plugin/src/utils/opencode-session-debt.ts` or reduce it to a thin wrapper that calls OCA
+OCA's `oca adv-status` (#24) and `oca doctor` shell out to this. The shell parser of `change.json`/`snapshot.json` is retired.
 
 ---
 
 ## Success Criteria
 
-- [ ] Advance zero direct `tmux` command calls (all via OCA CLI)
-- [ ] `adv_status.sh` replaced by `oca adv-status` Go subcommand
-- [ ] OCA reads zero ADV internal state files directly from shell (`jq`)
-- [ ] Go reads of `snapshot.json` documented as coupling contract with signal-cutover watch
-- [ ] Session debt scanned by one authoritative implementation
+- [ ] Advance has zero direct `tmux` command calls (all via OCA CLI; thin fallback acceptable)
+- [ ] OCA has zero direct reads of Advance internal state files (`change.json`, `snapshot.json`, etc.)
+- [ ] Advance exposes a stable read surface (`adv status --format json` or equivalent)
+- [ ] Session debt scan exists in exactly one place (Advance)
+- [ ] `opencode.json` section ownership is documented
 - [ ] ~1,500 LOC deleted from Advance
 - [ ] Both test suites pass
+- [ ] Advance functions standalone (no `oca` binary required) — verified by CI
 
 ## Risks
 
 | Risk | Mitigation |
-|---|---|
+|------|------------|
 | Process spawn latency for tmux ops | ~50-100ms, acceptable for infrequent operations |
-| OCA not installed when ADV opens window | Thin fallback to direct `tmux` call |
-| `snapshot.json` schema changes before API is built | Document coupling; `workspace_projection.go` already degrades gracefully |
-| Cross-repo coordination timing | Each phase is independent per repo; can land asynchronously |
+| `oca` not installed when Advance runs | Thin fallback to direct `tmux` call; Advance must work without OCA |
+| Advance state schema changes break OCA | Stable read surface insulates OCA |
+| Cross-repo coordination timing | Each phase is independent per repo; lands asynchronously |

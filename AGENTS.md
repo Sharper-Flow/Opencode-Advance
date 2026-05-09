@@ -18,14 +18,36 @@ For user-facing documentation, see [`README.md`](README.md).
 
 ## Relationship to Advance
 
-OpenCode Advance depends on Advance; Advance does not depend on OpenCode Advance.
+**Advance must work standalone. OCA enhances.**
+
+OpenCode Advance depends on Advance; Advance does not depend on OpenCode Advance. Advance is a complete, self-sufficient spec-driven workflow plugin — a user can install Advance into a stock OpenCode environment and have a fully functional system. OCA is the deluxe environment layer that wraps an Advance install with quality-of-life features: tmux integration, multi-project session orchestration, unified status surfaces, remote access (future), and config-as-code via `stack.toml`.
+
+### Litmus Test for Ownership
+
+> **"If OCA did not exist, would Advance still need this to function correctly?"**
+
+| Answer | Owner |
+|--------|-------|
+| Yes | **Advance** |
+| No — exists to enhance the experience | **OCA** |
+
+Examples:
+
+- Git mutation guard → **Advance** (its own workflows depend on it)
+- TMUX window management → **OCA** (Advance never needed tmux)
+- Session debt detection → **Advance** (used by `adv_status` diagnostics)
+- Surfacing session debt in tmux status bar → **OCA** (enhancement around an Advance signal)
+- ADV instruction loading scope → **Advance** (controls its own footprint)
+- Config rendering (`stack.toml` → `opencode.json`) → **OCA** (declarative config-as-code is enhancement)
+
+### Working agreements
 
 - OpenCode Advance clones, builds, and wires the Advance plugin as part of `oca install` / `oca apply`
 - OpenCode Advance delegates all Advance-owned asset sync to `advance/scripts/sync-global.sh --fix`
 - OpenCode Advance does **not** duplicate any files that Advance owns: `adv-*.md` commands, ADV agents, ADV skills (`adv-*`), ADV overlays, or ADV instructions
-- OpenCode Advance owns the non-ADV slice of the environment: environment-level agents (`build`, `explore`, `librarian`, `general`, `mechanic`), instructions (rules.yaml, identity, shell_strategy, etc.), MCP server lifecycle, plugin management, providers, session/tmux UX
+- OpenCode Advance owns the enhancement layer: environment-level agents (`build`, `explore`, `librarian`, `general`, `mechanic`), environment instructions (rules.yaml, identity, shell_strategy, etc.), MCP server lifecycle, plugin install + wiring, providers, tmux session/window/status-bar UX, and surfacing of Advance signals across user-visible paths
 
-This clean boundary is the central reason OpenCode Advance exists as a separate project. Each file in `~/.config/opencode/` has exactly one owner.
+This clean boundary is the central reason OpenCode Advance exists as a separate project. Each file in `~/.config/opencode/` has exactly one owner. Full ownership map and overlap analysis: `docs/proposals/2026-05-08-cross-repo-boundary-audit.md`.
 
 ---
 
