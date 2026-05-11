@@ -1,0 +1,23 @@
+{
+  "entries": [
+    {
+      "id": "ws-a8NV-n",
+      "type": "pattern",
+      "content": "Backward-compat-by-deferred-section pattern: When removing a typed `stack.toml` section, retain its entry in `internal/config/parse.go knownSections` while deleting the typed dispatch + struct. The section falls through to the existing `DeferredSections` machinery; `Validate()` tolerates it because it's in `knownSections`. Zero new code paths, zero hard-fail on legacy configs. Same pattern used by `agents` (typed never, deferred always). Worth noting: this leaves a permanent backward-compat marker in `knownSections`. After a deprecation window, the marker can be removed and unknown-section validation will then surface stale configs explicitly.",
+      "recorded_at": "2026-05-11T17:23:32.421Z"
+    },
+    {
+      "id": "ws-HJscUP",
+      "type": "convention",
+      "content": "When acceptance criteria say \"zero hits in `rg -i <feature>`\", the spirit is \"zero hits in active user-facing surface\". Intentional residual references are valid when: (1) they prove backward-compat (test fixtures, knownSections tolerance markers), or (2) they record accurate history (CHANGELOG entries documenting add+remove cycles). The literal-zero reading produces bad outcomes (rewriting history, deleting backward-compat evidence). Document intentional residuals in the task verification notes when present.",
+      "recorded_at": "2026-05-11T17:23:35.088Z"
+    },
+    {
+      "id": "ws-uZLHh8",
+      "type": "gotcha",
+      "content": "When removing a Go package, `go mod tidy` cleans up the direct dep AND any transitive deps that were only reachable through it. In this change, deleting `internal/discord/` (which imported `github.com/hugolgst/rich-go`) cleanly removed both `rich-go` AND `gopkg.in/natefinch/npipe.v2` (rich-go's only consumer of npipe). No manual go.sum surgery needed. Verify with `grep -E \"<old-dep>|<transitive>\" go.mod go.sum` returning zero.",
+      "recorded_at": "2026-05-11T17:23:37.595Z"
+    }
+  ],
+  "count": 3
+}

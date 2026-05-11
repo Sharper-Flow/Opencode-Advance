@@ -1,0 +1,396 @@
+{
+  "id": "removeDiscordRichPresence",
+  "title": "Remove Discord Rich Presence integration",
+  "status": "archived",
+  "created_at": "2026-05-11T15:57:56.977Z",
+  "tasks": [
+    {
+      "id": "tk-88767299df0a",
+      "title": "Test surgery: loosen Discord assertions in mixed-concern test files.",
+      "type": "code",
+      "section": "test-surgery",
+      "status": "done",
+      "priority": 0,
+      "created_at": "2026-05-11T16:06:42.026Z",
+      "metadata": {
+        "tdd_intent": "separate_verification",
+        "ac_refs": "AC3,AC5,AC6"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T17:13:39.237Z",
+      "verification": "RED phase: TestPhase3Sections_AllDeferred now asserts [discord] lands in DeferredSections (AC3 backward-compat); fails as expected until tk-03 removes typed dispatch. Other 4 affected tests pass. exit=1 captured.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "tests/deferred_sections_test.go",
+        "tests/phase3_types_test.go",
+        "tests/polish_docs_test.go",
+        "tests/readme_release_test.go"
+      ],
+      "touched_files": [
+        "tests/deferred_sections_test.go",
+        "tests/phase3_types_test.go",
+        "tests/polish_docs_test.go",
+        "tests/readme_release_test.go"
+      ],
+      "checkpointSha": "3ead4d7863c09b1ec24497e6203a73b1580ae0a3",
+      "completedAt": "2026-05-11T17:14:36.586Z",
+      "completed_at": "2026-05-11T17:14:36.586Z"
+    },
+    {
+      "id": "tk-e894f3a1b623",
+      "title": "Delete all pure-Discord files: CLI, package, assets, shell test.",
+      "type": "code",
+      "section": "delete-discord",
+      "status": "done",
+      "priority": 1,
+      "created_at": "2026-05-11T16:06:45.759Z",
+      "metadata": {
+        "tdd_intent": "not_applicable",
+        "ac_refs": "AC1,AC2"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T17:14:42.413Z",
+      "verification": "go build ./... exit=0. Deleted: cmd/oca/discord.go, cmd/oca/discord_test.go, internal/discord/, assets/discord/, tests/shell/discord_status_hook_test.sh. Edited: cmd/oca/root.go (removed newDiscordCmd registration). AC1+AC2 in flight; Stack.Discord field still present (typed field, unused — tk-03 removes it).",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "assets/discord/taglines.toml",
+        "cmd/oca/discord.go",
+        "cmd/oca/discord_test.go",
+        "cmd/oca/root.go",
+        "internal/discord/presence.go",
+        "internal/discord/presence_test.go",
+        "internal/discord/taglines.go",
+        "internal/discord/taglines_test.go",
+        "tests/shell/discord_status_hook_test.sh"
+      ],
+      "touched_files": [
+        "assets/discord/taglines.toml",
+        "cmd/oca/discord.go",
+        "cmd/oca/discord_test.go",
+        "cmd/oca/root.go",
+        "internal/discord/presence.go",
+        "internal/discord/presence_test.go",
+        "internal/discord/taglines.go",
+        "internal/discord/taglines_test.go",
+        "tests/shell/discord_status_hook_test.sh"
+      ],
+      "checkpointSha": "ffd3d1678532a01b6a7c569dbb7d98443d3285d1",
+      "completedAt": "2026-05-11T17:15:03.292Z",
+      "completed_at": "2026-05-11T17:15:03.292Z"
+    },
+    {
+      "id": "tk-067c9cf555c4",
+      "title": "Remove `DiscordSection` type and `Stack.Discord` field; drop typed dispatch in parser.",
+      "type": "code",
+      "section": "parser-schema",
+      "status": "done",
+      "priority": 2,
+      "created_at": "2026-05-11T16:06:49.760Z",
+      "metadata": {
+        "tdd_intent": "separate_verification",
+        "ac_refs": "AC3,AC5"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T17:15:04.326Z",
+      "verification": "GREEN phase complete: Stack.Discord field + DiscordSection type + UnmarshalTOML removed from internal/config/types.go; case \"discord\": dispatch removed from internal/config/parse.go (knownSections entry preserved per design). TestPhase3Sections_AllDeferred now PASSES (was RED in tk-01) — proves AC3 backward-compat via DeferredSections. go test ./... full suite green across all 18 packages.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "internal/config/parse.go",
+        "internal/config/types.go"
+      ],
+      "touched_files": [
+        "internal/config/parse.go",
+        "internal/config/types.go"
+      ],
+      "checkpointSha": "9f2e96c82d5a68fdfbe9d019e699940fc1fc04f7",
+      "completedAt": "2026-05-11T17:17:02.638Z",
+      "completed_at": "2026-05-11T17:17:02.638Z"
+    },
+    {
+      "id": "tk-06930c958222",
+      "title": "Migration code cleanup: remove orphaned `DiscordState` from open-chad importer.",
+      "type": "code",
+      "section": "migration-cleanup",
+      "status": "done",
+      "priority": 3,
+      "created_at": "2026-05-11T16:06:53.687Z",
+      "metadata": {
+        "tdd_intent": "separate_verification",
+        "ac_refs": "AC5"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T17:17:03.233Z",
+      "verification": "Migration cleanup complete: deleted DiscordState type + OpenChadState.Discord field + readOpenChadJSON function + open-chad.json caller block + section comment + test fixture + test assertions. Renumbered step comments 5→4, 6→5, etc. go build clean, internal/migrate tests pass.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "internal/migrate/openchad.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "touched_files": [
+        "internal/migrate/openchad.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "checkpointSha": "abbf32e4e3e3059e4c401610fe4662974bc4803f",
+      "completedAt": "2026-05-11T17:18:10.820Z",
+      "completed_at": "2026-05-11T17:18:10.820Z"
+    },
+    {
+      "id": "tk-4b30a417508e",
+      "title": "Status bar hook removal.",
+      "type": "code",
+      "section": "status-bar",
+      "status": "done",
+      "priority": 4,
+      "created_at": "2026-05-11T16:06:56.992Z",
+      "metadata": {
+        "tdd_intent": "not_applicable",
+        "ac_refs": "AC4"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T17:18:11.350Z",
+      "verification": "Deleted _oca_discord_update() function + call site in oca_status_row0. bash -n syntax-valid; grep -c -i discord lib/status_bar.sh returns 0. AC4 evidence captured.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "lib/status_bar.sh"
+      ],
+      "touched_files": [
+        "lib/status_bar.sh"
+      ],
+      "checkpointSha": "5a06eeb9957e1b0c497f2e17839b434529b584cd",
+      "completedAt": "2026-05-11T17:18:29.216Z",
+      "completed_at": "2026-05-11T17:18:29.216Z"
+    },
+    {
+      "id": "tk-81fbf1155a09",
+      "title": "Remove `[discord]` block from `stack.example.toml`.",
+      "type": "code",
+      "section": "stack-example",
+      "status": "done",
+      "priority": 5,
+      "created_at": "2026-05-11T16:07:00.477Z",
+      "metadata": {
+        "tdd_intent": "not_applicable",
+        "ac_refs": "AC3,AC7"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T17:18:30.281Z",
+      "verification": "Removed [discord] block + heading divider from stack.example.toml. grep -c -i discord returns 0. TestStackExample_ParsesWithDeferredSections still passes.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "stack.example.toml"
+      ],
+      "touched_files": [
+        "stack.example.toml"
+      ],
+      "checkpointSha": "b7d817b7b41d5fb50898dbef3a0f13a62e94273c",
+      "completedAt": "2026-05-11T17:18:43.815Z",
+      "completed_at": "2026-05-11T17:18:43.815Z"
+    },
+    {
+      "id": "tk-2c1da9501999",
+      "title": "Documentation surface edits (non-phase-plan docs).",
+      "type": "code",
+      "section": "docs",
+      "status": "done",
+      "priority": 6,
+      "created_at": "2026-05-11T16:07:05.810Z",
+      "metadata": {
+        "tdd_intent": "not_applicable",
+        "ac_refs": "AC7"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T17:18:44.862Z",
+      "verification": "Doc surface clean: README, STATUS, AGENTS, lib/README, architecture, stack-toml-schema, phase1-gap-audit all updated. rg -c -i discord on those paths returns 0 hits. README test + doc test still pass. AC7 partial (phase docs remain — tk-08).",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "AGENTS.md",
+        "README.md",
+        "STATUS.md",
+        "docs/design/architecture.md",
+        "docs/design/phase1-gap-audit.md",
+        "docs/design/stack-toml-schema.md",
+        "lib/README.md"
+      ],
+      "touched_files": [
+        "AGENTS.md",
+        "README.md",
+        "STATUS.md",
+        "docs/design/architecture.md",
+        "docs/design/phase1-gap-audit.md",
+        "docs/design/stack-toml-schema.md",
+        "lib/README.md"
+      ],
+      "checkpointSha": "b0b992abe7a43f7cab116a4f5356c85f0012576f",
+      "completedAt": "2026-05-11T17:19:50.541Z",
+      "completed_at": "2026-05-11T17:19:50.541Z"
+    },
+    {
+      "id": "tk-df4f9ada5ded",
+      "title": "Phase 8 rename: `phase8ExtrasPolishDiscord` → `phase8ExtrasPolish`; strike Discord deliverables.",
+      "type": "code",
+      "section": "phase-plan",
+      "status": "done",
+      "priority": 7,
+      "created_at": "2026-05-11T16:07:12.106Z",
+      "metadata": {
+        "tdd_intent": "separate_verification",
+        "ac_refs": "AC6,AC7"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T17:19:51.627Z",
+      "verification": "Phase 8 renamed phase8ExtrasPolishDiscord → phase8ExtrasPolish in both docs/proposals/phases.md and docs/proposals/v1-implementation.md. Struck Discord-specific deliverables, exit-criteria, tasks. Preserved release-pipeline, final README, polish-pass content. rg phase8ExtrasPolishDiscord = 0 hits; rg phase8ExtrasPolish = matches found. rg -c -i discord docs/proposals/ = 0 hits. TestPhase8RoadmapDocsShowReleaseCandidate PASSES. AC6+AC7 complete for phase docs.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "docs/proposals/phases.md",
+        "docs/proposals/v1-implementation.md"
+      ],
+      "touched_files": [
+        "docs/proposals/phases.md",
+        "docs/proposals/v1-implementation.md"
+      ],
+      "checkpointSha": "6529791297ed8cece4c2b6cedfadfcea2e313d3e",
+      "completedAt": "2026-05-11T17:20:37.669Z",
+      "completed_at": "2026-05-11T17:20:37.669Z"
+    },
+    {
+      "id": "tk-9bd61d4200c6",
+      "title": "Dependency cleanup: `go mod tidy`.",
+      "type": "code",
+      "section": "deps",
+      "status": "done",
+      "priority": 8,
+      "created_at": "2026-05-11T16:07:14.895Z",
+      "metadata": {
+        "tdd_intent": "not_applicable",
+        "ac_refs": "AC8"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T17:20:39.301Z",
+      "verification": "go mod tidy: github.com/hugolgst/rich-go + gopkg.in/natefinch/npipe.v2 fully removed from go.mod + go.sum (grep -E returns 0 hits). go vet clean. gofmt -d clean. go test ./... all 17 packages green. AC8 verified.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "go.mod",
+        "go.sum"
+      ],
+      "touched_files": [
+        "go.mod",
+        "go.sum"
+      ],
+      "checkpointSha": "b744d74e3c22f98c4a123de8e0dc2b6314efd421",
+      "completedAt": "2026-05-11T17:21:52.912Z",
+      "completed_at": "2026-05-11T17:21:52.912Z"
+    },
+    {
+      "id": "tk-27cd4f62bddc",
+      "title": "Final verification sweep across all AC1–AC8.",
+      "type": "code",
+      "section": "verify",
+      "status": "done",
+      "priority": 9,
+      "created_at": "2026-05-11T16:07:20.285Z",
+      "metadata": {
+        "tdd_intent": "not_applicable",
+        "ac_refs": "AC1,AC2,AC3,AC4,AC5,AC6,AC7,AC8"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T17:21:53.626Z",
+      "verification": "Final AC sweep: AC1 go build exit=0; AC2 oca --help zero discord; AC3 legacy stack.toml with [discord] + unknown fields parses + apply --dry-run exit=0; AC4 lib/status_bar.sh zero discord + syntax OK; AC5 go test ./... all 17 packages green; AC6 phase8ExtrasPolishDiscord identifier replaced; AC7 6 intentional remaining hits documented (1 new CHANGELOG removal entry, 2 historical CHANGELOG records, 1 parse.go knownSections tolerance marker, 2 test fixture/assertion lines proving AC3); AC8 rich-go + npipe removed from go.mod + go.sum. Cleanup: INSTALL.md no longer recommends `oca discord enable`; CHANGELOG.md records the removal as an Unreleased entry.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "CHANGELOG.md",
+        "INSTALL.md"
+      ],
+      "touched_files": [
+        "CHANGELOG.md",
+        "INSTALL.md"
+      ],
+      "checkpointSha": "6cf27f30b0a09f5bc3edbd9b56b34ca277fcfbfe",
+      "completedAt": "2026-05-11T17:23:17.605Z",
+      "completed_at": "2026-05-11T17:23:17.605Z"
+    }
+  ],
+  "deltas": {},
+  "wisdom": [
+    {
+      "id": "ws-a8NV-n",
+      "type": "pattern",
+      "content": "Backward-compat-by-deferred-section pattern: When removing a typed `stack.toml` section, retain its entry in `internal/config/parse.go knownSections` while deleting the typed dispatch + struct. The section falls through to the existing `DeferredSections` machinery; `Validate()` tolerates it because it's in `knownSections`. Zero new code paths, zero hard-fail on legacy configs. Same pattern used by `agents` (typed never, deferred always). Worth noting: this leaves a permanent backward-compat marker in `knownSections`. After a deprecation window, the marker can be removed and unknown-section validation will then surface stale configs explicitly.",
+      "recorded_at": "2026-05-11T17:23:32.421Z"
+    },
+    {
+      "id": "ws-HJscUP",
+      "type": "convention",
+      "content": "When acceptance criteria say \"zero hits in `rg -i <feature>`\", the spirit is \"zero hits in active user-facing surface\". Intentional residual references are valid when: (1) they prove backward-compat (test fixtures, knownSections tolerance markers), or (2) they record accurate history (CHANGELOG entries documenting add+remove cycles). The literal-zero reading produces bad outcomes (rewriting history, deleting backward-compat evidence). Document intentional residuals in the task verification notes when present.",
+      "recorded_at": "2026-05-11T17:23:35.088Z"
+    },
+    {
+      "id": "ws-uZLHh8",
+      "type": "gotcha",
+      "content": "When removing a Go package, `go mod tidy` cleans up the direct dep AND any transitive deps that were only reachable through it. In this change, deleting `internal/discord/` (which imported `github.com/hugolgst/rich-go`) cleanly removed both `rich-go` AND `gopkg.in/natefinch/npipe.v2` (rich-go's only consumer of npipe). No manual go.sum surgery needed. Verify with `grep -E \"<old-dep>|<transitive>\" go.mod go.sum` returning zero.",
+      "recorded_at": "2026-05-11T17:23:37.595Z"
+    }
+  ],
+  "gates": {
+    "proposal": {
+      "status": "done",
+      "completed_at": "2026-05-11T15:58:23.948Z",
+      "completed_by": "agent"
+    },
+    "discovery": {
+      "status": "done",
+      "completed_at": "2026-05-11T15:59:58.394Z",
+      "completed_by": "agent"
+    },
+    "design": {
+      "status": "done",
+      "completed_at": "2026-05-11T16:05:56.079Z",
+      "completed_by": "agent"
+    },
+    "planning": {
+      "status": "done",
+      "completed_at": "2026-05-11T17:13:38.457Z",
+      "completed_by": "agent"
+    },
+    "execution": {
+      "status": "done",
+      "completed_at": "2026-05-11T17:23:19.834Z",
+      "completed_by": "agent"
+    },
+    "acceptance": {
+      "status": "done",
+      "completed_at": "2026-05-11T17:25:07.199Z",
+      "completed_by": "agent"
+    },
+    "release": {
+      "status": "done",
+      "completed_at": "2026-05-11T17:26:13.529Z",
+      "completed_by": "agent"
+    }
+  },
+  "reentry_history": [],
+  "adv_project_id": "cdae139e16c8cbaa4ef2ebf35dda326e826e93bc",
+  "clarify_findings": [
+    {
+      "code": "CLARIFY_MISSING_SUCCESS_CRITERIA",
+      "severity": "warning",
+      "message": "Proposal has no Success Criteria section. How will we know this change is done?",
+      "recorded_at": "2026-05-11T16:03:54.003Z"
+    },
+    {
+      "code": "CLARIFY_UNCLEAR_SCOPE",
+      "severity": "warning",
+      "message": "Proposal has no Scope section. What files and modules will be affected?",
+      "recorded_at": "2026-05-11T16:03:54.003Z"
+    }
+  ]
+}
