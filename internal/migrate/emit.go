@@ -9,6 +9,19 @@ import (
 	"time"
 )
 
+// sanitizePluginKey returns the plugin name unchanged when it matches the TOML
+// safe-name pattern. It returns an error otherwise. This is a defense-in-depth
+// guard at the emit boundary; the canonical fix is at read time via
+// classifyPluginEntry. If a future read path forgets to classify, this guard
+// prevents an unparseable [plugins.<bad-name>] from being written.
+func sanitizePluginKey(name string) (string, error) {
+	if !tomlSafeNamePattern.MatchString(name) {
+		return "", fmt.Errorf("plugin name %q contains TOML-unsafe characters; expected pattern %s",
+			name, tomlSafeNamePattern.String())
+	}
+	return name, nil
+}
+
 // EmitTOML converts an OpenChadState into a stack.toml string.
 func EmitTOML(state *OpenChadState) (string, error) {
 	var buf bytes.Buffer
@@ -131,27 +144,40 @@ func emitBody(state *OpenChadState) string {
 		}
 	}
 
-	// Plugins
+	// Plugins — sanitize each name defensively. classifyPluginEntry rejects
+	// TOML-unsafe names at read time, but state may also be constructed
+	// programmatically (tests, custom callers). Names that fail sanitization
+	// are skipped with a warning rather than emitted as invalid TOML.
 	if len(state.Plugins) > 0 {
-		parts = append(parts, "# ─── Plugins ─────────────────────────────────────────────────────────────────")
+		var pluginParts []string
 		for _, p := range state.Plugins {
-			parts = append(parts, fmt.Sprintf("[plugins.%s]", p.Name))
+			cleanKey, err := sanitizePluginKey(p.Name)
+			if err != nil {
+				state.Warnings = append(state.Warnings,
+					fmt.Sprintf("plugin %q has TOML-unsafe name; skipped (%v)", p.Name, err))
+				continue
+			}
+			pluginParts = append(pluginParts, fmt.Sprintf("[plugins.%s]", cleanKey))
 			if p.Source != "" {
-				parts = append(parts, fmt.Sprintf("source = %q", p.Source))
+				pluginParts = append(pluginParts, fmt.Sprintf("source = %q", p.Source))
 			}
 			if p.Ref != "" {
-				parts = append(parts, fmt.Sprintf("ref = %q", p.Ref))
+				pluginParts = append(pluginParts, fmt.Sprintf("ref = %q", p.Ref))
 			}
 			if p.Checkout != "" {
-				parts = append(parts, fmt.Sprintf("checkout = %q", p.Checkout))
+				pluginParts = append(pluginParts, fmt.Sprintf("checkout = %q", p.Checkout))
 			}
 			if len(p.Build) > 0 {
-				parts = append(parts, fmt.Sprintf("build = %s", stringArray(p.Build)))
+				pluginParts = append(pluginParts, fmt.Sprintf("build = %s", stringArray(p.Build)))
 			}
 			if len(p.Provides) > 0 {
-				parts = append(parts, fmt.Sprintf("provides = %s", stringArray(p.Provides)))
+				pluginParts = append(pluginParts, fmt.Sprintf("provides = %s", stringArray(p.Provides)))
 			}
-			parts = append(parts, "")
+			pluginParts = append(pluginParts, "")
+		}
+		if len(pluginParts) > 0 {
+			parts = append(parts, "# ─── Plugins ─────────────────────────────────────────────────────────────────")
+			parts = append(parts, pluginParts...)
 		}
 	}
 

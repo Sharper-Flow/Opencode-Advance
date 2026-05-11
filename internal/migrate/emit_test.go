@@ -75,6 +75,79 @@ func TestEmitTOML(t *testing.T) {
 	}
 }
 
+// TestSanitizePluginKey exercises the defense-in-depth emit-side guard for
+// TOML-unsafe plugin names. Canonical fix lives in classifyPluginEntry; this
+// helper catches anything that leaks through.
+func TestSanitizePluginKey(t *testing.T) {
+	cases := []struct {
+		name    string
+		input   string
+		want    string
+		wantErr bool
+	}{
+		{name: "plain", input: "morph-fast-apply", want: "morph-fast-apply"},
+		{name: "dotted", input: "some.dotted.name", want: "some.dotted.name"},
+		{name: "underscore", input: "some_under_score", want: "some_under_score"},
+		{name: "alphanumeric", input: "Pkg2024", want: "Pkg2024"},
+		{name: "rejects npm version spec", input: "pkg@latest", wantErr: true},
+		{name: "rejects space", input: "bad name", wantErr: true},
+		{name: "rejects bracket", input: "bad[name]", wantErr: true},
+		{name: "rejects slash", input: "bad/name", wantErr: true},
+		{name: "rejects empty", input: "", wantErr: true},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := sanitizePluginKey(tc.input)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("sanitizePluginKey(%q) = %q, want error", tc.input, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("sanitizePluginKey(%q) unexpected error: %v", tc.input, err)
+			}
+			if got != tc.want {
+				t.Errorf("sanitizePluginKey(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestEmitTOML_SkipsTOMLUnsafePluginNames verifies the emit-side defensive
+// guard: if classification leaks a TOML-unsafe name into PluginState, EmitTOML
+// must skip the plugin with a warning instead of emitting invalid TOML.
+func TestEmitTOML_SkipsTOMLUnsafePluginNames(t *testing.T) {
+	state := &OpenChadState{
+		Plugins: []PluginState{
+			{Name: "good-plugin", Checkout: "/abs/path/good"},
+			{Name: "bad@plugin", Checkout: "ignored"}, // simulates classification failure leak
+		},
+	}
+	output, err := EmitTOML(state)
+	if err != nil {
+		t.Fatalf("EmitTOML failed: %v", err)
+	}
+	if strings.Contains(output, "[plugins.bad@plugin]") {
+		t.Errorf("emitted TOML contains skipped bad plugin:\n%s", output)
+	}
+	if !strings.Contains(output, "[plugins.good-plugin]") {
+		t.Errorf("emitted TOML missing good plugin:\n%s", output)
+	}
+	// Warning must be appended to state.
+	foundWarning := false
+	for _, w := range state.Warnings {
+		if strings.Contains(w, "bad@plugin") && strings.Contains(w, "TOML-unsafe") {
+			foundWarning = true
+			break
+		}
+	}
+	if !foundWarning {
+		t.Errorf("expected warning about bad@plugin in state.Warnings; got %v", state.Warnings)
+	}
+}
+
 func TestEmitTOML_EmptyState(t *testing.T) {
 	state := &OpenChadState{}
 
