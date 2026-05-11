@@ -91,45 +91,63 @@ func EmitTOMLToFile(state *OpenChadState, path string) error {
 func emitBody(state *OpenChadState) string {
 	var parts []string
 
-	// MCP servers
+	// MCP servers — skip servers that cannot satisfy OCA's schema port
+	// constraint (port required and ∈ [6275, 6325]). External services
+	// with no Vision-side port (like https://mcp.grep.app) fall here and
+	// must be hand-added post-migration.
+	const (
+		visionPortMin = 6275
+		visionPortMax = 6325
+	)
 	if len(state.MCPServers) > 0 {
-		parts = append(parts, "# ─── MCP servers ─────────────────────────────────────────────────────────────")
+		var serverParts []string
 		for name, srv := range state.MCPServers {
-			parts = append(parts, fmt.Sprintf("[mcp.servers.%s]", name))
-			if srv.Port > 0 {
-				parts = append(parts, fmt.Sprintf("port = %d", srv.Port))
+			if srv.Port == 0 || srv.Port < visionPortMin || srv.Port > visionPortMax {
+				state.Warnings = append(state.Warnings, fmt.Sprintf(
+					"mcp.%s: port %d outside Vision range [%d, %d]; server skipped (hand-add post-migration)",
+					name, srv.Port, visionPortMin, visionPortMax))
+				continue
 			}
+			serverParts = append(serverParts, fmt.Sprintf("[mcp.servers.%s]", name))
+			serverParts = append(serverParts, fmt.Sprintf("port = %d", srv.Port))
 			if srv.Type != "" {
-				parts = append(parts, fmt.Sprintf("type = %q", srv.Type))
+				serverParts = append(serverParts, fmt.Sprintf("type = %q", srv.Type))
+			}
+			if srv.URL != "" {
+				serverParts = append(serverParts, fmt.Sprintf("url = %q", srv.URL))
 			}
 			if srv.Command != "" {
-				parts = append(parts, fmt.Sprintf("command = %q", srv.Command))
+				serverParts = append(serverParts, fmt.Sprintf("command = %q", srv.Command))
 			}
 			if len(srv.Args) > 0 {
-				parts = append(parts, fmt.Sprintf("args = %s", stringArray(srv.Args)))
+				serverParts = append(serverParts, fmt.Sprintf("args = %s", stringArray(srv.Args)))
 			}
 			if srv.Timeout > 0 {
-				parts = append(parts, fmt.Sprintf("timeout = %d", srv.Timeout))
+				serverParts = append(serverParts, fmt.Sprintf("timeout = %d", srv.Timeout))
 			}
 			if srv.Autostart {
-				parts = append(parts, "autostart = true")
+				serverParts = append(serverParts, "autostart = true")
 			}
 			if srv.Required {
-				parts = append(parts, "required = true")
+				serverParts = append(serverParts, "required = true")
 			}
 			if srv.Source != "" {
-				parts = append(parts, fmt.Sprintf("source = %q", srv.Source))
+				serverParts = append(serverParts, fmt.Sprintf("source = %q", srv.Source))
 			}
 			if srv.EnvFile != "" {
-				parts = append(parts, fmt.Sprintf("env_file = %q", srv.EnvFile))
+				serverParts = append(serverParts, fmt.Sprintf("env_file = %q", srv.EnvFile))
 			}
 			if len(srv.Env) > 0 {
-				parts = append(parts, fmt.Sprintf("[mcp.servers.%s.env]", name))
+				serverParts = append(serverParts, fmt.Sprintf("[mcp.servers.%s.env]", name))
 				for k, v := range srv.Env {
-					parts = append(parts, fmt.Sprintf("%s = %q", k, v))
+					serverParts = append(serverParts, fmt.Sprintf("%s = %q", k, v))
 				}
 			}
-			parts = append(parts, "")
+			serverParts = append(serverParts, "")
+		}
+		if len(serverParts) > 0 {
+			parts = append(parts, "# ─── MCP servers ─────────────────────────────────────────────────────────────")
+			parts = append(parts, serverParts...)
 		}
 	}
 

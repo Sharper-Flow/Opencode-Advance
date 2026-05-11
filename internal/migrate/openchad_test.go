@@ -248,8 +248,14 @@ func TestReadOpenChadState_Full(t *testing.T) {
 	if ctx7.Port != 6276 {
 		t.Errorf("context7 port = %d, want 6276", ctx7.Port)
 	}
-	if ctx7.Command != "npx" {
-		t.Errorf("context7 command = %q, want npx", ctx7.Command)
+	// Fixture sets type="remote" → translates to "http" (URL ends /mcp).
+	// normalizeTransportFields then drops Command/Args because remote
+	// transports don't spawn local processes.
+	if ctx7.Type != "http" {
+		t.Errorf("context7 type = %q, want http", ctx7.Type)
+	}
+	if ctx7.Command != "" {
+		t.Errorf("context7 command = %q, want empty after normalize (http transport drops command)", ctx7.Command)
 	}
 	if ctx7.URL != "http://localhost:6276/mcp" {
 		t.Errorf("context7 url = %q", ctx7.URL)
@@ -585,7 +591,11 @@ func TestTranslateMCPType(t *testing.T) {
 	}
 }
 
-// TestPortFromURL exercises URL → port extraction for the MCP type fix-up.
+// TestPortFromURL exercises explicit URL → port extraction. Portless URLs
+// return 0 (no scheme-default synthesis) because OCA's schema requires ports
+// in Vision's [6275, 6325] range; defaults like 443/80 would violate that.
+// External services without a Vision-side port are skipped at emit with a
+// warning rather than synthesized to an out-of-range port.
 func TestPortFromURL(t *testing.T) {
 	cases := []struct {
 		in   string
@@ -593,8 +603,8 @@ func TestPortFromURL(t *testing.T) {
 	}{
 		{"http://localhost:6276/mcp", 6276},
 		{"https://localhost:8443/mcp", 8443},
-		{"http://localhost/mcp", 0}, // no explicit port
-		{"https://mcp.grep.app", 0}, // no explicit port (bare HTTPS)
+		{"http://localhost/mcp", 0}, // no explicit port → 0 (no synthesis)
+		{"https://mcp.grep.app", 0}, // portless external → 0; emit skips
 		{"https://mcp.grep.app:443", 443},
 		{"", 0},
 		{"::not-a-url::", 0}, // unparseable
@@ -647,7 +657,7 @@ func TestReadOpenChadState_MCPTypeTranslation(t *testing.T) {
 		"kagi":      {"http", 6279},
 		"firecrawl": {"http", 6281},
 		"lgrep":     {"http", 6285},
-		"gh_grep":   {"sse", 0}, // portless HTTPS is OK for sse transport
+		"gh_grep":   {"sse", 0}, // portless external HTTPS; emit-time warning + skip
 	}
 	for name, want := range expected {
 		got, ok := state.MCPServers[name]

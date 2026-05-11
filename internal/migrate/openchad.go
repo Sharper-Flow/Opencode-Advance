@@ -53,9 +53,12 @@ func translateMCPType(typeIn, urlIn string) (translated string, warning string) 
 }
 
 // portFromURL parses an explicit numeric port out of a URL. Returns 0 when no
-// explicit port is present (e.g., bare https://host without :443). Schemes
-// without an explicit port (like https://mcp.grep.app) leave port=0; for sse
-// transport this is acceptable because the schema only requires url.
+// explicit port is present.
+//
+// Note: OCA's stack schema requires port ∈ [6275, 6325] (Vision's local port
+// range; validate.go:186-191). External services with no Vision-side port
+// (e.g., https://mcp.grep.app) cannot satisfy this constraint and are dropped
+// at emit time with a warning rather than synthesized to an out-of-range port.
 func portFromURL(rawURL string) int {
 	if rawURL == "" {
 		return 0
@@ -72,6 +75,34 @@ func portFromURL(rawURL string) int {
 		return 0
 	}
 	return port
+}
+
+// normalizeTransportFields resolves transport conflicts in state.MCPServers
+// caused by reading from both opencode.json (intent: type+url) and
+// vision/servers.yaml (impl: command+args). For each server with a known
+// transport type, drop the conflicting fields:
+//
+//   - stdio | daemon → drop URL (local transports don't use a URL)
+//   - http  | sse    → drop Command + Args (remote transports don't spawn locally)
+//
+// Servers with empty Type are left untouched (validator's inferTransport
+// derives transport from whichever fields are present).
+func normalizeTransportFields(state *OpenChadState) {
+	for name, mcs := range state.MCPServers {
+		switch mcs.Type {
+		case "stdio", "daemon":
+			if mcs.URL != "" {
+				mcs.URL = ""
+				state.MCPServers[name] = mcs
+			}
+		case "http", "sse":
+			if mcs.Command != "" || len(mcs.Args) > 0 {
+				mcs.Command = ""
+				mcs.Args = nil
+				state.MCPServers[name] = mcs
+			}
+		}
+	}
 }
 
 // classifyPluginEntry inspects an opencode.json plugin entry string and returns
@@ -382,6 +413,12 @@ func ReadOpenChadState(cfg ReaderConfig) (*OpenChadState, error) {
 			}
 		}
 	}
+
+	// 8. Normalize transport-conflicting fields. opencode.json (intent) and
+	// vision/servers.yaml (impl) often disagree about whether a server is
+	// remote (URL) or local (Command/Args). The schema requires they not
+	// coexist; drop the field that doesn't match the resolved transport type.
+	normalizeTransportFields(state)
 
 	return state, nil
 }
