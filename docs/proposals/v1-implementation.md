@@ -19,7 +19,7 @@ This document is the source material for the first ADV change in this repository
 - Phase 6 (installer + shell profile) is complete, archived, and merged to `trunk`
 - Phase 6.5 (`phase65TemporalDevServer`) is complete, archived, and merged to `trunk`
 - Phase 7 (`phase7MigrationOpenChadDoctor`) is complete, archived, and merged to `trunk`
-- Phase 8 (`phase8ExtrasPolishDiscord`) is implemented as the v1.0 release-candidate change
+- Phase 8 (`phase8ExtrasPolish`) is implemented as the v1.0 release-candidate change
 - Out-of-phase: operator dashboard (`oca dashboard`), pane management (`oca pane`), session watchdog (`oca watchdog`), Temporal CLI detection (`internal/temporal/detect.go`)
 - This document remains the umbrella roadmap and historical context for the v1.0 effort
 
@@ -56,7 +56,7 @@ Both projects write to `~/.config/opencode/`. The overlap is 19 files (4 agents,
    - `~/.tmux.conf` (theme source, session hooks)
    - ad-hoc configurations stored nowhere
 
-6. **Brand tone mismatch.** The "chad" heritage was appropriate for the project's earlier playful spirit but no longer matches the user's intended audience or professional positioning. Synthwave edges, rotating Discord taglines, NvChad-inspired agent palette, and the "chad" wordmark all need to be replaced.
+6. **Brand tone mismatch.** The "chad" heritage was appropriate for the project's earlier playful spirit but no longer matches the user's intended audience or professional positioning. Synthwave edges, NvChad-inspired agent palette, and the "chad" wordmark all need to be replaced.
 
 7. **No vertical integration.** Advance tracks rich workflow state (active changes, gates, tasks, wisdom) but the environment layer (tmux status bar, doctor checks) knows nothing about it. `openchad doctor` does not verify that the Advance plugin is built or that ADV state is readable. The tmux status bar does not show the active change or gate progress.
 
@@ -64,7 +64,7 @@ Both projects write to `~/.config/opencode/`. The overlap is 19 files (4 agents,
 
 ### What the user wants
 
-- **A professional brand.** New name ("OpenCode Advance"), new wordmark (GBA-stylized "Advance" with frosted indigo accent), new palette (obsidian/slate/graphite), new theme, new boot animation, new Discord taglines. No "chad" heritage.
+- **A professional brand.** New name ("OpenCode Advance"), new wordmark (GBA-stylized "Advance" with frosted indigo accent), new palette (obsidian/slate/graphite), new theme, new boot animation. No "chad" heritage.
 
 - **A declarative stack.** One `stack.toml` file that owns every slice of the OpenCode configuration the user cares about. `oca apply` renders it. `oca doctor` verifies it. `oca diff` shows drift. `oca pin` captures reproducibility. Full coverage: MCP servers, plugins, instructions, providers, permissions, watcher, LSP, primary client/session UX, theme, plus the remaining OCA-owned config surfaces in later phases.
 
@@ -90,7 +90,6 @@ The v1.0 release is ready when all of the following are true:
 - [ ] Color palette (Obsidian/Slate/Graphite/Ivory/Indigo) is implemented in `lib/palette.sh` and used consistently
 - [ ] New Obsidian theme assets exist for the current primary client and tmux status bar (`assets/themes/obsidian.tmux.conf`)
 - [ ] Boot splash renders wordmark with frosted indigo effect, opt-out via `OCA_BOOT_SPLASH=0`
-- [ ] All Discord Rich Presence taglines are rewritten (no "chad"-era jokes)
 - [ ] README presents the new brand with wordmark, palette, and professional tone
 
 ### CLI core (`oca`)
@@ -128,7 +127,6 @@ The v1.0 release is ready when all of the following are true:
 - [ ] Custom commands: project-specific slash commands rendered into `opencode.json` `.command`
 - [ ] OpenCode toggles: default_agent, share, snapshot, autoupdate, compaction, disabled_providers, enabled_providers
 - [ ] Primary client/session UX: prefix, reaper, theme, boot_splash
-- [ ] Discord: enabled, mode
 
 ### Advance integration
 
@@ -244,7 +242,7 @@ See [`phases.md`](phases.md) for the full phase sequencing. Rough shape:
 7. **Phase 5: Temporal enablement** — `[temporal]` config, apply rendering, health checks, status bar integration
 8. **Phase 6: Installer + shell** — `oca install`, shell profile wiring, completions
 9. **Phase 7: Migration + doctor** — `oca migrate from-open-chad`, expanded doctor, ADV state integration
-10. **Phase 8: Extras + polish** — Discord (new taglines), release pipeline, final README
+10. **Phase 8: Extras + polish** — release pipeline, final README
 
 Estimated total: 6.5-8.5 weeks of focused work.
 

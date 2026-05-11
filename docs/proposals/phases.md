@@ -494,15 +494,12 @@ Phase 6 shipped the installer, uninstaller, shell completion, and shell profile 
 
 ## Phase 8: Extras + Polish
 
-**Status:** Release-candidate implementation — `phase8ExtrasPolishDiscord`.
+**Status:** Release-candidate implementation — `phase8ExtrasPolish`.
 
-**Goal:** Discord integration (with new taglines), release pipeline, final README, polish pass.
+**Goal:** Release pipeline, final README, polish pass.
 
 **Estimate:** 3-5 days
 
-- `cmd/oca/discord.go` + `internal/discord/` — Go-native Discord Rich Presence integration
-- `assets/discord/taglines.toml` — all new taglines (data-driven, no "chad" era jokes)
-- `cmd/oca/discord.go` — `oca discord enable/disable/status`
 - `.github/workflows/release.yml` — goreleaser release pipeline
 - `.goreleaser.yaml` — cross-platform build config
 - Final README rewrite with install instructions, command reference, troubleshooting
@@ -511,8 +508,6 @@ Phase 6 shipped the installer, uninstaller, shell completion, and shell profile 
 
 **Exit criteria:**
 
-- `oca discord enable` works and shows presence in Discord
-- All Discord taglines are rewritten (no "chad" references)
 - `git tag v1.0.0 && git push origin v1.0.0` triggers release pipeline that produces cross-platform binaries
 - Binaries are published to GitHub Releases with SHA256SUMS.txt
 - README is complete and internally consistent
@@ -520,16 +515,13 @@ Phase 6 shipped the installer, uninstaller, shell completion, and shell profile 
 
 **Tasks (high-level):**
 
-- tk-phase8-01: Port Discord Rich Presence integration from open-chad
-- tk-phase8-02: Rewrite all taglines (data-driven TOML file)
-- tk-phase8-03: Implement `oca discord enable/disable/status`
-- tk-phase8-04: Set up goreleaser config
-- tk-phase8-05: Write `.github/workflows/release.yml`
-- tk-phase8-06: Test release pipeline with a pre-release tag (v1.0.0-rc1)
-- tk-phase8-07: Write final README
-- tk-phase8-08: Write INSTALL.md
-- tk-phase8-09: Generate CHANGELOG.md
-- tk-phase8-10: Final polish pass: inconsistencies, typos, dead links
+- tk-phase8-01: Set up goreleaser config
+- tk-phase8-02: Write `.github/workflows/release.yml`
+- tk-phase8-03: Test release pipeline with a pre-release tag (v1.0.0-rc1)
+- tk-phase8-04: Write final README
+- tk-phase8-05: Write INSTALL.md
+- tk-phase8-06: Generate CHANGELOG.md
+- tk-phase8-07: Final polish pass: inconsistencies, typos, dead links
 
 ---
 
