@@ -166,18 +166,19 @@ func TestEmitTOML_EmptyState(t *testing.T) {
 // npm-spec bug (M5 of finalizeMustQueueTriage3).
 //
 // BEFORE the fix:
-//   readOpenCodeJSON emits PluginState{Name: "opencode-openai-codex-auth@latest",
-//   Checkout: "opencode-openai-codex-auth@latest"} for an npm-style plugin entry.
-//   EmitTOML then writes [plugins.opencode-openai-codex-auth@latest] which is
-//   invalid TOML — `@` is not legal in unquoted keys. cfg.Load fails with:
-//   `expected '.' or ']' to end table name, but got '@' instead`.
+//
+//	readOpenCodeJSON emits PluginState{Name: "opencode-openai-codex-auth@latest",
+//	Checkout: "opencode-openai-codex-auth@latest"} for an npm-style plugin entry.
+//	EmitTOML then writes [plugins.opencode-openai-codex-auth@latest] which is
+//	invalid TOML — `@` is not legal in unquoted keys. cfg.Load fails with:
+//	`expected '.' or ']' to end table name, but got '@' instead`.
 //
 // AFTER the fix:
-//   1. classifyPluginEntry (read-side) reshapes the entry to
-//      PluginState{Name: "opencode-openai-codex-auth",
-//      Source: "npm:opencode-openai-codex-auth@latest", Checkout: ""}.
-//   2. sanitizePluginKey (defensive emit-side) catches any leaked unsafe name
-//      and skips the plugin with a warning.
+//  1. classifyPluginEntry (read-side) reshapes the entry to
+//     PluginState{Name: "opencode-openai-codex-auth",
+//     Source: "npm:opencode-openai-codex-auth@latest", Checkout: ""}.
+//  2. sanitizePluginKey (defensive emit-side) catches any leaked unsafe name
+//     and skips the plugin with a warning.
 //
 // This test exercises BOTH the buggy current shape (caught by defensive sanitize)
 // AND the post-fix canonical shape (round-trips cleanly).
