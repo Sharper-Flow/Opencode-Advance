@@ -112,13 +112,6 @@ oca temporal start
 oca temporal status
 ```
 
-If Discord Rich Presence is desired:
-
-```bash
-oca discord enable
-oca discord status
-```
-
 Start an OpenCode session:
 
 ```bash
@@ -150,7 +143,6 @@ oca doctor
 | `oca doctor` reports plugin build failure | Run `oca update`, then `oca apply` |
 | Temporal unreachable | Run `oca temporal status`, then `oca temporal start` |
 | tmux session missing theme | Run `oca apply`, then start a new `oca session new` |
-| Discord not showing presence | Ensure the Discord desktop client is running; run `oca discord status` |
 | OpenCode config drift | Run `oca diff`, then `oca apply` |
 
 ## Uninstall

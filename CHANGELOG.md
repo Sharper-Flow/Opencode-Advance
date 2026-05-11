@@ -2,6 +2,12 @@
 
 All notable OpenCode Advance changes are summarized here.
 
+## Unreleased
+
+### Removed
+
+- Removed Discord Rich Presence integration in full: `oca discord` CLI subcommand, `internal/discord/` package, `assets/discord/taglines.toml`, `[discord]` typed config section, `lib/status_bar.sh` tagline-rotation hook, and the `github.com/hugolgst/rich-go` dependency. Legacy `stack.toml` files containing a `[discord]` block continue to parse cleanly via the existing deferred-sections path. Phase 8 renamed `phase8ExtrasPolishDiscord` → `phase8ExtrasPolish`; release-pipeline and README/polish deliverables preserved.
+
 ## v1.0.0-rc1
 
 Release candidate for the first public OpenCode Advance release.
