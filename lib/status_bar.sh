@@ -65,14 +65,6 @@ _oca_cache_dir() {
   printf '%s/opencode-advance-%s' "${TMPDIR:-/tmp}" "${USER:-unknown}"
 }
 
-_oca_discord_update() {
-  local wrapper
-  wrapper="$(_oca_cache_dir)/discord/discord-update.sh"
-  if [[ -x "$wrapper" ]]; then
-    "$wrapper" >/dev/null 2>&1 &
-  fi
-}
-
 # ── tmux Helpers ───────────────────────────────────────────
 
 # Extract socket name from $TMUX env (format: /tmp/tmux-UID/NAME,PID)
@@ -204,8 +196,6 @@ oca_status_row0() {
   local session_name="$1"
   local pane_path="$2"
   local pane_id="${3:-}"
-
-  _oca_discord_update
 
   # Session name (left)
   printf '%s' "$(_oca_status_color '#8B9FE0')"
