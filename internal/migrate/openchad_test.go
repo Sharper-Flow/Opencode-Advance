@@ -6,6 +6,137 @@ import (
 	"testing"
 )
 
+// TestClassifyPluginEntry exercises the full classification matrix from
+// design.md (M5 of finalizeMustQueueTriage3).
+func TestClassifyPluginEntry(t *testing.T) {
+	cases := []struct {
+		name         string
+		entry        string
+		wantName     string
+		wantSource   string
+		wantCheckout string
+		wantErr      bool
+	}{
+		{
+			name:         "plain bare name",
+			entry:        "morph-fast-apply",
+			wantName:     "morph-fast-apply",
+			wantSource:   "",
+			wantCheckout: "morph-fast-apply",
+		},
+		{
+			name:         "absolute path",
+			entry:        "/abs/path/to/plugin",
+			wantName:     "plugin",
+			wantSource:   "",
+			wantCheckout: "/abs/path/to/plugin",
+		},
+		{
+			name:         "tilde path",
+			entry:        "~/dev/oc-plugins/advance/plugin",
+			wantName:     "plugin",
+			wantSource:   "",
+			wantCheckout: "~/dev/oc-plugins/advance/plugin",
+		},
+		{
+			name:         "npm unscoped with @latest",
+			entry:        "opencode-openai-codex-auth@latest",
+			wantName:     "opencode-openai-codex-auth",
+			wantSource:   "npm:opencode-openai-codex-auth@latest",
+			wantCheckout: "",
+		},
+		{
+			name:         "npm unscoped with semver",
+			entry:        "some-pkg@1.2.3",
+			wantName:     "some-pkg",
+			wantSource:   "npm:some-pkg@1.2.3",
+			wantCheckout: "",
+		},
+		{
+			name:         "npm unscoped with caret range",
+			entry:        "some-pkg@^1.0.0",
+			wantName:     "some-pkg",
+			wantSource:   "npm:some-pkg@^1.0.0",
+			wantCheckout: "",
+		},
+		{
+			name:         "npm unscoped with tilde range",
+			entry:        "some-pkg@~1.0",
+			wantName:     "some-pkg",
+			wantSource:   "npm:some-pkg@~1.0",
+			wantCheckout: "",
+		},
+		{
+			name:         "npm unscoped with sha-like spec",
+			entry:        "some-pkg@abc1234",
+			wantName:     "some-pkg",
+			wantSource:   "npm:some-pkg@abc1234",
+			wantCheckout: "",
+		},
+		{
+			name:         "npm scoped with @latest",
+			entry:        "@franlol/opencode-md-table-formatter@latest",
+			wantName:     "opencode-md-table-formatter",
+			wantSource:   "npm:@franlol/opencode-md-table-formatter@latest",
+			wantCheckout: "",
+		},
+		{
+			name:         "npm scoped without version",
+			entry:        "@franlol/foo",
+			wantName:     "foo",
+			wantSource:   "npm:@franlol/foo",
+			wantCheckout: "",
+		},
+		{
+			name:         "path with trailing version-like suffix in basename",
+			entry:        "/abs/path/pkg@latest",
+			wantName:     "pkg",
+			wantSource:   "",
+			wantCheckout: "/abs/path/pkg@latest",
+		},
+		{
+			name:    "rejects TOML-unsafe spaces",
+			entry:   "bad name with spaces",
+			wantErr: true,
+		},
+		{
+			name:    "rejects TOML-unsafe brackets",
+			entry:   "bad[bracket]name",
+			wantErr: true,
+		},
+		{
+			name:    "rejects empty entry",
+			entry:   "",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := classifyPluginEntry(tc.entry)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("classifyPluginEntry(%q) = %+v, want error", tc.entry, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("classifyPluginEntry(%q) unexpected error: %v", tc.entry, err)
+			}
+			if got.Name != tc.wantName {
+				t.Errorf("Name = %q, want %q", got.Name, tc.wantName)
+			}
+			if got.Source != tc.wantSource {
+				t.Errorf("Source = %q, want %q", got.Source, tc.wantSource)
+			}
+			if got.Checkout != tc.wantCheckout {
+				t.Errorf("Checkout = %q, want %q", got.Checkout, tc.wantCheckout)
+			}
+		})
+	}
+}
+
 // setupOpenChadFixture creates a temporary directory tree that mimics
 // open-chad's state layout for testing.
 func setupOpenChadFixture(t *testing.T) (ReaderConfig, func()) {
@@ -113,9 +244,27 @@ func TestReadOpenChadState_Full(t *testing.T) {
 		t.Errorf("context7 url = %q", ctx7.URL)
 	}
 
-	// Plugins discovered from oc-plugins dir
-	if len(state.Plugins) != 2 {
-		t.Errorf("expected 2 plugins, got %d", len(state.Plugins))
+	// Plugins: 2 path-based from oc-plugins + 1 npm-scoped from opencode.json.
+	// Scoped npm (`@franlol/opencode-md-table-formatter@latest`) was previously
+	// dropped; classifyPluginEntry now captures it as an npm source.
+	if len(state.Plugins) != 3 {
+		t.Errorf("expected 3 plugins, got %d", len(state.Plugins))
+	}
+	// Verify the scoped npm entry is captured with the canonical npm source form.
+	var foundNPM bool
+	for _, p := range state.Plugins {
+		if p.Name == "opencode-md-table-formatter" {
+			foundNPM = true
+			if p.Source != "npm:@franlol/opencode-md-table-formatter@latest" {
+				t.Errorf("npm plugin source = %q, want canonical npm form", p.Source)
+			}
+			if p.Checkout != "" {
+				t.Errorf("npm plugin checkout = %q, want empty", p.Checkout)
+			}
+		}
+	}
+	if !foundNPM {
+		t.Errorf("expected npm-scoped plugin %q not found in state", "opencode-md-table-formatter")
 	}
 
 	// Instructions: 2 from opencode.json + 3 from bundled dir (stale excluded)
@@ -213,9 +362,12 @@ func TestReadOpenChadState_EmptyPlugins(t *testing.T) {
 		t.Fatalf("ReadOpenChadState failed: %v", err)
 	}
 
-	// Plugins from opencode.json should still be present (just no checkout info)
-	if len(state.Plugins) != 2 {
-		t.Errorf("expected 2 plugins from opencode.json, got %d", len(state.Plugins))
+	// Plugins from opencode.json: 2 path-based + 1 npm-scoped (now captured by
+	// classifyPluginEntry rather than dropped). Path-based entries still have
+	// no on-disk checkout when OcPluginsDir is removed, but the entries
+	// themselves remain.
+	if len(state.Plugins) != 3 {
+		t.Errorf("expected 3 plugins from opencode.json, got %d", len(state.Plugins))
 	}
 }
 

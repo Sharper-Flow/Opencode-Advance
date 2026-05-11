@@ -6,10 +6,100 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+// tomlSafeNamePattern matches plugin names that are safe to use as unquoted
+// TOML table keys. The OCA stack schema treats plugin names as Go identifiers
+// downstream, so we restrict the alphabet to a conservative subset.
+var tomlSafeNamePattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
+// classifyPluginEntry inspects an opencode.json plugin entry string and returns
+// the PluginState fields appropriate for the source kind.
+//
+// Recognized forms (detection priority order):
+//
+//   - "<path with separators>" (contains '/' or '\\')
+//     → local checkout: Source="", Checkout=<entry>, Name=basename
+//     (npm-scoped form "@scope/pkg[@spec]" is detected within this branch via
+//     leading '@' before path separator)
+//
+//   - "name@spec" (no path separator, '@' at position > 0)
+//     → npm unscoped: Source="npm:<entry>", Name=<entry-without-spec>, Checkout=""
+//
+//   - bare name (no '@', no path separator)
+//     → local checkout (preserves existing behavior): Source="",
+//     Checkout=<entry>, Name=<entry>
+//
+// Returns an error if the derived Name contains TOML-unsafe characters that
+// cannot be sanitized further. Callers should append a warning and skip the
+// entry.
+func classifyPluginEntry(entry string) (PluginState, error) {
+	if entry == "" {
+		return PluginState{}, fmt.Errorf("empty plugin entry")
+	}
+
+	var ps PluginState
+
+	switch {
+	case strings.ContainsAny(entry, `/\`):
+		// Path-like form. Distinguish scoped npm ("@scope/pkg[@spec]") from a
+		// real filesystem path by leading '@'.
+		if strings.HasPrefix(entry, "@") {
+			pkg := entry
+			// Strip the trailing "@spec" suffix only if '@' appears beyond the
+			// leading position (i.e., a version qualifier, not the scope marker).
+			if at := strings.LastIndex(entry, "@"); at > 0 {
+				pkg = entry[:at]
+			}
+			ps = PluginState{
+				Name:     filepath.Base(pkg), // "@scope/pkg" → "pkg"
+				Source:   "npm:" + entry,
+				Checkout: "",
+			}
+			break
+		}
+		// Real filesystem path. Strip any trailing "@spec" from the basename
+		// defensively (a path like "/abs/path/pkg@latest" should not leak '@'
+		// into a TOML key).
+		base := filepath.Base(entry)
+		if at := strings.Index(base, "@"); at > 0 {
+			base = base[:at]
+		}
+		ps = PluginState{
+			Name:     base,
+			Source:   "",
+			Checkout: entry,
+		}
+
+	case strings.Contains(entry, "@") && !strings.HasPrefix(entry, "@"):
+		// "name@spec" — npm unscoped with version pin.
+		at := strings.Index(entry, "@")
+		ps = PluginState{
+			Name:     entry[:at],
+			Source:   "npm:" + entry,
+			Checkout: "",
+		}
+
+	default:
+		// Bare name (no '@', no path separator). Preserve existing semantics:
+		// treat as a checkout-like reference. OpenCode itself resolves these
+		// against its plugin search path.
+		ps = PluginState{
+			Name:     entry,
+			Source:   "",
+			Checkout: entry,
+		}
+	}
+
+	if !tomlSafeNamePattern.MatchString(ps.Name) {
+		return PluginState{}, fmt.Errorf("plugin name %q contains TOML-unsafe characters", ps.Name)
+	}
+	return ps, nil
+}
 
 // ReaderConfig controls where ReadOpenChadState looks for source data.
 type ReaderConfig struct {
@@ -240,22 +330,21 @@ func readOpenCodeJSON(path string, state *OpenChadState) error {
 		}
 	}
 
-	// Plugins (array of paths)
+	// Plugins — classify each entry by source kind (path / npm-scoped /
+	// npm-unscoped / bare name). See classifyPluginEntry.
 	if pluginsRaw, ok := raw["plugin"].([]any); ok {
 		for _, pRaw := range pluginsRaw {
-			path, ok := pRaw.(string)
+			entry, ok := pRaw.(string)
 			if !ok {
 				continue
 			}
-			// Skip npm packages (no checkout)
-			if strings.HasPrefix(path, "@") {
+			ps, err := classifyPluginEntry(entry)
+			if err != nil {
+				state.Warnings = append(state.Warnings,
+					fmt.Sprintf("plugin entry %q: %v; skipped", entry, err))
 				continue
 			}
-			name := filepath.Base(path)
-			state.Plugins = append(state.Plugins, PluginState{
-				Name:     name,
-				Checkout: path,
-			})
+			state.Plugins = append(state.Plugins, ps)
 		}
 	}
 
