@@ -1,0 +1,19 @@
+{
+  "entries": [
+    {
+      "id": "ws-qAXOaG",
+      "type": "failure",
+      "content": "Smoke-test against the operator's live open-chad state revealed that the M5 npm-spec fix unblocks PARSING but the migrator emits a stack with 18 SEMANTIC validation errors (pre-existing data-coverage gaps): all MCP servers have type=\"remote\" (schema allows stdio|http|sse|daemon only); vision/gh_grep missing required port; 4 plugins missing source; 3 slot groups missing base_port+count; plus the path-plugin name collision where multiple `<name>/plugin` paths all collapse to `[plugins.plugin]`. None of these are caused by M5 — they are pre-existing migrator data-coverage gaps. M5 SUCCESS LEVEL: migration goes from \"unparseable garbage\" (cfg.Load parse error on @-in-key) to \"parseable but requires manual triage of 18 items\". Net improvement but NOT yet \"safely replace open-chad\". Cutover requires a follow-up change to address: (1) MCP server type translation (`remote` → `http` or `stdio` based on URL/command shape), (2) plugin source field population for path entries lacking discoverPlugins enrichment, (3) slot group field defaulting, (4) plugin name collision via parent-dir-aware naming. File as `migrateCoverageGaps` after this archive.",
+      "source_task": "tk-abd23e10b060",
+      "recorded_at": "2026-05-11T20:54:33.580Z"
+    },
+    {
+      "id": "ws-4WK9XP",
+      "type": "pattern",
+      "content": "Inline TDD with the design \"read-side classify + emit-side defensive sanitize\" pattern produces a clean validation hierarchy: classifyPluginEntry enforces structural correctness at the boundary where untrusted input enters (P33 alignment); sanitizePluginKey is defense-in-depth catching anything that leaks through programmatic state construction (tests, custom callers). The combination gives a clear t1→t2→t3 progression: t1 RED locks the regression; t2 GREEN at read fixes the canonical flow; t3 GREEN at emit catches the leak path. Each step is committable independently and the test failure between t1 and t3 directly demonstrates which defensive layer is doing the work.",
+      "source_task": "tk-899eea0bf211",
+      "recorded_at": "2026-05-11T20:54:37.741Z"
+    }
+  ],
+  "count": 2
+}
