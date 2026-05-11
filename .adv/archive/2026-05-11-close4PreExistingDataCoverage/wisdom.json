@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "id": "ws-guTfaJ",
+      "type": "pattern",
+      "content": "Live smoke test surfaced two scope items not in the original 4-gap design that had to be solved within the change to reach the 0-errors acceptance gate: (1) URL field was never emitted by emit.go — pre-fix this masked itself because validation didn't run cleanly; once Gap 1 produced valid types the missing URL emit surfaced; fix: add `url = %q` emission. (2) Multi-source state conflict — opencode.json declares user intent (type+url for remote) while vision/servers.yaml declares Vision's local proxy impl (command+args for stdio). Both were copied to state, producing schema-invalid `cannot specify both command and url`. Fix: `normalizeTransportFields` post-read pass drops Command/Args for http/sse types and drops URL for stdio/daemon types. Also discovered OCA schema forces port ∈ [6275, 6325] for all MCP servers — external services like https://mcp.grep.app can't fit; emit-time skip-with-warning is the correct compromise (operator hand-adds post-migrate). These three sub-fixes belonged in scope because they were entirely inside the migrator surface and necessary to reach the acceptance criterion.",
+      "source_task": "tk-16ded0827a0d",
+      "recorded_at": "2026-05-11T23:31:21.718Z"
+    }
+  ],
+  "count": 1
+}

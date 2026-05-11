@@ -1,0 +1,225 @@
+{
+  "id": "close4PreExistingDataCoverage",
+  "title": "Close the 4 pre-existing data-coverage gaps in `internal/migrate/` so `oca migrate from-open-chad` produces a stack that passes `oca debug validate` against the operator's live state — final cutover-blocker for v1.0 / safe open-chad replacement.",
+  "status": "archived",
+  "created_at": "2026-05-11T22:26:08.546Z",
+  "tasks": [
+    {
+      "id": "tk-0096240851d9",
+      "title": "Gap 3 (slot groups): Inline TDD. Add RED test in `internal/migrate/openchad_test.go` (or `emit_test.go`) with a real Vision YAML fixture containing `base_port`/`count`/`group_port`/`template`. Expect cfg.Load to succeed AND each slot group to round-trip with correct base_port/count. GREEN: drop `MinSlots`/`MaxSlots` from `SlotGroupState` (lines 158-163) and the inline yaml struct (lines 430-436); add `BasePort int` / `Count int` with `yaml:\"base_port\"`/`yaml:\"count\"` tags; update emit (`emit.go:114-130`) to write `base_port = N` and `count = N`; skip empty `servers` array. Update any existing golden tests that asserted the old fields.",
+      "type": "code",
+      "section": "execution",
+      "status": "done",
+      "priority": 0,
+      "created_at": "2026-05-11T22:40:45.662Z",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T23:20:25.136Z",
+      "verification": "Gap 3: `SlotGroupState` MinSlots/MaxSlots → BasePort/Count. `readVisionServers` inline yaml struct retagged to base_port/count. emit.go emits base_port/count instead of min_slots/max_slots. New `TestReadVisionServers_SlotGroupSchemaAlignment` exercises real Vision YAML shape with 2 playwright slot groups (headless: 6301/4, headed: 6306/2) and asserts BasePort/Count/GroupPort/Template round-trip correctly. All migrate package tests pass.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "internal/migrate/emit.go",
+        "internal/migrate/openchad.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "touched_files": [
+        "internal/migrate/emit.go",
+        "internal/migrate/openchad.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "checkpointSha": "c0c83ba4bd5fd5d6a4946e3ebde4d450893c4c01",
+      "completedAt": "2026-05-11T23:21:41.749Z",
+      "completed_at": "2026-05-11T23:21:41.749Z"
+    },
+    {
+      "id": "tk-25178cd2899e",
+      "title": "Gap 1 (MCP type translation): Inline TDD. Add `translateMCPType(t, url string) (translated, warning string)` + `portFromURL(rawURL string) int` helpers in `internal/migrate/openchad.go`. Matrix test cases per design.md: `remote + .../mcp` → `http`; `remote + non-/mcp URL` → `sse`; `remote + no URL` → `\"\"` with warning; `stdio|http|sse|daemon` → passthrough; unknown → unchanged with warning. Wire into `readOpenCodeJSON` MCP loop (after reading type/url). Add post-read fix-up loop in `ReadOpenChadState` to fill `mcs.Port` from URL when still 0 after Vision read. Integration test: fixture with operator-shape opencode.json (6 remote servers with mixed /mcp suffix) produces a state where each server has the correct translated type + port.",
+      "type": "code",
+      "section": "execution",
+      "status": "done",
+      "priority": 1,
+      "created_at": "2026-05-11T22:40:49.443Z",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T23:21:43.461Z",
+      "verification": "Gap 1: translateMCPType (URL-suffix-aware mirror of inferTransport at validate.go:474-491) + portFromURL helpers added to openchad.go. Wired into readOpenCodeJSON MCP loop with warning capture. Post-read fix-up at end of ReadOpenChadState fills Port from URL when Vision YAML didn't provide one. 11 translation subtests (5 mapping cases + 4 passthrough + edge cases) + 7 portFromURL cases + integration test against operator-shape fixture (5 → http, 1 → sse). Full migrate package green.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "internal/migrate/openchad.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "touched_files": [
+        "internal/migrate/openchad.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "checkpointSha": "07327f1e62c479f42ba4405fc2b699585a9fb3ad",
+      "completedAt": "2026-05-11T23:22:42.950Z",
+      "completed_at": "2026-05-11T23:22:42.950Z"
+    },
+    {
+      "id": "tk-a36f06267e41",
+      "title": "Gap 2 (plugin source fallback): Inline TDD. Add `fallbackResolvePluginSources(state)` + `expandTilde(p string) string` helpers in `internal/migrate/openchad.go`. Logic per design.md: for plugins with empty Source and non-empty Checkout, expand tilde to absolute; if `<abs>/.git` exists → readGitRemoteURL → Source; else → `source = \"local:<abs>\"` and clear Checkout. Wire into `ReadOpenChadState` immediately after `discoverPlugins`. Unit tests: (a) git-existence path resolves to remote URL; (b) non-git path → local: source; (c) tilde expansion correctness for `~/foo`, `~`, `/abs` (no-op), `relative` (no-op).",
+      "type": "code",
+      "section": "execution",
+      "status": "done",
+      "priority": 2,
+      "created_at": "2026-05-11T22:40:52.909Z",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T23:22:44.750Z",
+      "verification": "Gap 2: fallbackResolvePluginSources + expandTilde helpers added. Wired into ReadOpenChadState as step 3b after discoverPlugins. Logic: empty Source + non-empty Checkout → tilde-expand to abs → if .git exists use git URL + preserve Checkout + capture Ref via readGitHEAD; else set source=\"local:<abs>\" and clear Checkout. 4 tests pass: TestExpandTilde (7 cases including ~user passthrough), TestFallbackResolvePluginSources_LocalFallback (no .git), TestFallbackResolvePluginSources_GitDiscovery (with .git/config), TestFallbackResolvePluginSources_LeavesEnriched (existing source/npm untouched). Build fix: readGitRemoteURL/readGitHEAD return (string, error) — used proper two-return form.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "internal/migrate/openchad.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "touched_files": [
+        "internal/migrate/openchad.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "checkpointSha": "d02b77c37ff9edffe2f0eb9bb556b5811f3c620b",
+      "completedAt": "2026-05-11T23:23:47.794Z",
+      "completed_at": "2026-05-11T23:23:47.794Z"
+    },
+    {
+      "id": "tk-0ae98ad867a9",
+      "title": "Gap 4 (plugin name from /plugin suffix): Inline TDD. Refine `classifyPluginEntry` path branch per design.md: when `filepath.Base(entry) == \"plugin\"`, use `filepath.Base(filepath.Dir(entry))` as Name instead. Defensive: skip if parent is \"\" or \".\" or \"/\". Unit tests: `/x/foo/plugin` → name=`foo`; `/x/foo` → name=`foo`; `/x/foo/bar.js` → name=`bar.js`; `/plugin` (root-level) → name unchanged. Integration test: fixture with two entries `/x/foo/plugin` and `/x/bar/plugin` produces 2 plugins named `foo` and `bar` (no `[plugins.plugin]` collision).",
+      "type": "code",
+      "section": "execution",
+      "status": "done",
+      "priority": 3,
+      "created_at": "2026-05-11T22:40:56.375Z",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T23:23:49.205Z",
+      "verification": "Gap 4: classifyPluginEntry path branch detects `<X>/<name>/plugin` convention via filepath.Base==`plugin` check; uses parent dir as Name when valid; defensive against root/empty/dot parents. New `TestClassifyPluginEntry_PluginSuffixNameDerivation` (5 cases) + `TestClassifyPluginEntry_NoCollisionAcrossPluginPaths`. Updated 2 pre-existing TestClassifyPluginEntry subtest assertions: `absolute path` / `tilde path` (now expect parent-dir-derived names per Gap 4 semantics) + added `absolute path without /plugin suffix` to lock the non-suffix path through basename. Full migrate package green.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "internal/migrate/openchad.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "touched_files": [
+        "internal/migrate/openchad.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "checkpointSha": "89d96944127fa23ab41f5b98a23878ae366a0514",
+      "completedAt": "2026-05-11T23:25:08.465Z",
+      "completed_at": "2026-05-11T23:25:08.465Z"
+    },
+    {
+      "id": "tk-9394e45d4aa0",
+      "title": "Header comment for local: portability + verification sweep. Update `emit.go` header template to emit a `# Plugin sources marked local:<path> reference paths on this operator's machine and are not portable.` comment when any plugin has a `local:` source. Run `go test ./... && go vet ./... && gofmt -d .` — all clean. Update any golden tests that captured old behavior.",
+      "type": "code",
+      "section": "execution",
+      "status": "done",
+      "priority": 4,
+      "created_at": "2026-05-11T22:40:58.687Z",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T23:25:10.301Z",
+      "verification": "Emit header template now includes conditional portability note when any plugin uses a `local:` source. Test coverage: TestEmitTOML_LocalSourceHeaderComment with positive + negative cases. Full project verification clean: `go test ./...` GREEN across all packages (brand, cmd/oca, advruntime, config, dashboard, health, install, maintain, migrate, occupancy, plugin, render, session, subprocess, sync, temporal, tests). `go vet ./...` clean. `gofmt -d .` initially flagged openchad_test.go formatting drift; auto-fixed via `gofmt -w`; verified clean on re-run.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "internal/migrate/emit.go",
+        "internal/migrate/emit_test.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "touched_files": [
+        "internal/migrate/emit.go",
+        "internal/migrate/emit_test.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "checkpointSha": "9fb0f176e646584d1e1324c13f7b5485990f9d9c",
+      "completedAt": "2026-05-11T23:26:22.694Z",
+      "completed_at": "2026-05-11T23:26:22.694Z"
+    },
+    {
+      "id": "tk-16ded0827a0d",
+      "title": "Acceptance smoke test: Build fresh `oca` binary from current source. Run `oca migrate from-open-chad --output /tmp/oca-cutover-v2.toml` against the operator's actual `~/.config/opencode/opencode.json` + `~/.config/vision/servers.yaml`. Run `oca debug validate --config /tmp/oca-cutover-v2.toml` — must return exit 0 with `ok` output. Capture the count of plugins, MCP servers, slot groups in the output as evidence. If any validation errors remain, do NOT expand scope — diagnose, fix within the 4-gap surface, re-run.",
+      "type": "code",
+      "section": "execution",
+      "status": "done",
+      "priority": 5,
+      "created_at": "2026-05-11T22:41:01.139Z",
+      "metadata": {
+        "tdd_intent": "not_applicable"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-11T23:26:24.553Z",
+      "verification": "Acceptance gate met. `oca migrate from-open-chad` against operator's live state produces `/tmp/oca-cutover-final.toml`; `oca debug validate` returns `ok` (0 errors, was 18 pre-change). Output: 16 MCP servers + 3 slot groups + 11 plugins, all with required fields. 1 server (gh_grep external HTTPS) skipped with explicit warning per emit policy. Iteration cycle within 4-gap surface: surfaced 3 sub-issues during smoke test (missing URL emit, transport-field conflict between opencode.json and Vision YAML, schema port-range constraint on external services), all fixed inside migrator boundary without expanding to schema/apply. Full `go test ./...` + `go vet` + `gofmt` clean. Wisdom `ws-_____` captures the multi-source-conflict learning for the migrate domain.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "internal/migrate/emit.go",
+        "internal/migrate/openchad.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "touched_files": [
+        "internal/migrate/emit.go",
+        "internal/migrate/openchad.go",
+        "internal/migrate/openchad_test.go"
+      ],
+      "checkpointSha": "999a0c8321204a701dee9656e82de98e2f6be1d6",
+      "completedAt": "2026-05-11T23:31:26.361Z",
+      "completed_at": "2026-05-11T23:31:26.361Z"
+    }
+  ],
+  "deltas": {},
+  "wisdom": [
+    {
+      "id": "ws-guTfaJ",
+      "type": "pattern",
+      "content": "Live smoke test surfaced two scope items not in the original 4-gap design that had to be solved within the change to reach the 0-errors acceptance gate: (1) URL field was never emitted by emit.go — pre-fix this masked itself because validation didn't run cleanly; once Gap 1 produced valid types the missing URL emit surfaced; fix: add `url = %q` emission. (2) Multi-source state conflict — opencode.json declares user intent (type+url for remote) while vision/servers.yaml declares Vision's local proxy impl (command+args for stdio). Both were copied to state, producing schema-invalid `cannot specify both command and url`. Fix: `normalizeTransportFields` post-read pass drops Command/Args for http/sse types and drops URL for stdio/daemon types. Also discovered OCA schema forces port ∈ [6275, 6325] for all MCP servers — external services like https://mcp.grep.app can't fit; emit-time skip-with-warning is the correct compromise (operator hand-adds post-migrate). These three sub-fixes belonged in scope because they were entirely inside the migrator surface and necessary to reach the acceptance criterion.",
+      "source_task": "tk-16ded0827a0d",
+      "recorded_at": "2026-05-11T23:31:21.718Z"
+    }
+  ],
+  "gates": {
+    "proposal": {
+      "status": "done",
+      "completed_at": "2026-05-11T22:32:24.728Z",
+      "completed_by": "agent"
+    },
+    "discovery": {
+      "status": "done",
+      "completed_at": "2026-05-11T22:35:56.272Z",
+      "completed_by": "agent"
+    },
+    "design": {
+      "status": "done",
+      "completed_at": "2026-05-11T22:40:28.832Z",
+      "completed_by": "agent"
+    },
+    "planning": {
+      "status": "done",
+      "completed_at": "2026-05-11T23:20:23.698Z",
+      "completed_by": "agent"
+    },
+    "execution": {
+      "status": "pending"
+    },
+    "acceptance": {
+      "status": "pending"
+    },
+    "release": {
+      "status": "pending"
+    }
+  },
+  "reentry_history": [],
+  "adv_project_id": "cdae139e16c8cbaa4ef2ebf35dda326e826e93bc"
+}
