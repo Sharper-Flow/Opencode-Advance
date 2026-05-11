@@ -25,18 +25,29 @@ func TestClassifyPluginEntry(t *testing.T) {
 			wantCheckout: "morph-fast-apply",
 		},
 		{
-			name:         "absolute path",
+			// Gap 4: paths ending in "/plugin" derive name from parent dir
+			// to avoid collisions on the OpenCode plugin convention
+			// <repo>/<name>/plugin. See classifyPluginEntry path branch.
+			name:         "absolute path ending in /plugin",
 			entry:        "/abs/path/to/plugin",
-			wantName:     "plugin",
+			wantName:     "to",
 			wantSource:   "",
 			wantCheckout: "/abs/path/to/plugin",
 		},
 		{
-			name:         "tilde path",
+			// Gap 4: tilde-prefixed path ending /plugin → parent dir name.
+			name:         "tilde path ending in /plugin",
 			entry:        "~/dev/oc-plugins/advance/plugin",
-			wantName:     "plugin",
+			wantName:     "advance",
 			wantSource:   "",
 			wantCheckout: "~/dev/oc-plugins/advance/plugin",
+		},
+		{
+			name:         "absolute path without /plugin suffix",
+			entry:        "/abs/path/to/foo",
+			wantName:     "foo",
+			wantSource:   "",
+			wantCheckout: "/abs/path/to/foo",
 		},
 		{
 			name:         "npm unscoped with @latest",
@@ -382,6 +393,60 @@ func containsAt(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// TestClassifyPluginEntry_PluginSuffixNameDerivation locks Gap 4 of
+// close4PreExistingDataCoverage: paths ending in `/plugin` derive their Name
+// from the parent dir, not the literal "plugin" basename. Prevents collisions
+// when multiple checkouts use the `<repo>/<name>/plugin` convention.
+func TestClassifyPluginEntry_PluginSuffixNameDerivation(t *testing.T) {
+	cases := []struct {
+		name     string
+		entry    string
+		wantName string
+	}{
+		{"plugin-suffix path → parent dir name", "/x/foo/plugin", "foo"},
+		{"plain path → basename", "/x/foo", "foo"},
+		{"path with non-plugin basename", "/x/foo/bar.js", "bar.js"},
+		{"deeply nested plugin path", "/home/user/dev/oc-plugins/advance/plugin", "advance"},
+		{"tilde plugin path", "~/dev/oc-plugins/morph-fast-apply/plugin", "morph-fast-apply"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := classifyPluginEntry(tc.entry)
+			if err != nil {
+				t.Fatalf("classifyPluginEntry(%q): %v", tc.entry, err)
+			}
+			if got.Name != tc.wantName {
+				t.Errorf("Name = %q, want %q", got.Name, tc.wantName)
+			}
+		})
+	}
+}
+
+// TestClassifyPluginEntry_NoCollisionAcrossPluginPaths is the integration-level
+// assertion: two distinct `/x/<name>/plugin` paths produce two distinct
+// PluginState entries with non-colliding Names.
+func TestClassifyPluginEntry_NoCollisionAcrossPluginPaths(t *testing.T) {
+	entries := []string{
+		"/dev/oc-plugins/foo/plugin",
+		"/dev/oc-plugins/bar/plugin",
+	}
+	names := make(map[string]bool)
+	for _, e := range entries {
+		ps, err := classifyPluginEntry(e)
+		if err != nil {
+			t.Fatalf("classify %q: %v", e, err)
+		}
+		if names[ps.Name] {
+			t.Fatalf("collision: name %q produced twice for entries %v", ps.Name, entries)
+		}
+		names[ps.Name] = true
+	}
+	if !names["foo"] || !names["bar"] {
+		t.Errorf("expected names {foo, bar}, got %v", names)
+	}
 }
 
 // TestExpandTilde exercises Gap 2's tilde helper.

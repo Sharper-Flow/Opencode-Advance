@@ -119,10 +119,22 @@ func classifyPluginEntry(entry string) (PluginState, error) {
 			}
 			break
 		}
-		// Real filesystem path. Strip any trailing "@spec" from the basename
-		// defensively (a path like "/abs/path/pkg@latest" should not leak '@'
-		// into a TOML key).
-		base := filepath.Base(entry)
+		// Real filesystem path. Detect the OpenCode plugin convention
+		// `<repo>/<name>/plugin` (where the basename is literally "plugin"
+		// and the parent dir is the meaningful name) — mirrors
+		// pluginCheckoutMatches semantics used by discoverPlugins. Without
+		// this, multiple checkouts of the form .../plugin all collapse to
+		// [plugins.plugin] in the emitted TOML.
+		clean := filepath.Clean(entry)
+		base := filepath.Base(clean)
+		if base == "plugin" {
+			parent := filepath.Base(filepath.Dir(clean))
+			if parent != "" && parent != "." && parent != "/" && parent != string(filepath.Separator) {
+				base = parent
+			}
+		}
+		// Defensively strip any trailing "@spec" from the basename (a path
+		// like "/abs/path/pkg@latest" should not leak '@' into a TOML key).
 		if at := strings.Index(base, "@"); at > 0 {
 			base = base[:at]
 		}
