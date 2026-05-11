@@ -403,12 +403,6 @@ enabled      = false              # opt-in; set true to enable
 idle_timeout = "5m"               # busy + no message activity → bump
 max_bumps    = 3                  # bumps before giving up
 
-# ─── Discord ─────────────────────────────────────────────────────────────────
-
-[discord]
-enabled = false
-mode    = "builtin"
-
 # ─── OpenCode ────────────────────────────────────────────────────────────────
 # Top-level OpenCode behavior toggles rendered directly into opencode.json.
 
