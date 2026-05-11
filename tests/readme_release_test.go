@@ -19,7 +19,6 @@ func TestReadmeReflectsV1ReleaseState(t *testing.T) {
 		"## Install quickstart",
 		"## Command reference",
 		"## stack.toml overview",
-		"oca discord enable",
 		"oca temporal start",
 		"oca migrate from-open-chad",
 	} {

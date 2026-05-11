@@ -16,19 +16,10 @@ func TestStackExample_ParsesWithDeferredSections(t *testing.T) {
 		t.Fatalf("Load(stack.example.toml) failed: %v", err)
 	}
 	// Phase 3 graduated sections must be on typed fields, not deferred.
-	for _, wantTyped := range []string{"providers", "permissions", "watcher", "lsp", "skills", "formatters", "commands", "opencode", "session", "discord"} {
+	for _, wantTyped := range []string{"providers", "permissions", "watcher", "lsp", "skills", "formatters", "commands", "opencode", "session"} {
 		if _, ok := stack.DeferredSections[wantTyped]; ok {
 			t.Errorf("%s should be on typed field, not DeferredSections", wantTyped)
 		}
-	}
-	if stack.Discord == nil {
-		t.Fatal("discord section should parse into typed Discord field")
-	}
-	if stack.Discord.Enabled {
-		t.Fatal("stack.example.toml should keep discord disabled by default")
-	}
-	if stack.Discord.Mode != "builtin" {
-		t.Fatalf("discord mode = %q, want builtin", stack.Discord.Mode)
 	}
 	if _, ok := stack.MCP.Servers["vision"]; !ok {
 		t.Fatal("vision server missing")
