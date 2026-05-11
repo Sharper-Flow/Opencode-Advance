@@ -128,3 +128,101 @@ func TestIntegration_MigrationApplyDiff(t *testing.T) {
 		t.Errorf("PlanMCP failed: %v", err)
 	}
 }
+
+// TestFromOpenChadRoundTrip_NPMSpec exercises the full migration pipeline
+// against an opencode.json that contains npm-spec plugin entries. Locks the
+// M5 regression: before classifyPluginEntry, an entry like
+// "opencode-openai-codex-auth@latest" would be emitted as
+// [plugins.opencode-openai-codex-auth@latest] and fail to parse.
+//
+// Scope: focuses on npm classification + round-trip. Path-based plugin
+// integration is covered by TestIntegration_MigrationApplyDiff.
+//
+// Post-fix assertions:
+//   - cfg.Load succeeds on the emitted TOML (no @-in-key parse error).
+//   - Unscoped npm entry → source = "npm:<full>"; IsNPMSource() true; empty Checkout.
+//   - Scoped npm entry → source = "npm:@scope/pkg@spec"; IsNPMSource() true.
+func TestFromOpenChadRoundTrip_NPMSpec(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfg2 := ReaderConfig{
+		OpenChadRepo:      filepath.Join(tmpDir, "open-chad"),
+		OpenCodeConfigDir: filepath.Join(tmpDir, "opencode"),
+		VisionConfigDir:   filepath.Join(tmpDir, "vision"),
+		OcPluginsDir:      filepath.Join(tmpDir, "oc-plugins"),
+	}
+
+	// opencode.json with two npm plugin forms — unscoped-with-version and
+	// scoped-with-version. Both must round-trip through cfg.Load as canonical
+	// npm sources.
+	openCodeJSON := `{
+		"mcp": {},
+		"plugin": [
+			"opencode-openai-codex-auth@latest",
+			"@franlol/foo@latest"
+		],
+		"instructions": [],
+		"provider": []
+	}`
+	os.MkdirAll(cfg2.OpenCodeConfigDir, 0755)
+	os.WriteFile(filepath.Join(cfg2.OpenCodeConfigDir, "opencode.json"), []byte(openCodeJSON), 0644)
+
+	state, err := ReadOpenChadState(cfg2)
+	if err != nil {
+		t.Fatalf("ReadOpenChadState: %v", err)
+	}
+	if len(state.Plugins) != 2 {
+		t.Fatalf("expected 2 plugins after classification, got %d (%+v)", len(state.Plugins), state.Plugins)
+	}
+
+	// Emit and write to tempfile.
+	stackFile := filepath.Join(tmpDir, "stack.toml")
+	if err := EmitTOMLToFile(state, stackFile); err != nil {
+		t.Fatalf("EmitTOMLToFile: %v", err)
+	}
+
+	// Round-trip through cfg.Load — this is the M5 regression lock.
+	stack, err := cfg.Load(stackFile)
+	if err != nil {
+		body, _ := os.ReadFile(stackFile)
+		t.Fatalf("cfg.Load failed: %v\n--- emitted TOML ---\n%s", err, string(body))
+	}
+
+	// Unscoped npm: opencode-openai-codex-auth
+	unscoped, ok := stack.Plugins["opencode-openai-codex-auth"]
+	if !ok {
+		t.Fatalf("plugin %q not found; got keys: %v", "opencode-openai-codex-auth", pluginKeys(stack.Plugins))
+	}
+	if unscoped.Source != "npm:opencode-openai-codex-auth@latest" {
+		t.Errorf("unscoped npm source = %q, want %q", unscoped.Source, "npm:opencode-openai-codex-auth@latest")
+	}
+	if !unscoped.IsNPMSource() {
+		t.Errorf("unscoped IsNPMSource() = false, want true")
+	}
+	if unscoped.Checkout != "" {
+		t.Errorf("unscoped Checkout = %q, want empty", unscoped.Checkout)
+	}
+
+	// Scoped npm: foo (basename of @franlol/foo)
+	scoped, ok := stack.Plugins["foo"]
+	if !ok {
+		t.Fatalf("plugin %q not found; got keys: %v", "foo", pluginKeys(stack.Plugins))
+	}
+	if scoped.Source != "npm:@franlol/foo@latest" {
+		t.Errorf("scoped npm source = %q, want %q", scoped.Source, "npm:@franlol/foo@latest")
+	}
+	if !scoped.IsNPMSource() {
+		t.Errorf("scoped IsNPMSource() = false, want true")
+	}
+	if scoped.Checkout != "" {
+		t.Errorf("scoped Checkout = %q, want empty", scoped.Checkout)
+	}
+}
+
+// pluginKeys returns the sorted keys of a plugin map for error messages.
+func pluginKeys(m map[string]cfg.Plugin) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
