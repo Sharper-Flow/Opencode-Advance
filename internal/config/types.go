@@ -2,9 +2,9 @@
 // stack.toml configuration file into typed Go structs.
 //
 // Phase 1 scope covers [meta] and [mcp.servers.*]. Known-but-unimplemented
-// top-level sections (agents, session, discord, skills, formatters, commands,
-// opencode) parse into a generic DeferredSections map without error.
-// Truly unknown top-level sections produce a validation error.
+// top-level sections (agents, etc.) parse into a generic DeferredSections
+// map without error. Truly unknown top-level sections produce a validation
+// error.
 //
 // Phase 3 graduates providers, permissions, watcher, and lsp into typed
 // structs with Extra map[string]any passthrough.
@@ -43,9 +43,6 @@ type Stack struct {
 
 	// Session typed section (promoted from deferred)
 	Session *SessionSection `toml:"session,omitempty"`
-
-	// Discord typed section (promoted from deferred)
-	Discord *DiscordSection `toml:"discord,omitempty"`
 
 	// Shell controls OCA-managed interactive shell behavior.
 	Shell ShellSection `toml:"shell,omitempty"`
@@ -943,58 +940,6 @@ func (w *WatchdogConfig) UnmarshalTOML(value any) error {
 				w.MaxBumps = n
 			}
 		}
-	}
-	return nil
-}
-
-// ---------------------------------------------------------------------------
-// Discord section (promoted from deferred)
-// ---------------------------------------------------------------------------
-
-// DiscordSection is the [discord] table. It controls Discord Rich Presence
-// integration for OCA-managed tmux sessions.
-type DiscordSection struct {
-	Enabled bool           `toml:"enabled"`
-	Mode    string         `toml:"mode,omitempty"`
-	AppID   string         `toml:"app_id,omitempty"`
-	Extra   map[string]any `toml:"-"`
-}
-
-// UnmarshalTOML implements custom decoding for DiscordSection to capture
-// forward-compatible unknown fields while validating known field types.
-func (d *DiscordSection) UnmarshalTOML(value any) error {
-	m, ok := value.(map[string]any)
-	if !ok {
-		return fmt.Errorf("expected table for discord, got %T", value)
-	}
-
-	extra := make(map[string]any)
-	for k, v := range m {
-		switch k {
-		case "enabled":
-			b, ok := v.(bool)
-			if !ok {
-				return fmt.Errorf("enabled: expected bool, got %T", v)
-			}
-			d.Enabled = b
-		case "mode":
-			s, ok := v.(string)
-			if !ok {
-				return fmt.Errorf("mode: expected string, got %T", v)
-			}
-			d.Mode = s
-		case "app_id":
-			s, ok := v.(string)
-			if !ok {
-				return fmt.Errorf("app_id: expected string, got %T", v)
-			}
-			d.AppID = s
-		default:
-			extra[k] = v
-		}
-	}
-	if len(extra) > 0 {
-		d.Extra = extra
 	}
 	return nil
 }

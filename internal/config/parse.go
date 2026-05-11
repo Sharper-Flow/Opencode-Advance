@@ -240,13 +240,6 @@ func Parse(data []byte) (*Stack, error) {
 			}
 			stack.Session = ss
 
-		case "discord":
-			ds := &DiscordSection{}
-			if err := decodeInto(v, ds); err != nil {
-				return nil, &ParseError{Err: fmt.Errorf("[discord]: %w", err)}
-			}
-			stack.Discord = ds
-
 		case "shell":
 			sh := ShellSection{}
 			if err := decodeInto(v, &sh); err != nil {
