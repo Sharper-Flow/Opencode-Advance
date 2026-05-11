@@ -593,8 +593,8 @@ func TestPortFromURL(t *testing.T) {
 	}{
 		{"http://localhost:6276/mcp", 6276},
 		{"https://localhost:8443/mcp", 8443},
-		{"http://localhost/mcp", 0},  // no explicit port
-		{"https://mcp.grep.app", 0},  // no explicit port (bare HTTPS)
+		{"http://localhost/mcp", 0}, // no explicit port
+		{"https://mcp.grep.app", 0}, // no explicit port (bare HTTPS)
 		{"https://mcp.grep.app:443", 443},
 		{"", 0},
 		{"::not-a-url::", 0}, // unparseable

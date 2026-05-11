@@ -28,7 +28,10 @@ func EmitTOML(state *OpenChadState) (string, error) {
 
 	headerTmpl := `# stack.toml — migrated from open-chad
 # Generated: {{ .Timestamp }}
-{{ range .Warnings }}# Warning: {{ . }}
+{{ if .HasLocalSource }}# Note: Plugins with source = "local:<path>" reference absolute paths on this
+# operator's machine and are not portable across hosts. Migrate or rewrite
+# them when sharing this stack.
+{{ end }}{{ range .Warnings }}# Warning: {{ . }}
 {{ end }}{{ range .Skipped }}# Skipped: {{ . }}
 {{ end }}
 [meta]
@@ -41,16 +44,26 @@ description = "Migrated from open-chad"
 
 	body := emitBody(state)
 
+	hasLocalSource := false
+	for _, p := range state.Plugins {
+		if strings.HasPrefix(p.Source, "local:") {
+			hasLocalSource = true
+			break
+		}
+	}
+
 	data := struct {
-		Timestamp string
-		Warnings  []string
-		Skipped   []string
-		Body      string
+		Timestamp      string
+		Warnings       []string
+		Skipped        []string
+		Body           string
+		HasLocalSource bool
 	}{
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		Warnings:  state.Warnings,
-		Skipped:   state.SkippedSources,
-		Body:      body,
+		Timestamp:      time.Now().UTC().Format(time.RFC3339),
+		Warnings:       state.Warnings,
+		Skipped:        state.SkippedSources,
+		Body:           body,
+		HasLocalSource: hasLocalSource,
 	}
 
 	tmpl, err := template.New("header").Parse(headerTmpl)

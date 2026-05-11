@@ -148,6 +148,40 @@ func TestEmitTOML_SkipsTOMLUnsafePluginNames(t *testing.T) {
 	}
 }
 
+// TestEmitTOML_LocalSourceHeaderComment verifies the emit header includes a
+// portability note when any plugin uses a `local:` source.
+func TestEmitTOML_LocalSourceHeaderComment(t *testing.T) {
+	t.Run("with local source", func(t *testing.T) {
+		state := &OpenChadState{
+			Plugins: []PluginState{
+				{Name: "oca", Source: "local:/home/jrede/dev/opencodeadvance/plugins/oca"},
+			},
+		}
+		output, err := EmitTOML(state)
+		if err != nil {
+			t.Fatalf("EmitTOML: %v", err)
+		}
+		if !strings.Contains(output, "local:<path>") {
+			t.Errorf("expected portability note for local: source; got:\n%s", output)
+		}
+	})
+
+	t.Run("without local source", func(t *testing.T) {
+		state := &OpenChadState{
+			Plugins: []PluginState{
+				{Name: "advance", Source: "https://github.com/Sharper-Flow/Advance.git"},
+			},
+		}
+		output, err := EmitTOML(state)
+		if err != nil {
+			t.Fatalf("EmitTOML: %v", err)
+		}
+		if strings.Contains(output, "local:<path>") {
+			t.Errorf("portability note appeared without any local: source; got:\n%s", output)
+		}
+	})
+}
+
 func TestEmitTOML_EmptyState(t *testing.T) {
 	state := &OpenChadState{}
 
