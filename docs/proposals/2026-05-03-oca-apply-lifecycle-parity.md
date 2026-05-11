@@ -1,11 +1,13 @@
 # OCA Apply Lifecycle Parity
 
-**Status:** Proposal — staged  
+**Status:** SUPERSEDED — shipped 2026-05-04 as `fixBareOcaApplyLifecycleParity` (archive: `.adv/archive/2026-05-04-fixBareOcaApplyLifecycleParity/`). All four success criteria (plugin prepare, plugin sync, temporal apply, read-only dry-run) addressed with regression tests in `cmd/oca/apply_test.go` (`TestApplyCommand_BareApplyRunsPluginSync`, `TestApplyCommand_BareApplyRendersTemporal`, `TestApplyCommand_BareApplyDryRunReportsLifecycleReadOnly`). The `render.ComposeApplyPlan` fast-path no longer exists in `cmd/oca/apply.go`. This proposal file is preserved for historical context only.
+
+**Original status:** Proposal — staged  
 **Date:** 2026-05-03  
 **Target repo:** `~/dev/opencodeadvance`  
 **Resume from:** `~/dev/opencodeadvance`  
 **Suggested change ID:** `applyLifecycleParity`  
-**Priority:** MUST
+**Priority:** ~~MUST~~ — superseded
 
 ---
 
