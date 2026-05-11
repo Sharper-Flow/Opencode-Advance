@@ -6,18 +6,27 @@ When `oca apply` runs, these files are copied to `~/.config/opencode/instruction
 
 ## Inventory
 
+The list between the `INVENTORY` markers is consumed by the parity test in
+`internal/render/instructions_test.go::TestInstructionAssetsReadmeParity`,
+which fails if README rows drift from the actual contents of this directory.
+Edit the markers and rows together; do not move the markers.
+
+<!-- INVENTORY:START -->
 | File                           | Purpose                                                 |
 | ------------------------------ | ------------------------------------------------------- |
+| `caveman.md`                     | Caveman compressed-communication mode                  |
+| `global-verify-policy.md`        | `/check`-style verification gate before completion     |
 | `identity.md`                    | OpenCode identity + configuration paths reference      |
+| `lbp.md`                         | Long-term best practice stance                         |
+| `lgrep-tools.md`                 | lgrep code exploration policy                          |
+| `mcp-tools.md`                   | MCP tool selection guide                               |
+| `morph-tools.md`                 | morph_edit vs edit/write policy                        |
 | `rules.yaml`                     | Priority-ranked agent behavior rules (P01 through P26)  |
 | `shell_strategy.md`              | Non-interactive shell command policy                   |
-| `test_resource_guardrails.md`    | Test execution concurrency and resource limits         |
-| `lbp.md`                         | Long-term best practice stance                         |
 | `temp_directory.md`              | Dedicated cache/temp directory policy                  |
-| `mcp-tools.md`                   | MCP tool selection guide                               |
-| `lgrep-tools.md`                 | lgrep code exploration policy                          |
-| `morph-tools.md`                 | morph_edit vs edit/write policy                        |
+| `test_resource_guardrails.md`    | Test execution concurrency and resource limits         |
 | `worktree-guide.md`              | Git worktree usage guide                               |
+<!-- INVENTORY:END -->
 
 ## Not in this directory
 

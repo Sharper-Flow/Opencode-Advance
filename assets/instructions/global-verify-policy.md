@@ -1,0 +1,1 @@
+Before claiming implementation complete, run `/check` or equivalent stack-appropriate verification. Prefer repo-defined `check`/`verify`/`ci` commands; otherwise infer standard commands from detected ecosystem. If verification cannot run, report exact blocker.
