@@ -4,9 +4,11 @@ package migrate
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -16,6 +18,61 @@ import (
 // TOML table keys. The OCA stack schema treats plugin names as Go identifiers
 // downstream, so we restrict the alphabet to a conservative subset.
 var tomlSafeNamePattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
+// translateMCPType maps legacy/external MCP transport names to OCA's schema
+// enum, mirroring the URL-suffix logic in internal/config/validate.go's
+// inferTransport (lines 474-491) so the emitted stack passes validation
+// directly without relying on load-time inference (validate.go:206 rejects
+// empty type values).
+//
+// Mappings (input type, input url) → (translated, warning):
+//
+//   - "remote", "<url ending /mcp>"     → "http", "translated remote → http"
+//   - "remote", "<url not ending /mcp>" → "sse",  "translated remote → sse"
+//   - "remote", ""                      → "",     "remote type with no url; cannot infer transport"
+//   - "stdio"|"http"|"sse"|"daemon", *  → passthrough, no warning
+//   - "", *                             → "", no warning (downstream may fail validation)
+//   - any other, *                      → unchanged, warning describing the unknown type
+func translateMCPType(typeIn, urlIn string) (translated string, warning string) {
+	switch typeIn {
+	case "":
+		return "", ""
+	case "stdio", "http", "sse", "daemon":
+		return typeIn, ""
+	case "remote":
+		if urlIn == "" {
+			return "", fmt.Sprintf("type %q with no url; cannot infer transport (set type manually)", typeIn)
+		}
+		if strings.HasSuffix(urlIn, "/mcp") {
+			return "http", fmt.Sprintf("translated type %q → \"http\" (url ends /mcp)", typeIn)
+		}
+		return "sse", fmt.Sprintf("translated type %q → \"sse\" (url does not end /mcp)", typeIn)
+	default:
+		return typeIn, fmt.Sprintf("unknown type %q; passing through (will likely fail validation)", typeIn)
+	}
+}
+
+// portFromURL parses an explicit numeric port out of a URL. Returns 0 when no
+// explicit port is present (e.g., bare https://host without :443). Schemes
+// without an explicit port (like https://mcp.grep.app) leave port=0; for sse
+// transport this is acceptable because the schema only requires url.
+func portFromURL(rawURL string) int {
+	if rawURL == "" {
+		return 0
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return 0
+	}
+	if u.Port() == "" {
+		return 0
+	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil {
+		return 0
+	}
+	return port
+}
 
 // classifyPluginEntry inspects an opencode.json plugin entry string and returns
 // the PluginState fields appropriate for the source kind.
@@ -296,6 +353,18 @@ func ReadOpenChadState(cfg ReaderConfig) (*OpenChadState, error) {
 		}
 	}
 
+	// 7. Fill MCP server ports from URL when Vision didn't provide one. This
+	// must run after both readOpenCodeJSON (URL recorded) and readVisionServers
+	// (Port may have been set from Vision YAML).
+	for name, mcs := range state.MCPServers {
+		if mcs.Port == 0 && mcs.URL != "" {
+			if p := portFromURL(mcs.URL); p > 0 {
+				mcs.Port = p
+				state.MCPServers[name] = mcs
+			}
+		}
+	}
+
 	return state, nil
 }
 
@@ -312,7 +381,8 @@ func readOpenCodeJSON(path string, state *OpenChadState) error {
 		return err
 	}
 
-	// MCP servers
+	// MCP servers — translate legacy `type` values into OCA's schema enum at
+	// read time so the emitted stack validates directly.
 	if mcpRaw, ok := raw["mcp"].(map[string]any); ok {
 		for name, srvRaw := range mcpRaw {
 			srv, ok := srvRaw.(map[string]any)
@@ -320,11 +390,13 @@ func readOpenCodeJSON(path string, state *OpenChadState) error {
 				continue
 			}
 			var mcs MCPServerState
-			if t, ok := srv["type"].(string); ok {
-				mcs.Type = t
-			}
-			if u, ok := srv["url"].(string); ok {
-				mcs.URL = u
+			typeRaw, _ := srv["type"].(string)
+			urlRaw, _ := srv["url"].(string)
+			translated, warn := translateMCPType(typeRaw, urlRaw)
+			mcs.Type = translated
+			mcs.URL = urlRaw
+			if warn != "" {
+				state.Warnings = append(state.Warnings, fmt.Sprintf("mcp.%s: %s", name, warn))
 			}
 			if e, ok := srv["enabled"].(bool); ok {
 				mcs.Autostart = e

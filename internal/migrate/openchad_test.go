@@ -384,6 +384,122 @@ func containsAt(s, substr string) bool {
 	return false
 }
 
+// TestTranslateMCPType exercises Gap 1 of close4PreExistingDataCoverage:
+// the URL-suffix-aware translation of legacy `type` values into OCA's schema
+// enum, mirroring inferTransport (validate.go:474-491).
+func TestTranslateMCPType(t *testing.T) {
+	cases := []struct {
+		name, in, url, want string
+		wantWarn            bool
+	}{
+		{"remote with /mcp url → http", "remote", "http://localhost:6276/mcp", "http", true},
+		{"remote with https /mcp url → http", "remote", "https://example.com/mcp", "http", true},
+		{"remote with non-/mcp url → sse", "remote", "https://mcp.grep.app", "sse", true},
+		{"remote with non-/mcp localhost → sse", "remote", "http://localhost:9000/api", "sse", true},
+		{"remote with empty url → empty + warning", "remote", "", "", true},
+		{"stdio passthrough", "stdio", "", "stdio", false},
+		{"http passthrough", "http", "http://x/mcp", "http", false},
+		{"sse passthrough", "sse", "http://x", "sse", false},
+		{"daemon passthrough", "daemon", "", "daemon", false},
+		{"empty type passes through", "", "http://x", "", false},
+		{"unknown type passthrough with warning", "websocket", "ws://x", "websocket", true},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			got, warn := translateMCPType(tc.in, tc.url)
+			if got != tc.want {
+				t.Errorf("translateMCPType(%q, %q) = %q, want %q", tc.in, tc.url, got, tc.want)
+			}
+			if tc.wantWarn && warn == "" {
+				t.Errorf("expected warning for (%q, %q), got empty", tc.in, tc.url)
+			}
+			if !tc.wantWarn && warn != "" {
+				t.Errorf("unexpected warning %q for (%q, %q)", warn, tc.in, tc.url)
+			}
+		})
+	}
+}
+
+// TestPortFromURL exercises URL → port extraction for the MCP type fix-up.
+func TestPortFromURL(t *testing.T) {
+	cases := []struct {
+		in   string
+		want int
+	}{
+		{"http://localhost:6276/mcp", 6276},
+		{"https://localhost:8443/mcp", 8443},
+		{"http://localhost/mcp", 0},  // no explicit port
+		{"https://mcp.grep.app", 0},  // no explicit port (bare HTTPS)
+		{"https://mcp.grep.app:443", 443},
+		{"", 0},
+		{"::not-a-url::", 0}, // unparseable
+	}
+	for _, tc := range cases {
+		got := portFromURL(tc.in)
+		if got != tc.want {
+			t.Errorf("portFromURL(%q) = %d, want %d", tc.in, got, tc.want)
+		}
+	}
+}
+
+// TestReadOpenChadState_MCPTypeTranslation exercises the integration of
+// translateMCPType + portFromURL against an operator-shape opencode.json with
+// 6 mixed-suffix `type=remote` servers.
+func TestReadOpenChadState_MCPTypeTranslation(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfg := ReaderConfig{
+		OpenChadRepo:      filepath.Join(tmpDir, "open-chad"),
+		OpenCodeConfigDir: filepath.Join(tmpDir, "opencode"),
+		VisionConfigDir:   filepath.Join(tmpDir, "vision"),
+		OcPluginsDir:      filepath.Join(tmpDir, "oc-plugins"),
+	}
+	os.MkdirAll(cfg.OpenCodeConfigDir, 0755)
+	// Operator-shape opencode.json: 5 /mcp servers + 1 portless HTTPS.
+	json := `{
+		"mcp": {
+			"vision":     {"type": "remote", "url": "http://localhost:6275/mcp"},
+			"context7":   {"type": "remote", "url": "http://localhost:6276/mcp"},
+			"kagi":       {"type": "remote", "url": "http://localhost:6279/mcp"},
+			"firecrawl":  {"type": "remote", "url": "http://localhost:6281/mcp"},
+			"lgrep":      {"type": "remote", "url": "http://localhost:6285/mcp"},
+			"gh_grep":    {"type": "remote", "url": "https://mcp.grep.app"}
+		},
+		"plugin": []
+	}`
+	os.WriteFile(filepath.Join(cfg.OpenCodeConfigDir, "opencode.json"), []byte(json), 0644)
+
+	state, err := ReadOpenChadState(cfg)
+	if err != nil {
+		t.Fatalf("ReadOpenChadState: %v", err)
+	}
+
+	expected := map[string]struct {
+		typ  string
+		port int
+	}{
+		"vision":    {"http", 6275},
+		"context7":  {"http", 6276},
+		"kagi":      {"http", 6279},
+		"firecrawl": {"http", 6281},
+		"lgrep":     {"http", 6285},
+		"gh_grep":   {"sse", 0}, // portless HTTPS is OK for sse transport
+	}
+	for name, want := range expected {
+		got, ok := state.MCPServers[name]
+		if !ok {
+			t.Errorf("server %q missing", name)
+			continue
+		}
+		if got.Type != want.typ {
+			t.Errorf("%s.Type = %q, want %q", name, got.Type, want.typ)
+		}
+		if got.Port != want.port {
+			t.Errorf("%s.Port = %d, want %d", name, got.Port, want.port)
+		}
+	}
+}
+
 // TestReadVisionServers_SlotGroupSchemaAlignment locks Gap 3 of
 // close4PreExistingDataCoverage: the Vision YAML shape uses base_port + count,
 // not min_slots + max_slots. Before the fix the migrator's yaml struct tags
