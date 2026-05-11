@@ -158,8 +158,11 @@ type SlotGroupState struct {
 	Servers   []string
 	GroupPort int
 	Template  string
-	MinSlots  int
-	MaxSlots  int
+	// BasePort + Count match the canonical Vision YAML shape and OCA's
+	// stack schema (validate.go:362,372). The legacy MinSlots/MaxSlots
+	// fields never matched the real Vision YAML tags and were always zero.
+	BasePort int
+	Count    int
 }
 
 type PluginState struct {
@@ -431,8 +434,8 @@ func readVisionServers(path string, state *OpenChadState) error {
 			Servers   []string `yaml:"servers"`
 			GroupPort int      `yaml:"group_port"`
 			Template  string   `yaml:"template"`
-			MinSlots  int      `yaml:"min_slots"`
-			MaxSlots  int      `yaml:"max_slots"`
+			BasePort  int      `yaml:"base_port"`
+			Count     int      `yaml:"count"`
 		} `yaml:"slot_groups"`
 	}
 
@@ -456,8 +459,8 @@ func readVisionServers(path string, state *OpenChadState) error {
 			Servers:   sg.Servers,
 			GroupPort: sg.GroupPort,
 			Template:  sg.Template,
-			MinSlots:  sg.MinSlots,
-			MaxSlots:  sg.MaxSlots,
+			BasePort:  sg.BasePort,
+			Count:     sg.Count,
 		}
 	}
 

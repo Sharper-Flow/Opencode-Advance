@@ -134,11 +134,13 @@ func emitBody(state *OpenChadState) string {
 			if sg.Template != "" {
 				parts = append(parts, fmt.Sprintf("template = %q", sg.Template))
 			}
-			if sg.MinSlots > 0 {
-				parts = append(parts, fmt.Sprintf("min_slots = %d", sg.MinSlots))
+			// base_port and count are the canonical Vision YAML field names
+			// and OCA's stack schema's required slot group fields (validate.go).
+			if sg.BasePort > 0 {
+				parts = append(parts, fmt.Sprintf("base_port = %d", sg.BasePort))
 			}
-			if sg.MaxSlots > 0 {
-				parts = append(parts, fmt.Sprintf("max_slots = %d", sg.MaxSlots))
+			if sg.Count > 0 {
+				parts = append(parts, fmt.Sprintf("count = %d", sg.Count))
 			}
 			parts = append(parts, "")
 		}

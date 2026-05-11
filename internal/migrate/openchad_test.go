@@ -383,3 +383,73 @@ func containsAt(s, substr string) bool {
 	}
 	return false
 }
+
+// TestReadVisionServers_SlotGroupSchemaAlignment locks Gap 3 of
+// close4PreExistingDataCoverage: the Vision YAML shape uses base_port + count,
+// not min_slots + max_slots. Before the fix the migrator's yaml struct tags
+// read fields that don't exist in the real Vision YAML, leaving BasePort/Count
+// at zero — which then fail validate.go:362,372 (base_port/count required).
+func TestReadVisionServers_SlotGroupSchemaAlignment(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfg := ReaderConfig{
+		OpenChadRepo:      filepath.Join(tmpDir, "open-chad"),
+		OpenCodeConfigDir: filepath.Join(tmpDir, "opencode"),
+		VisionConfigDir:   filepath.Join(tmpDir, "vision"),
+		OcPluginsDir:      filepath.Join(tmpDir, "oc-plugins"),
+	}
+	os.MkdirAll(cfg.OpenCodeConfigDir, 0755)
+	os.WriteFile(filepath.Join(cfg.OpenCodeConfigDir, "opencode.json"), []byte(`{"mcp":{},"plugin":[],"instructions":[]}`), 0644)
+	os.MkdirAll(cfg.VisionConfigDir, 0755)
+
+	// Real Vision YAML shape verified against ~/.config/vision/servers.yaml.
+	yaml := `servers: {}
+slot_groups:
+  playwright-headless:
+    template: playwright-headless-slot
+    base_port: 6301
+    count: 4
+    group_port: 6300
+  playwright-headed:
+    template: playwright-headed-slot
+    base_port: 6306
+    count: 2
+    group_port: 6305
+`
+	os.WriteFile(filepath.Join(cfg.VisionConfigDir, "servers.yaml"), []byte(yaml), 0644)
+
+	state, err := ReadOpenChadState(cfg)
+	if err != nil {
+		t.Fatalf("ReadOpenChadState: %v", err)
+	}
+
+	if len(state.SlotGroups) != 2 {
+		t.Fatalf("expected 2 slot groups, got %d (%+v)", len(state.SlotGroups), state.SlotGroups)
+	}
+
+	cases := map[string]struct {
+		basePort, count, groupPort int
+		template                   string
+	}{
+		"playwright-headless": {6301, 4, 6300, "playwright-headless-slot"},
+		"playwright-headed":   {6306, 2, 6305, "playwright-headed-slot"},
+	}
+	for name, want := range cases {
+		got, ok := state.SlotGroups[name]
+		if !ok {
+			t.Errorf("slot group %q missing", name)
+			continue
+		}
+		if got.BasePort != want.basePort {
+			t.Errorf("%s BasePort = %d, want %d", name, got.BasePort, want.basePort)
+		}
+		if got.Count != want.count {
+			t.Errorf("%s Count = %d, want %d", name, got.Count, want.count)
+		}
+		if got.GroupPort != want.groupPort {
+			t.Errorf("%s GroupPort = %d, want %d", name, got.GroupPort, want.groupPort)
+		}
+		if got.Template != want.template {
+			t.Errorf("%s Template = %q, want %q", name, got.Template, want.template)
+		}
+	}
+}
