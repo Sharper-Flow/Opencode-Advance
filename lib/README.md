@@ -26,4 +26,4 @@ The Go CLI (`cmd/oca/`) handles everything else — parsing, validation, renderi
 
 ## Status
 
-Populated through Phases 0 and 4. Current files: `palette.sh`, `wordmark.sh`, `boot_splash.sh`, `session_lifecycle.sh`, `status_bar.sh`, `adv_status.sh`, `llm_gauge.sh`. Discord runtime code now lives in `cmd/oca/discord.go` and `internal/discord/`; tagline data lives in `assets/discord/taglines.toml`.
+Populated through Phases 0 and 4. Current files: `palette.sh`, `wordmark.sh`, `boot_splash.sh`, `session_lifecycle.sh`, `status_bar.sh`, `adv_status.sh`, `llm_gauge.sh`.

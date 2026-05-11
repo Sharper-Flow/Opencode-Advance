@@ -2,7 +2,7 @@
 
 This document is the canonical reference for the `stack.toml` schema. A complete working example lives at [`stack.example.toml`](../../stack.example.toml).
 
-> Status note: `[meta]`, `[mcp]`, `[plugins.*]`, and `[instructions]` are typed and actively rendered as of Phase 2. `[providers.*]`, `[permissions]`, `[watcher]`, and `[lsp.*]` are typed and actively rendered in Phase 3. `[skills]`, `[formatters.*]`, `[commands.*]`, and `[opencode]` are typed and actively rendered in Phase 3.5. `[temporal]` is typed and actively rendered in Phase 5 (env file written via `oca apply --target temporal`; doctor checks via `oca doctor --scope temporal`). `[mcp.slot_groups.*]` is typed and actively rendered in Phase 5.5. `[session]` is typed (Phase 4 + Phase 6 hardening) — see `[session]` section. `[agents]` and `[discord]` remain deferred unless otherwise noted.
+> Status note: `[meta]`, `[mcp]`, `[plugins.*]`, and `[instructions]` are typed and actively rendered as of Phase 2. `[providers.*]`, `[permissions]`, `[watcher]`, and `[lsp.*]` are typed and actively rendered in Phase 3. `[skills]`, `[formatters.*]`, `[commands.*]`, and `[opencode]` are typed and actively rendered in Phase 3.5. `[temporal]` is typed and actively rendered in Phase 5 (env file written via `oca apply --target temporal`; doctor checks via `oca doctor --scope temporal`). `[mcp.slot_groups.*]` is typed and actively rendered in Phase 5.5. `[session]` is typed (Phase 4 + Phase 6 hardening) — see `[session]` section. `[agents]` remains deferred unless otherwise noted.
 
 ## Top-level tables
 
@@ -18,7 +18,6 @@ This document is the canonical reference for the `stack.toml` schema. A complete
 | `[watcher]`        | active   | File watcher ignore globs                           |
 | `[lsp.*]`          | active   | LSP server configurations                           |
 | `[session]`        | no       | tmux session / UX settings                          |
-| `[discord]`        | no       | Discord Rich Presence config                       |
 | `[skills]`         | no       | OCA-owned skills to copy to `~/.config/opencode/skills/` |
 | `[formatters.*]`   | no       | Custom code formatters rendered into `opencode.json` `.formatter` |
 | `[commands.*]`     | no       | Custom slash commands rendered into `opencode.json` `.command`    |
@@ -519,19 +518,6 @@ Design notes for Phase 4 session behavior:
 - Reaper settings must be interpreted with resume safety in mind: a temporarily detached session may still be expected to come back later.
 - `ReapCandidates` and `ReapStale` enforce a 5-minute minimum floor for safety regardless of the configured threshold.
 - Multi-client / mobile-terminal behavior needs an explicit tmux window-size policy so a phone-sized client does not unintentionally degrade a desktop session. If that policy becomes user-tunable later, this section is where the schema should expose it.
-
----
-
-## `[discord]`
-
-```toml
-[discord]
-enabled  = false                                  # opt-in
-mode     = "builtin"                              # "builtin" or "custom"
-app_id   = ""                                     # only for mode="custom"
-```
-
-Tagline pool lives separately at `lib/discord/taglines.toml` (data-driven, replaceable).
 
 ---
 

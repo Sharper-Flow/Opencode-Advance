@@ -77,14 +77,12 @@ opencodeadvance/
 │   ├── advruntime/                     # ADV runtime diagnostics (search attributes, workflow classifier, workspace projection, worker lock)
 │   ├── dashboard/                      # Operator dashboard (HTTP server, SSE, Temporal polling)
 │   ├── maintain/                       # Maintenance planner (merge candidates, rebuilds, cleanup)
-│   ├── occupancy/                      # Worktree occupancy tracking
-│   └── discord/                        # Discord Rich Presence integration
+│   └── occupancy/                      # Worktree occupancy tracking
 │
 ├── assets/                             # Static files, copied as-is to ~/.config/opencode/
 │   ├── agents/                         # build.md, explore.md, librarian.md, general.md, mechanic.md
 │   ├── instructions/                   # identity.md, rules.yaml, shell_strategy.md, etc.
 │   ├── skills/                         # lgrep, mcp-selection, morph, worktree, prioritizer, caveman, caveman-commit, caveman-review
-│   ├── discord/                        # taglines.toml
 │   └── themes/
 │       ├── obsidian.json               # OpenCode UI theme (obsidian palette, indigo accent)
 │       ├── obsidian-classic.json       # Classic variant

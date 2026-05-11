@@ -14,7 +14,7 @@ OpenCode Advance has **completed Phases 0–8** on `trunk`. v1.0 release-candida
 
 - Repository created, Go module scaffolded, CI + release workflows
 - Full design docs: brand, wordmark, palette, theme, architecture, stack schema, CLI surface
-- Phase 0: brand (wordmark, palette, boot splash, Discord taglines)
+- Phase 0: brand (wordmark, palette, boot splash)
 - Phase 1: stack.toml parser + MCP apply + Vision rendering
 - Phase 2: plugin lifecycle, instruction rendering, sync delegation, pin/update
 - Phase 3: providers, permissions, watcher, LSP rendering
@@ -25,7 +25,7 @@ OpenCode Advance has **completed Phases 0–8** on `trunk`. v1.0 release-candida
 - Phase 6: installer, shell profile, completion
 - Phase 6.5: Temporal dev-server supervision
 - Phase 7: open-chad migration, doctor expansion
-- Phase 8: extras, polish, Discord, Pattern B session topology
+- Phase 8: extras, polish, Pattern B session topology
 - Out-of-phase: operator dashboard, pane management, session watchdog, Temporal CLI detection
 - OCA umbrella plugin (TypeScript, bun-built)
 - Maintenance planner (merge candidates, rebuilds, cleanup)

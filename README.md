@@ -26,7 +26,7 @@ It owns the environment layer:
 - tmux-first session lifecycle and Obsidian theme
 - Temporal dev-server supervision for Advance
 - migration from the older shell-based setup
-- health checks, drift checks, dashboard, watchdog, panes, and Discord Rich Presence
+- health checks, drift checks, dashboard, watchdog, panes
 
 Advance owns the spec-driven workflow layer. OCA installs and wires Advance, but does not duplicate Advance-owned agents, commands, skills, or state.
 
@@ -91,9 +91,6 @@ export OCA_CACHE_DIR="$PWD/.dev/cache"
 | `oca temporal status` | Show Temporal health and ownership state |
 | `oca temporal logs` | Print Temporal logs |
 | `oca dashboard` | Open the local operator dashboard |
-| `oca discord enable` | Enable Discord Rich Presence updates |
-| `oca discord disable` | Disable Discord Rich Presence updates |
-| `oca discord status` | Show Discord Rich Presence runtime state |
 
 ## stack.toml overview
 
@@ -122,10 +119,6 @@ boot_splash = true
 
 [temporal]
 enabled = true
-
-[discord]
-enabled = false
-mode = "builtin"
 ```
 
 See `stack.example.toml` for a complete reference.

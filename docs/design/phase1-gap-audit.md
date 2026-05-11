@@ -102,7 +102,7 @@ Each fixture has corresponding `.opencode.json.golden` and `.servers.yaml.golden
 Design says "unknown keys in root sections error". But stack.toml Phase 1 only implements `[meta]` and `[mcp]`. Running against a real `stack.example.toml` that contains `[plugins.*]`, `[providers.*]`, etc. will fail with "unknown section" errors.
 
 **Fix:** Whitelist known-but-unimplemented top-level sections as "deferred":
-- Known top-level: `meta`, `mcp`, `plugins`, `instructions`, `providers`, `agents`, `permissions`, `watcher`, `lsp`, `session`, `discord`, `skills`, `formatters`, `commands`, `opencode`
+- Known top-level: `meta`, `mcp`, `plugins`, `instructions`, `providers`, `agents`, `permissions`, `watcher`, `lsp`, `session`, `skills`, `formatters`, `commands`, `opencode`
 - `meta` and `mcp` → parsed into Stack
 - All others → parsed into `Stack.Unimplemented map[string]toml.MetaData` and ignored (no error, no render)
 - Truly unknown sections (typo'd, not in whitelist) → error with field path
