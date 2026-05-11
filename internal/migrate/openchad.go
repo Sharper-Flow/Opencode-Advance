@@ -337,6 +337,12 @@ func ReadOpenChadState(cfg ReaderConfig) (*OpenChadState, error) {
 		state.SkippedSources = append(state.SkippedSources, "oc-plugins dir (not found)")
 	}
 
+	// 3b. Fill Source for plugins that discoverPlugins didn't enrich (paths
+	// outside the canonical <OcPluginsDir>/<name>/plugin convention). Without
+	// this, every plugin requires a `source` field per OCA's schema
+	// (validate.go validatePlugins).
+	fallbackResolvePluginSources(state)
+
 	// 4. Read bundled instructions from open-chad repo
 	instructionsDir := filepath.Join(cfg.OpenChadRepo, "config", "opencode", "instructions")
 	if _, err := os.Stat(instructionsDir); err == nil {
@@ -483,6 +489,63 @@ func readOpenCodeJSON(path string, state *OpenChadState) error {
 	}
 
 	return nil
+}
+
+// fallbackResolvePluginSources fills Source for plugins that discoverPlugins
+// didn't enrich. Resolution order:
+//
+//  1. Expand tilde to absolute via os.UserHomeDir.
+//  2. If <abs>/.git exists → readGitRemoteURL → set Source as git URL.
+//  3. Else → set Source = "local:<abs>" and clear Checkout (local sources are
+//     skipped by Prepare at internal/plugin/prepare.go:29).
+//
+// Plugins without a Checkout (e.g., npm-source) are left untouched.
+func fallbackResolvePluginSources(state *OpenChadState) {
+	for i := range state.Plugins {
+		p := &state.Plugins[i]
+		if p.Source != "" {
+			continue
+		}
+		if p.Checkout == "" {
+			continue
+		}
+		abs := expandTilde(p.Checkout)
+		if absPath, err := filepath.Abs(abs); err == nil {
+			abs = absPath
+		}
+		gitDir := filepath.Join(abs, ".git")
+		if _, err := os.Stat(gitDir); err == nil {
+			if u, err := readGitRemoteURL(abs); err == nil && u != "" {
+				p.Source = u
+				p.Checkout = abs
+				if ref, err := readGitHEAD(abs); err == nil && ref != "" {
+					p.Ref = ref
+				}
+				continue
+			}
+		}
+		p.Source = "local:" + abs
+		p.Checkout = "" // local sources don't need Checkout (Prepare skips them)
+	}
+}
+
+// expandTilde resolves a leading "~/" or bare "~" against the user's home
+// directory. Other paths (absolute, relative, or with no tilde) pass through
+// unchanged. Unknown ~user forms are not supported (operator paths use
+// "~/..." form per discovery).
+func expandTilde(p string) string {
+	if p == "~" {
+		if home, err := os.UserHomeDir(); err == nil {
+			return home
+		}
+		return p
+	}
+	if strings.HasPrefix(p, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, p[2:])
+		}
+	}
+	return p
 }
 
 // readVisionServers parses vision/servers.yaml and enriches MCP server state

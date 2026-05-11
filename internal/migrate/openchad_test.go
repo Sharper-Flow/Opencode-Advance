@@ -384,6 +384,105 @@ func containsAt(s, substr string) bool {
 	return false
 }
 
+// TestExpandTilde exercises Gap 2's tilde helper.
+func TestExpandTilde(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home dir available")
+	}
+	cases := []struct {
+		in, want string
+	}{
+		{"~", home},
+		{"~/foo", filepath.Join(home, "foo")},
+		{"~/foo/bar", filepath.Join(home, "foo", "bar")},
+		{"/abs/path", "/abs/path"},
+		{"relative/path", "relative/path"},
+		{"", ""},
+		{"~user/foo", "~user/foo"}, // ~user form unsupported; passthrough
+	}
+	for _, tc := range cases {
+		got := expandTilde(tc.in)
+		if got != tc.want {
+			t.Errorf("expandTilde(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// TestFallbackResolvePluginSources_LocalFallback verifies Gap 2 fallback when
+// the plugin path is not a git checkout: source should be set to
+// "local:<absolute-path>" and Checkout cleared.
+func TestFallbackResolvePluginSources_LocalFallback(t *testing.T) {
+	tmpDir := t.TempDir()
+	pluginDir := filepath.Join(tmpDir, "plugins", "oca")
+	os.MkdirAll(pluginDir, 0755)
+	// Deliberately no .git/ → triggers local: fallback.
+
+	state := &OpenChadState{
+		Plugins: []PluginState{
+			{Name: "oca", Checkout: pluginDir},
+		},
+	}
+	fallbackResolvePluginSources(state)
+
+	if got := state.Plugins[0].Source; got != "local:"+pluginDir {
+		t.Errorf("Source = %q, want %q", got, "local:"+pluginDir)
+	}
+	if got := state.Plugins[0].Checkout; got != "" {
+		t.Errorf("Checkout = %q, want empty for local source", got)
+	}
+}
+
+// TestFallbackResolvePluginSources_GitDiscovery verifies that when a
+// non-canonical plugin path has a .git/config with a remote URL, fallback
+// resolves Source to that URL (not local:).
+func TestFallbackResolvePluginSources_GitDiscovery(t *testing.T) {
+	tmpDir := t.TempDir()
+	pluginDir := filepath.Join(tmpDir, "out-of-tree", "morph")
+	os.MkdirAll(filepath.Join(pluginDir, ".git"), 0755)
+	os.WriteFile(filepath.Join(pluginDir, ".git", "HEAD"), []byte("ref: refs/heads/main"), 0644)
+	os.WriteFile(filepath.Join(pluginDir, ".git", "config"), []byte(`[remote "origin"]
+	url = https://github.com/example/morph.git
+`), 0644)
+
+	state := &OpenChadState{
+		Plugins: []PluginState{
+			{Name: "morph", Checkout: pluginDir},
+		},
+	}
+	fallbackResolvePluginSources(state)
+
+	if got := state.Plugins[0].Source; got != "https://github.com/example/morph.git" {
+		t.Errorf("Source = %q, want git remote URL", got)
+	}
+	// Checkout should be preserved (only cleared for local: sources).
+	if got := state.Plugins[0].Checkout; got == "" {
+		t.Errorf("Checkout cleared for git source; want preserved")
+	}
+}
+
+// TestFallbackResolvePluginSources_LeavesEnriched verifies that plugins
+// already enriched by discoverPlugins (or classifyPluginEntry for npm) are
+// left untouched.
+func TestFallbackResolvePluginSources_LeavesEnriched(t *testing.T) {
+	state := &OpenChadState{
+		Plugins: []PluginState{
+			{Name: "advance", Source: "https://github.com/Sharper-Flow/Advance.git", Checkout: "/x/advance"},
+			{Name: "npm-pkg", Source: "npm:foo@latest", Checkout: ""},
+		},
+	}
+	fallbackResolvePluginSources(state)
+	if state.Plugins[0].Source != "https://github.com/Sharper-Flow/Advance.git" {
+		t.Errorf("git plugin Source mutated: %q", state.Plugins[0].Source)
+	}
+	if state.Plugins[0].Checkout != "/x/advance" {
+		t.Errorf("git plugin Checkout cleared: %q", state.Plugins[0].Checkout)
+	}
+	if state.Plugins[1].Source != "npm:foo@latest" {
+		t.Errorf("npm plugin Source mutated: %q", state.Plugins[1].Source)
+	}
+}
+
 // TestTranslateMCPType exercises Gap 1 of close4PreExistingDataCoverage:
 // the URL-suffix-aware translation of legacy `type` values into OCA's schema
 // enum, mirroring inferTransport (validate.go:474-491).
