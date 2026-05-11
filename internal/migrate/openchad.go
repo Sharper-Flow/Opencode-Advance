@@ -46,7 +46,6 @@ type OpenChadState struct {
 	Commands       map[string]CommandState
 	OpenCode       *OpenCodeState
 	Session        *SessionState
-	Discord        *DiscordState
 	Warnings       []string
 	SkippedSources []string
 }
@@ -129,11 +128,6 @@ type CommandState struct {
 	Timeout int
 }
 
-type DiscordState struct {
-	Enabled  bool
-	ClientID string
-}
-
 type SessionState struct {
 	Prefix string
 	Theme  string
@@ -193,15 +187,7 @@ func ReadOpenChadState(cfg ReaderConfig) (*OpenChadState, error) {
 		state.SkippedSources = append(state.SkippedSources, "oc-plugins dir (not found)")
 	}
 
-	// 4. Read open-chad.json (discord config)
-	openchadJSON := filepath.Join(cfg.OpenCodeConfigDir, "open-chad.json")
-	if _, err := os.Stat(openchadJSON); err == nil {
-		if err := readOpenChadJSON(openchadJSON, state); err != nil {
-			state.Warnings = append(state.Warnings, fmt.Sprintf("open-chad.json: %v", err))
-		}
-	}
-
-	// 5. Read bundled instructions from open-chad repo
+	// 4. Read bundled instructions from open-chad repo
 	instructionsDir := filepath.Join(cfg.OpenChadRepo, "config", "opencode", "instructions")
 	if _, err := os.Stat(instructionsDir); err == nil {
 		if err := readInstructions(instructionsDir, state); err != nil {
@@ -492,32 +478,6 @@ func readGitHEAD(dir string) (string, error) {
 		return strings.TrimSpace(string(data)), nil
 	}
 	return ref, nil
-}
-
-// readOpenChadJSON parses the open-chad.json user config file.
-func readOpenChadJSON(path string, state *OpenChadState) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	var raw struct {
-		DiscordPresence struct {
-			Enabled  bool   `json:"enabled"`
-			ClientID string `json:"clientId"`
-		} `json:"discordPresence"`
-	}
-
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-
-	state.Discord = &DiscordState{
-		Enabled:  raw.DiscordPresence.Enabled,
-		ClientID: raw.DiscordPresence.ClientID,
-	}
-
-	return nil
 }
 
 // readInstructions discovers instruction files in a directory, skipping stale

@@ -66,10 +66,6 @@ func setupOpenChadFixture(t *testing.T) (ReaderConfig, func()) {
 		os.WriteFile(filepath.Join(gitDir, "config"), []byte(configContent), 0644)
 	}
 
-	// Create open-chad.json
-	openchadJSON := `{"discordPresence": {"enabled": true, "clientId": "123456789"}}`
-	os.WriteFile(filepath.Join(cfg.OpenCodeConfigDir, "open-chad.json"), []byte(openchadJSON), 0644)
-
 	// Create bundled instructions
 	instrDir := filepath.Join(cfg.OpenChadRepo, "config", "opencode", "instructions")
 	os.MkdirAll(instrDir, 0755)
@@ -135,14 +131,6 @@ func TestReadOpenChadState_Full(t *testing.T) {
 	// Theme
 	if state.OpenCode == nil || state.OpenCode.Theme != "ayu-dark" {
 		t.Errorf("theme = %q, want ayu-dark", state.OpenCode.Theme)
-	}
-
-	// Discord
-	if state.Discord == nil || !state.Discord.Enabled {
-		t.Error("discord should be enabled")
-	}
-	if state.Discord.ClientID != "123456789" {
-		t.Errorf("discord clientId = %q", state.Discord.ClientID)
 	}
 
 	// Providers
