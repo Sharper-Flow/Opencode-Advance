@@ -4,7 +4,17 @@ Phase 4 completion spec covering session lifecycle commands, OCA_REPO_ROOT injec
 
 ## Requirements
 
-- `rq-p4c-session-lifecycle01` — `oca session attach <name>` attaches to an existing OCA tmux session via `syscall.Exec`, replacing the current process. Requires exactly one argument. Uses the session manager's socket.
+- `rq-p4c-session-lifecycle01` — `oca session attach <name>` attaches to an existing OCA tmux session using `exec.Command` with fd passthrough (`cmd.Stdin/Stdout/Stderr = os.Stdin/Stdout/Stderr`), signal forwarding (SIGINT, SIGTERM, SIGWINCH, SIGTSTP), and TMUX env var filtering. After tmux exits, if the session was destroyed by client exit and no kill sentinel exists, prints a resume hint (`opencode --session <id>`) to stdout and writes it to `$OCA_CACHE_DIR/last-session-hint`. Requires exactly one argument. Uses the session manager's socket.
+  - Given an OCA tmux session exists and contains an opencode session
+  - When the user runs `oca session attach <name>` and the opencode session exits via `/exit`
+  - Then the outer terminal prints `💤 Resume: opencode --session <id>  (project: <dir>)` and writes the command to `$OCA_CACHE_DIR/last-session-hint`
+  - Given an OCA tmux session exists and the user has attached to it
+  - When the user runs `oca session kill <name>` (from another terminal)
+  - Then a kill sentinel is written to `$OCA_CACHE_DIR/kill-sentinel/<name>` before tmux kill-session, and the resume hint is suppressed on any subsequent attach exit
+  - Given an OCA tmux session exists and the user has attached to it
+  - When the user detaches via tmux detach key (Ctrl-B d)
+  - Then tmux attach returns 0, the session still exists, and no resume hint is emitted
+- `rq-p4c-session-kill-sentinel01` — `oca session kill <name>` writes a kill sentinel file to `$OCA_CACHE_DIR/kill-sentinel/<name>` before destroying the session. The sentinel is consumed (deleted) by the attach-and-wait hint emit path. Sentinel files are written atomically (temp + rename).
 - `rq-p4c-session-switch01` — `oca session switch <name>` switches the current tmux client to a different OCA-managed session via `tmux switch-client`. Requires exactly one argument.
 - `rq-p4c-session-kill01` — `oca session kill <name>` destroys a specific OCA tmux session. Requires exactly one argument. Outputs JSON when `--output json` is set.
 - `rq-p4c-session-killall01` — `oca session killall` destroys all OCA-managed sessions on the current socket. Reports count killed. Outputs JSON when `--output json` is set.
