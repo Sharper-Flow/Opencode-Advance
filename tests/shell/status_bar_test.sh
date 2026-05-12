@@ -91,7 +91,7 @@ printf 'OK (%dms)\n' "$ELAPSED"
 # ── Occupancy segment tests ─────────────────────────────────
 
 printf 'occupancy: --status --pane returns ? for missing state... '
-OCA_BIN="$ROOT_DIR/oca"
+OCA_BIN=$(command -v oca 2>/dev/null || true)
 if [[ -x "$OCA_BIN" ]]; then
   STATUS_OUTPUT=$(TMUX_PANE="%9999" timeout 0.5s "$OCA_BIN" occupancy --status --pane "%9999" 2>/dev/null || true)
   if [[ "$STATUS_OUTPUT" != "?" ]]; then
