@@ -1,0 +1,219 @@
+{
+  "id": "replaceAdvStatusShOcaAdvStatus",
+  "title": "Replace adv_status.sh with oca adv-status Go subcommand (GH #24)",
+  "status": "archived",
+  "created_at": "2026-05-12T19:03:08.006Z",
+  "tasks": [
+    {
+      "id": "tk-27dc9d70b52b",
+      "title": "Create `internal/advstatus/` package with types, constants, and core reader functions",
+      "type": "code",
+      "section": "core",
+      "status": "done",
+      "priority": 0,
+      "created_at": "2026-05-12T19:20:54.862Z",
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-12T19:24:24.161Z",
+      "verification": "Created internal/advstatus/ package: status.go (types, constants, formatters), change.go (FindActiveChanges, SummarizeChange, ActiveChangeSummary), temporal.go (TemporalHealthProbe, parseTemporalAddress, probeTCP). 22 tests passing with 4 golden files.",
+      "summary": "Created internal/advstatus/ package: status.go (types, constants, formatters), change.go (FindActiveChanges, SummarizeChange, ActiveChangeSummary), temporal.go (TemporalHealthProbe, parseTemporalAddress, probeTCP). 22 tests passing with 4 golden files.",
+      "implementation_summary": "Created internal/advstatus/ package: status.go (types, constants, formatters), change.go (FindActiveChanges, SummarizeChange, ActiveChangeSummary), temporal.go (TemporalHealthProbe, parseTemporalAddress, probeTCP). 22 tests passing with 4 golden files.",
+      "filesTouched": [],
+      "touched_files": [],
+      "completedAt": "2026-05-12T19:29:28.409Z",
+      "completed_at": "2026-05-12T19:29:28.409Z"
+    },
+    {
+      "id": "tk-b23f97d5ff10",
+      "title": "Create `cmd/oca/adv_status.go` cobra command with --query, --path, --project flags",
+      "type": "code",
+      "section": "command",
+      "status": "done",
+      "priority": 1,
+      "created_at": "2026-05-12T19:21:05.213Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-27dc9d70b52b"
+        }
+      ],
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-12T19:29:36.880Z",
+      "verification": "Created cmd/oca/adv_status.go with newAdvStatusCmd — 5 query modes, inherited --output + local --json, registered in root.go. Added internal/advstatus/queries.go with BranchSafety, WorkspaceState, WorkspaceLookup using advruntime.ProjectWorkspaceStates().",
+      "summary": "Created cmd/oca/adv_status.go with newAdvStatusCmd — 5 query modes, inherited --output + local --json, registered in root.go. Added internal/advstatus/queries.go with BranchSafety, WorkspaceState, WorkspaceLookup using advruntime.ProjectWorkspaceStates().",
+      "implementation_summary": "Created cmd/oca/adv_status.go with newAdvStatusCmd — 5 query modes, inherited --output + local --json, registered in root.go. Added internal/advstatus/queries.go with BranchSafety, WorkspaceState, WorkspaceLookup using advruntime.ProjectWorkspaceStates().",
+      "filesTouched": [],
+      "touched_files": [],
+      "completedAt": "2026-05-12T19:32:26.614Z",
+      "completed_at": "2026-05-12T19:32:26.614Z"
+    },
+    {
+      "id": "tk-d4f46f26f295",
+      "title": "Update `lib/status_bar.sh` to call `oca adv-status` instead of shell functions",
+      "type": "code",
+      "section": "caller-update",
+      "status": "done",
+      "priority": 2,
+      "created_at": "2026-05-12T19:21:13.613Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-b23f97d5ff10"
+        }
+      ],
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-12T19:32:36.013Z",
+      "verification": "Updated lib/status_bar.sh: removed source adv_status.sh, replaced 4 function calls with oca adv-status --query invocations, replaced _oca_adv_snapshot_read + jq pipeline with workspace-lookup query.",
+      "summary": "Updated lib/status_bar.sh: removed source adv_status.sh, replaced 4 function calls with oca adv-status --query invocations, replaced _oca_adv_snapshot_read + jq pipeline with workspace-lookup query.",
+      "implementation_summary": "Updated lib/status_bar.sh: removed source adv_status.sh, replaced 4 function calls with oca adv-status --query invocations, replaced _oca_adv_snapshot_read + jq pipeline with workspace-lookup query.",
+      "filesTouched": [],
+      "touched_files": [],
+      "completedAt": "2026-05-12T19:33:51.951Z",
+      "completed_at": "2026-05-12T19:33:51.951Z"
+    },
+    {
+      "id": "tk-16be5de5ac82",
+      "title": "Delete `lib/adv_status.sh` and update shell tests",
+      "type": "code",
+      "section": "cleanup",
+      "status": "done",
+      "priority": 3,
+      "created_at": "2026-05-12T19:21:25.556Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-d4f46f26f295"
+        }
+      ],
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-12T19:34:01.709Z",
+      "verification": "Task marked done via adv_task_update",
+      "summary": "Task completed",
+      "implementation_summary": "Task completed",
+      "filesTouched": [],
+      "touched_files": [],
+      "completedAt": "2026-05-12T19:38:34.121Z",
+      "completed_at": "2026-05-12T19:38:34.121Z"
+    },
+    {
+      "id": "tk-79a77ce88430",
+      "title": "Update spec `oca-workspace-projection` to reference Go binary as data source",
+      "type": "code",
+      "section": "spec",
+      "status": "done",
+      "priority": 4,
+      "created_at": "2026-05-12T19:21:37.162Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-16be5de5ac82"
+        }
+      ],
+      "metadata": {
+        "tdd_intent": "inline"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-12T19:38:43.671Z",
+      "verification": "Task marked done via adv_task_update",
+      "summary": "Task completed",
+      "implementation_summary": "Task completed",
+      "filesTouched": [],
+      "touched_files": [],
+      "completedAt": "2026-05-12T19:39:30.156Z",
+      "completed_at": "2026-05-12T19:39:30.156Z"
+    },
+    {
+      "id": "tk-7512b040bded",
+      "title": "Full integration verification: go tests, shell tests, binary behavior",
+      "type": "code",
+      "section": "verification",
+      "status": "done",
+      "priority": 5,
+      "created_at": "2026-05-12T19:21:49.657Z",
+      "deps": [
+        {
+          "type": "blocked_by",
+          "target": "tk-79a77ce88430"
+        }
+      ],
+      "metadata": {
+        "tdd_intent": "separate_verification"
+      },
+      "assignedTo": "agent",
+      "started_at": "2026-05-12T19:39:37.275Z",
+      "verification": "Final review remediation: updated current docs/design references and legacy comments; final go test ./... passed; integration_test.sh passed.",
+      "summary": "Task checkpoint completed",
+      "implementation_summary": "Task checkpoint completed",
+      "filesTouched": [
+        "docs/design/architecture.md",
+        "internal/advstatus/status.go"
+      ],
+      "touched_files": [
+        "docs/design/architecture.md",
+        "internal/advstatus/status.go"
+      ],
+      "checkpointSha": "a0fa406252dfe187584553317177c6d156c64d6e",
+      "completedAt": "2026-05-12T21:18:30.892Z",
+      "completed_at": "2026-05-12T21:18:30.892Z"
+    }
+  ],
+  "deltas": {},
+  "wisdom": [],
+  "gates": {
+    "proposal": {
+      "status": "done",
+      "completed_at": "2026-05-12T19:05:38.148Z",
+      "completed_by": "agent",
+      "approval_evidence": "Proposal derived from GH #24 body + cross-repo-boundary-audit.md § O2. Reads adv_status.sh (442 LOC), advruntime package, and status_bar.sh callers. No ambiguity findings (B/F/S scan clear)."
+    },
+    "discovery": {
+      "status": "done",
+      "completed_at": "2026-05-12T19:14:11.910Z",
+      "completed_by": "agent",
+      "approval_evidence": "8-step protocol complete. 6 call sites identified (5 public + 1 internal). 0 CRITICAL/HIGH ambiguity. User approved: delete shell, separate calls, include workspace-lookup. Agreement persisted with 14 AC."
+    },
+    "design": {
+      "status": "done",
+      "completed_at": "2026-05-12T19:20:26.182Z",
+      "completed_by": "agent",
+      "approval_evidence": "Design validated by independent researcher — verdict CAUTION, 4 gaps resolved inline. Use inherited --output flag, render.CacheDir() for temporal.env, explicit DefaultBranches and ActionableWorktreeStatuses constants. No CONFLICT, no user-value tradeoff."
+    },
+    "planning": {
+      "status": "done",
+      "completed_at": "2026-05-12T19:24:05.939Z",
+      "completed_by": "agent",
+      "approval_evidence": "6 tasks, linear dependency chain. User approved inline."
+    },
+    "execution": {
+      "status": "done",
+      "completed_at": "2026-05-12T19:42:21.680Z",
+      "completed_by": "agent",
+      "approval_evidence": "All 6 tasks done. Go tests: 17 packages pass. Shell tests: 17/17 pass. Integration: 5/5 checks pass. adv_status.sh deleted. status_bar.sh calls oca adv-status for all 5 queries. Spec updated."
+    },
+    "acceptance": {
+      "status": "done",
+      "completed_at": "2026-05-12T21:19:43.726Z",
+      "completed_by": "user",
+      "approval_evidence": "User replied `accept` after APPROVED review findings and acceptance checklist. Acceptance criteria satisfied; no unresolved blocker/issue findings."
+    },
+    "release": {
+      "status": "done",
+      "completed_at": "2026-05-12T21:23:34.350Z",
+      "completed_by": "user",
+      "approval_evidence": "User replied `sign off` after harden report. Release readiness verified: go test ./... PASS, go vet PASS, gofmt clean, integration PASS, status_bar shell PASS, performance ≤50ms, validation PASS with non-blocking NO_DELTAS warning, no conformance specs configured."
+    }
+  },
+  "reentry_history": [],
+  "adv_project_id": "cdae139e16c8cbaa4ef2ebf35dda326e826e93bc"
+}
