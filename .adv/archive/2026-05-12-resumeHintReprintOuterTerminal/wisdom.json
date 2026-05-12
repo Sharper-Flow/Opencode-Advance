@@ -1,0 +1,23 @@
+{
+  "entries": [
+    {
+      "id": "ws--wEQLZ",
+      "type": "pattern",
+      "content": "exec.Command with cmd.Stdin/Stdout/Stderr = os.Stdin/Stdout/Stderr is the correct Go pattern for spawning terminal subprocesses (tmux attach) that need full terminal control without PTY libraries. tmux handles its own terminal setup over the passed-through fds. Must clear TMUX env var from child environment to prevent nesting issues.",
+      "recorded_at": "2026-05-12T14:14:57.072Z"
+    },
+    {
+      "id": "ws-P6sSEe",
+      "type": "gotcha",
+      "content": "subprocess.Run uses piped CombinedOutput — incompatible with any command needing terminal control (tmux attach, ssh, vim, etc.). For terminal-attached commands, use exec.Command directly with fd passthrough.",
+      "recorded_at": "2026-05-12T14:15:15.587Z"
+    },
+    {
+      "id": "ws-lFGW2P",
+      "type": "gotcha",
+      "content": "Kill sentinel files must survive session destruction — tmux session variables (setenv) are destroyed with the session, so they can't be used for post-session-death signaling. Use filesystem-based sentinels instead.",
+      "recorded_at": "2026-05-12T14:15:25.902Z"
+    }
+  ],
+  "count": 3
+}
