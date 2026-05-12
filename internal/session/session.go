@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -362,6 +363,110 @@ func (m *Manager) Attach(ctx context.Context, name string) error {
 	args := []string{"-L", m.socket, "attach", "-t", name}
 	// Use syscall.Exec to replace the current process with tmux
 	return syscall.Exec(m.tmuxPath, append([]string{"tmux"}, args...), os.Environ())
+}
+
+// AttachAndWait attaches to an existing tmux session using exec.Command with fd
+// passthrough (instead of syscall.Exec), allowing post-exit code to run for
+// resume-hint emission. The method:
+//  1. Spawns tmux attach as a subprocess with Stdin/Stdout/Stderr passed through
+//  2. Forwards signals (SIGINT, SIGTERM, SIGWINCH, SIGTSTP) to the tmux subprocess
+//  3. After tmux exits, checks session liveness and kill sentinel
+//  4. On clean exit with session destroyed, queries opencode for the session ID
+//     and emits a resume hint to stdout and cache file
+//
+// cacheDir is the OCA cache directory for sentinel files and hint output.
+// sessionWorkdir is the working directory of the session (used to match opencode sessions).
+func (m *Manager) AttachAndWait(ctx context.Context, name, sessionWorkdir, cacheDir string) error {
+	args := []string{"-L", m.socket, "attach", "-t", name}
+	cmd := exec.Command(m.tmuxPath, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = FilterTMUX(os.Environ())
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("tmux attach start: %w", err)
+	}
+
+	// Forward signals to the tmux subprocess while it runs.
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGWINCH, syscall.SIGTSTP)
+	go func() {
+		for sig := range sigCh {
+			_ = cmd.Process.Signal(sig)
+		}
+	}()
+
+	waitErr := cmd.Wait()
+	signal.Stop(sigCh)
+	close(sigCh)
+
+	// If tmux failed, return the error (no hint).
+	if waitErr != nil {
+		return fmt.Errorf("tmux attach: %w", waitErr)
+	}
+
+	// tmux returned 0 — determine if hint should be emitted.
+	m.emitResumeHintIfNeeded(ctx, name, sessionWorkdir, cacheDir)
+	return nil
+}
+
+// emitResumeHintIfNeeded checks post-exit conditions and emits a resume hint
+// to stdout and file if appropriate. Conditions for emit:
+//   - Session no longer exists on the socket (tmux has-session fails)
+//   - No kill sentinel present (not an intentional kill)
+//   - opencode binary is on PATH and returns a matching session
+//   - stdout is a TTY (or skip silently)
+//
+// This method never returns an error — hint emission is best-effort and must
+// never fail the attach flow.
+func (m *Manager) emitResumeHintIfNeeded(ctx context.Context, name, sessionWorkdir, cacheDir string) {
+	// Check if session still exists (user detached via Ctrl-B d, not exited).
+	if m.sessionExists(ctx, name) {
+		return
+	}
+
+	// Session is gone — check for kill sentinel.
+	if CheckKillSentinel(name, cacheDir) {
+		CleanupKillSentinel(name, cacheDir)
+		return
+	}
+
+	// Clean up any stale sentinel (no-op if absent).
+	CleanupKillSentinel(name, cacheDir)
+
+	// Check TTY — hint is for interactive use only.
+	if !IsTerminal(os.Stdout.Fd()) {
+		return
+	}
+
+	// Query opencode for the session ID.
+	sessionID, err := QueryOpenCodeSessions(ctx, sessionWorkdir)
+	if err != nil {
+		// Silent skip — opencode not on PATH, no matching session, parse error.
+		return
+	}
+
+	noColor := NOColor()
+	hint := FormatHint(sessionID, sessionWorkdir, noColor)
+	fileHint := FormatHintFile(sessionID, sessionWorkdir)
+
+	// Emit to stdout.
+	fmt.Fprintln(os.Stdout, hint)
+
+	// Emit to file (best effort).
+	_ = EmitHintToFile(fileHint, cacheDir)
+}
+
+// sessionExists returns true if the named session exists on the manager's socket.
+func (m *Manager) sessionExists(ctx context.Context, name string) bool {
+	args := []string{"-L", m.socket, "has-session", "-t", name}
+	_, err := subprocess.Run(ctx, subprocess.Cmd{
+		Name:    m.tmuxPath,
+		Args:    args,
+		Timeout: 5 * time.Second,
+	})
+	return err == nil
 }
 
 // SwitchClient switches the current tmux client to a different session by
