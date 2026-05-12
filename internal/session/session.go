@@ -246,6 +246,20 @@ func (m *Manager) getRawSessionByName(ctx context.Context, name string) (*Sessio
 	return nil, nil
 }
 
+// GetSessionPath returns the working directory path for a session by exact name.
+// Uses unfiltered list-sessions so custom-named sessions (without oca- prefix)
+// are also addressable. Returns empty string if the session is not found.
+func (m *Manager) GetSessionPath(ctx context.Context, name string) (string, error) {
+	s, err := m.getRawSessionByName(ctx, name)
+	if err != nil {
+		return "", err
+	}
+	if s == nil {
+		return "", fmt.Errorf("session %q not found", name)
+	}
+	return s.Path, nil
+}
+
 // NextSessionName returns the next sequential session name for the given repo slug.
 // Pattern: oca-<slug>-<n> where n is the next available integer starting from 0.
 func (m *Manager) NextSessionName(ctx context.Context, repoSlug string) (string, error) {

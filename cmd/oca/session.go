@@ -409,7 +409,7 @@ func newSessionAttachCmd(state *commandState) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "attach <name>",
 		Short: "Attach to an existing OCA tmux session",
-		Long:  "Attach to an existing OCA tmux session, replacing the current process.",
+		Long:  "Attach to an existing OCA tmux session. After the session exits, prints a resume hint to the terminal.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			socket := sessionSocket()
@@ -417,9 +417,18 @@ func newSessionAttachCmd(state *commandState) *cobra.Command {
 			if err != nil {
 				return newCLIError(1, "session manager: %v", err)
 			}
+
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			return mgr.Attach(ctx, args[0])
+
+			// Resolve session workdir before attaching (for opencode session matching).
+			sessionWorkdir, err := mgr.GetSessionPath(ctx, args[0])
+			if err != nil {
+				return newCLIError(1, "resolve session path: %v", err)
+			}
+
+			cacheDir := session.ResolveCacheDir()
+			return mgr.AttachAndWait(ctx, args[0], sessionWorkdir, cacheDir)
 		},
 	}
 	return cmd
@@ -452,7 +461,7 @@ func newSessionKillCmd(state *commandState) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "kill <name>",
 		Short: "Kill an OCA tmux session",
-		Long:  "Destroy a specific OCA-managed tmux session.",
+		Long:  "Destroy a specific OCA-managed tmux session. Suppresses resume hint emission.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			socket := sessionSocket()
@@ -462,6 +471,14 @@ func newSessionKillCmd(state *commandState) *cobra.Command {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
+
+			// Write kill sentinel before killing so AttachAndWait suppresses hint.
+			cacheDir := session.ResolveCacheDir()
+			if err := session.WriteKillSentinel(args[0], cacheDir); err != nil {
+				// Non-fatal: sentinel is best-effort hint suppression.
+				fmt.Fprintf(os.Stderr, "warning: failed to write kill sentinel: %v\n", err)
+			}
+
 			if err := mgr.Kill(ctx, args[0]); err != nil {
 				return newCLIError(1, "kill session: %v", err)
 			}
