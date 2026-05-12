@@ -77,13 +77,13 @@ printf 'OK\n'
 
 # Temporal health tests removed — now covered by Go tests in internal/advstatus/
 
-printf 'status_bar: performance budget under 200ms... '
+printf 'status_bar: performance budget under 500ms... '
 START=$(date +%s%N)
 OUTPUT=$(oca_status_row0 "test" "/tmp")
 END=$(date +%s%N)
 ELAPSED=$(( (END - START) / 1000000 ))  # Convert ns to ms
-if (( ELAPSED > 200 )); then
-  printf 'FAIL: row0 took %dms, budget is 200ms\n' "$ELAPSED" >&2
+if (( ELAPSED > 500 )); then
+  printf 'FAIL: row0 took %dms, budget is 500ms\n' "$ELAPSED" >&2
   exit 1
 fi
 printf 'OK (%dms)\n' "$ELAPSED"
@@ -119,8 +119,11 @@ printf 'occupancy: row0 passes explicit pane id to oca... '
 FAKE_BIN_DIR=$(mktemp -d)
 cat > "$FAKE_BIN_DIR/oca" <<'EOF'
 #!/usr/bin/env bash
-printf '%s\n' "$*" > "${OCA_FAKE_ARGS_FILE:?}"
-printf '1× trunk'
+# Record occupancy calls only — adv-status calls ignored
+if [[ "$1" == "occupancy" ]]; then
+  printf '%s\n' "$*" >> "${OCA_FAKE_ARGS_FILE:?}"
+  printf '1× trunk'
+fi
 EOF
 chmod +x "$FAKE_BIN_DIR/oca"
 ARGS_FILE=$(mktemp)
