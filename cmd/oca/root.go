@@ -102,6 +102,7 @@ func newRootCmd(opts commandOptions) *cobra.Command {
 	cmd.AddCommand(newMigrateCmd(state))
 	cmd.AddCommand(newTemporalCmd(state))
 	cmd.AddCommand(newAdvCmd(state))
+	cmd.AddCommand(newAdvStatusCmd(state))
 	cmd.AddCommand(newOccupancyCmd(state))
 	cmd.AddCommand(newMaintainCmd(state))
 	return cmd
