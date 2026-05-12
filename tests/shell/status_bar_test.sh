@@ -212,6 +212,30 @@ if [[ "$PLAIN" != *"2:patt"* ]]; then
 fi
 printf 'OK\n'
 
+printf 'window glyphs: workspace lookup matches change IDs literally... '
+FAKE_BIN_DIR=$(mktemp -d)
+cat > "$FAKE_BIN_DIR/oca" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "adv-status" && "$3" == "workspace-lookup" ]]; then
+  printf 'aXc:setup_failed\n'
+fi
+EOF
+chmod +x "$FAKE_BIN_DIR/oca"
+OLD_PATH="$PATH"
+PATH="$FAKE_BIN_DIR:$PATH"
+hash -r
+MOCK_WINDOWS="1:change/a.c:1"
+OUTPUT=$(_oca_status_window_glyphs_from_list "$MOCK_WINDOWS" 160 "testProject")
+PATH="$OLD_PATH"
+hash -r
+rm -rf "$FAKE_BIN_DIR"
+PLAIN=$(_strip_tmux_escapes "$OUTPUT")
+if [[ "$PLAIN" == *"✗"* ]]; then
+  printf 'FAIL: regex-like change ID should not match a different literal ID, got %q\n' "$PLAIN" >&2
+  exit 1
+fi
+printf 'OK\n'
+
 printf 'window glyphs: highlights active window with indigo... '
 MOCK_WINDOWS="1:trunk:0
 2:change/abc:1"

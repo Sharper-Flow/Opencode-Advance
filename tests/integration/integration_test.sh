@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$ROOT_DIR"
+OCA_TEST_BIN_DIR=$(mktemp -d)
+trap 'rm -rf "$OCA_TEST_BIN_DIR"' EXIT
 
 echo "=== Integration Test: Phase 4 Richness ==="
 echo
@@ -19,7 +21,7 @@ echo "  OK — all scripts present and executable"
 
 # 2. Build the binary
 echo "[2/5] Building oca binary..."
-if ! go build -o /tmp/oca-test ./cmd/oca >/dev/null 2>&1; then
+if ! go build -o "$OCA_TEST_BIN_DIR/oca" ./cmd/oca >/dev/null 2>&1; then
   echo "FAIL: build failed"
   exit 1
 fi
@@ -27,7 +29,7 @@ echo "  OK — binary builds"
 
 # 3. Verify CLI commands are registered
 echo "[3/5] Checking CLI command registration..."
-OUTPUT=$(/tmp/oca-test session --help 2>&1)
+OUTPUT=$("$OCA_TEST_BIN_DIR/oca" session --help 2>&1)
 for cmd in attach switch kill killall restart reap; do
   if ! echo "$OUTPUT" | grep -q "$cmd"; then
     echo "FAIL: session $cmd not registered"
@@ -36,7 +38,7 @@ for cmd in attach switch kill killall restart reap; do
 done
 echo "  OK — all session subcommands registered"
 
-OUTPUT=$(/tmp/oca-test theme --help 2>&1)
+OUTPUT=$("$OCA_TEST_BIN_DIR/oca" theme --help 2>&1)
 for cmd in list apply; do
   if ! echo "$OUTPUT" | grep -q "$cmd"; then
     echo "FAIL: theme $cmd not registered"
@@ -55,6 +57,7 @@ echo "  OK — unit tests pass"
 
 # 5. Verify shell script tests
 echo "[5/5] Running shell script tests..."
+PATH="$OCA_TEST_BIN_DIR:$PATH"
 for test in tests/shell/llm_gauge_test.sh tests/shell/boot_splash_test.sh tests/shell/status_bar_test.sh tests/shell/session_lifecycle_test.sh; do
   if [[ -f "$test" ]]; then
     if ! bash "$test" >/dev/null 2>&1; then

@@ -1,7 +1,6 @@
 package advstatus
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -129,10 +128,10 @@ func isValidPort(port string) bool {
 	return true
 }
 
-// probeTCP attempts a TCP connection with 1 second timeout.
+// probeTCP attempts a quick TCP connection for status-bar use.
 func probeTCP(host, port string) bool {
-	target := fmt.Sprintf("%s:%s", host, port)
-	conn, err := net.DialTimeout("tcp", target, 1*time.Second)
+	target := net.JoinHostPort(host, port)
+	conn, err := net.DialTimeout("tcp", target, 25*time.Millisecond)
 	if err != nil {
 		return false
 	}

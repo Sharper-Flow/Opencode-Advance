@@ -20,9 +20,10 @@ to exist before any OCA operation that needs it.
 
 | File | Written by | Read by | Content |
 |------|-----------|---------|---------|
-| `adv_status` | `lib/adv_status.sh` | tmux status bar | ADV change summary cache |
-| `temporal_health` | `lib/adv_status.sh` | tmux status bar | Temporal reachability probe result |
-| `temporal.env` | `internal/render/temporal.go` | `lib/adv_status.sh` | `ADV_TEMPORAL_ADDRESS=...` |
+| `temporal.env` | `internal/render/temporal.go` | `oca adv-status` (`internal/advstatus`) | `ADV_TEMPORAL_ADDRESS=...` |
+
+No `adv_status` or `temporal_health` cache files are written. The tmux status
+bar reads ADV state on demand through `oca adv-status`.
 
 All writes are atomic: data is written to a temp file then `mv`'d to the final
 path to prevent partial reads.

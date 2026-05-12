@@ -118,8 +118,14 @@ _oca_status_window_glyphs_from_list() {
       glyph="${change_id:0:4}"
       # Check workspace status for this change
       if [[ -n "$ws_lookup" ]]; then
-        local ws_status
-        ws_status=$(printf '%s\n' "$ws_lookup" | grep "^${change_id}:" 2>/dev/null | cut -d: -f2) || true
+        local ws_status=""
+        local lookup_id lookup_status
+        while IFS=: read -r lookup_id lookup_status; do
+          if [[ "$lookup_id" == "$change_id" ]]; then
+            ws_status="$lookup_status"
+            break
+          fi
+        done <<< "$ws_lookup"
         case "$ws_status" in
           setup_failed) ws_suffix="✗" ;;
           stale)        ws_suffix="ѻ" ;;
@@ -194,6 +200,9 @@ oca_status_row0() {
   printf ' %s' "$session_name"
   printf '%s' "$(_oca_status_reset)"
 
+  local project_id
+  project_id=$(_oca_status_resolve_project_id "$pane_path")
+
   # Git branch + branch safety
   local branch
   branch=$(_oca_status_git_branch "$pane_path")
@@ -202,8 +211,6 @@ oca_status_row0() {
     printf ' %s' "$(_oca_status_color '#A8A6A3')$branch$(_oca_status_reset)"
 
     # Branch safety indicator (⚡ when on default branch with active changes)
-    local project_id
-    project_id=$(_oca_status_resolve_project_id "$pane_path")
     local safety
     safety=$(oca adv-status --query branch-safety --path "$pane_path" --project "$project_id" --output text 2>/dev/null)
     if [[ -n "$safety" ]]; then
@@ -212,18 +219,20 @@ oca_status_row0() {
   fi
 
   # ADV state
-  local adv_state
-  adv_state=$(oca adv-status --query active-change --output text 2>/dev/null)
+  local adv_state=""
+  if [[ -n "$project_id" ]]; then
+    adv_state=$(oca adv-status --query active-change --project "$project_id" --output text 2>/dev/null)
+  fi
   if [[ -n "$adv_state" ]]; then
     printf ' %s' "$(_oca_status_color '#2D3138')│$(_oca_status_reset)"
     printf ' %s' "$(_oca_status_color '#6C7AB8')$adv_state$(_oca_status_reset)"
   fi
 
   # Workspace state indicator (setup_failed, stale, merged, etc.)
-  local project_id
-  project_id=$(_oca_status_resolve_project_id "$pane_path")
-  local ws_state
-  ws_state=$(oca adv-status --query worktrees --project "$project_id" --output text 2>/dev/null)
+  local ws_state=""
+  if [[ -n "$project_id" ]]; then
+    ws_state=$(oca adv-status --query worktrees --project "$project_id" --output text 2>/dev/null)
+  fi
   if [[ -n "$ws_state" ]]; then
     printf ' %s' "$(_oca_status_color '#2D3138')│$(_oca_status_reset)"
     printf ' %s' "$ws_state"

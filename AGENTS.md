@@ -104,9 +104,8 @@ opencodeadvance/
 │   ├── wordmark.sh                     # Compact 3-line wordmark renderer
 │   ├── boot_splash.sh                  # Boot splash with wordmark reveal + version line
 │   ├── session_lifecycle.sh            # tmux session creation/list primitives
-│   ├── status_bar.sh                   # tmux status bar assembly
-│   ├── llm_gauge.sh                    # LLM provider quota gauges
-│   └── adv_status.sh                   # ADV change/gate parsing for status bar
+│   ├── status_bar.sh                   # tmux status bar assembly (calls `oca adv-status`)
+│   └── llm_gauge.sh                    # LLM provider quota gauges
 │
 ├── brand/                              # Go wordmark renderer + brand assets
 │

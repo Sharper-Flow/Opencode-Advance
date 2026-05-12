@@ -3,6 +3,7 @@ package advstatus
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -15,7 +16,11 @@ func FindActiveChanges(changesDir string) ([]string, error) {
 		return nil, nil // graceful: missing dir is normal
 	}
 
-	var result []string
+	type activeChangeEntry struct {
+		id      string
+		modTime int64
+	}
+	var active []activeChangeEntry
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -26,8 +31,24 @@ func FindActiveChanges(changesDir string) ([]string, error) {
 			continue
 		}
 		if cj.Status != "archived" && cj.Status != "closed" {
-			result = append(result, entry.Name())
+			info, err := entry.Info()
+			modTime := int64(0)
+			if err == nil {
+				modTime = info.ModTime().UnixNano()
+			}
+			active = append(active, activeChangeEntry{id: entry.Name(), modTime: modTime})
 		}
+	}
+	sort.Slice(active, func(i, j int) bool {
+		if active[i].modTime == active[j].modTime {
+			return active[i].id < active[j].id
+		}
+		return active[i].modTime > active[j].modTime
+	})
+
+	result := make([]string, 0, len(active))
+	for _, entry := range active {
+		result = append(result, entry.id)
 	}
 	return result, nil
 }
@@ -93,6 +114,19 @@ func ActiveChangeSummaryForProject(changesDir string) (*ChangeSummary, error) {
 	}
 	changeDir := filepath.Join(changesDir, ids[0])
 	return SummarizeChange(changeDir)
+}
+
+// ActiveChangeSummaryForProjectID scans one ADV project's changes directory.
+// Returns nil when no project ID is supplied or no active change exists.
+func ActiveChangeSummaryForProjectID(projectID string) (*ChangeSummary, error) {
+	if projectID == "" {
+		return nil, nil
+	}
+	advRoot := advStateRoot()
+	if advRoot == "" {
+		return nil, nil
+	}
+	return ActiveChangeSummaryForProject(filepath.Join(advRoot, projectID, "changes"))
 }
 
 // advStateRoot returns the ADV plugin state root directory.

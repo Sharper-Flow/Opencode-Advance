@@ -26,4 +26,4 @@ The Go CLI (`cmd/oca/`) handles everything else — parsing, validation, renderi
 
 ## Status
 
-Populated through Phases 0 and 4. Current files: `palette.sh`, `wordmark.sh`, `boot_splash.sh`, `session_lifecycle.sh`, `status_bar.sh`, `adv_status.sh`, `llm_gauge.sh`.
+Populated through Phases 0 and 4. Current files: `palette.sh`, `wordmark.sh`, `boot_splash.sh`, `session_lifecycle.sh`, `status_bar.sh`, `llm_gauge.sh`. ADV status data comes from `oca adv-status`.

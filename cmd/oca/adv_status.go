@@ -24,7 +24,7 @@ func newAdvStatusCmd(state *commandState) *cobra.Command {
 
 			switch advstatus.QueryMode(query) {
 			case advstatus.QueryActiveChange:
-				return runAdvStatusActiveChange(cmd, useJSON)
+				return runAdvStatusActiveChange(cmd, useJSON, projectID)
 			case advstatus.QueryTemporalHealth:
 				return runAdvStatusTemporalHealth(cmd, useJSON)
 			case advstatus.QueryBranchSafety:
@@ -48,8 +48,13 @@ func newAdvStatusCmd(state *commandState) *cobra.Command {
 	return cmd
 }
 
-func runAdvStatusActiveChange(cmd *cobra.Command, jsonOut bool) error {
-	summary, _ := advstatus.ActiveChangeSummary()
+func runAdvStatusActiveChange(cmd *cobra.Command, jsonOut bool, projectID string) error {
+	var summary *advstatus.ChangeSummary
+	if projectID != "" {
+		summary, _ = advstatus.ActiveChangeSummaryForProjectID(projectID)
+	} else {
+		summary, _ = advstatus.ActiveChangeSummary()
+	}
 	if jsonOut {
 		return printAdvStatusJSON(cmd, "active-change", summary)
 	}

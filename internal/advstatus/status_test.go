@@ -3,10 +3,12 @@ package advstatus
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // ── Helpers ────────────────────────────────────────────────
@@ -155,6 +157,39 @@ func TestFindActiveChanges_NonexistentDir(t *testing.T) {
 	}
 	if len(result) != 0 {
 		t.Fatalf("expected 0 results for missing dir, got %d", len(result))
+	}
+}
+
+func TestFindActiveChanges_SortsNewestFirst(t *testing.T) {
+	changesDir := t.TempDir()
+	oldDir := filepath.Join(changesDir, "oldChange")
+	newDir := filepath.Join(changesDir, "newChange")
+	for _, dir := range []string{oldDir, newDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		writeJSON(t, filepath.Join(dir, "change.json"), map[string]any{
+			"id":     filepath.Base(dir),
+			"status": "draft",
+			"gates":  map[string]any{},
+		})
+	}
+
+	oldTime := time.Now().Add(-2 * time.Hour)
+	newTime := time.Now().Add(-1 * time.Hour)
+	if err := os.Chtimes(oldDir, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(newDir, newTime, newTime); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := FindActiveChanges(changesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result) != 2 || result[0] != "newChange" || result[1] != "oldChange" {
+		t.Fatalf("expected newest-first order [newChange oldChange], got %v", result)
 	}
 }
 
@@ -394,6 +429,32 @@ func TestParseTemporalEnvFile_Missing(t *testing.T) {
 	if addr != "" {
 		t.Fatalf("expected empty address for missing file, got '%s'", addr)
 	}
+}
+
+func TestProbeTCP_IPv6Loopback(t *testing.T) {
+	listener, err := net.Listen("tcp", "[::1]:0")
+	if err != nil {
+		t.Skipf("IPv6 loopback unavailable: %v", err)
+	}
+	defer listener.Close()
+
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		conn, err := listener.Accept()
+		if err == nil {
+			_ = conn.Close()
+		}
+	}()
+
+	if !probeTCP("::1", port) {
+		t.Fatal("expected IPv6 loopback probe to succeed")
+	}
+	<-done
 }
 
 // ── Format Summary Tests ──────────────────────────────────
