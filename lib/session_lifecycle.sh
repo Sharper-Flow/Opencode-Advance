@@ -69,7 +69,9 @@ oca_session_list() {
   done <<< "$output"
 }
 
-# session_attach — attach to an existing tmux session (replaces process).
+# session_attach — attach to an existing tmux session.
+# Delegates to the Go binary (oca session attach) which owns the full
+# attach + resume-hint emit lifecycle.
 # Usage: session_attach <name>
 oca_session_attach() {
   local name="$1"
@@ -78,9 +80,7 @@ oca_session_attach() {
     return 2
   fi
 
-  local socket
-  socket=$(oca_session_socket)
-  exec tmux -L "$socket" attach -t "$name"
+  oca session attach "$name"
 }
 
 # session_kill — kill a specific tmux session.
