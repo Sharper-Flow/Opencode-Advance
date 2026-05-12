@@ -360,17 +360,17 @@ New primitive for flat-array sections (`instructions` ordering). Preserves user-
 
 Pluggable health checks with a `ResetForTesting()` contract so within-package tests remain serial but don't leak across test binaries.
 
-## Status bar (`lib/status_bar.sh`, `lib/adv_status.sh`, `lib/llm_gauge.sh`)
+## Status bar (`lib/status_bar.sh`, `lib/llm_gauge.sh`, `oca adv-status`)
 
 Two-row tmux status bar driven by `#()` format expansions:
 
 - **Row 0**: session name | git branch [+ branch safety ⚡] | ADV change summary | workspace state glyph | occupancy | Temporal health | host + clock
 - **Row 1**: compact window glyphs (Pattern B, enriched with workspace status) | LLM fuel gauges | date
 
-**Branch safety indicator (`oca_status_branch_safety`):** Shows ⚡ when the pane is on a default branch (main/trunk/master/develop) while ADV has active changes — operator-visible trunk guard signal.
+**Branch safety indicator (`oca adv-status --query branch-safety`):** Shows ⚡ when the pane is on a default branch (main/trunk/master/develop) while ADV has active changes — operator-visible trunk guard signal.
 
-**Workspace state indicators (`oca_status_workspace_state`):** Compact glyphs for non-normal states: ✗ (setup_failed), ѻ (stale), ✓ (merged), ␡ (pending_delete). Reads from ADV `snapshot.json` via `_oca_adv_snapshot_read`.
+**Workspace state indicators (`oca adv-status --query worktrees`):** Compact glyphs for non-normal states: ✗ (setup_failed), ѻ (stale), ✓ (merged), ␡ (pending_delete). Reads from ADV `snapshot.json` via typed Go readers.
 
 **Window glyph enrichment:** Change windows in Pattern B show workspace status suffix when a project_id is provided to `_oca_status_window_glyphs_from_list`.
 
-**Performance:** Row 0 budget 200ms (typically <25ms). Cache TTL 10s aligned with tmux status-interval.
+**Performance:** Individual `oca adv-status` queries target ≤50ms. Row 0 stays below tmux's 10s status interval by skipping project-scoped ADV queries when project ID is unavailable.

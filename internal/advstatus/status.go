@@ -23,7 +23,7 @@ const (
 )
 
 // DefaultBranches are branch names considered "default" for trunk guard.
-// Must match adv_status.sh:332 (main|master|trunk|develop).
+// Preserves the legacy default-branch set: main|master|trunk|develop.
 var DefaultBranches = map[string]bool{
 	"main":    true,
 	"master":  true,
@@ -33,7 +33,7 @@ var DefaultBranches = map[string]bool{
 
 // ActionableWorktreeStatuses are worktree states that indicate active work.
 // Terminal states (merged, stale, deleted) must NOT trigger branch safety warning.
-// Must match adv_status.sh:317.
+// Preserves the legacy actionable-state set.
 var ActionableWorktreeStatuses = map[string]bool{
 	"active":         true,
 	"idle":           true,
