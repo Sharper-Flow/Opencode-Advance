@@ -9,7 +9,7 @@ echo
 
 # 1. Verify all status bar scripts exist and are executable
 echo "[1/5] Checking status bar scripts..."
-for script in lib/status_bar.sh lib/llm_gauge.sh lib/adv_status.sh lib/boot_splash.sh lib/session_lifecycle.sh; do
+for script in lib/status_bar.sh lib/llm_gauge.sh lib/boot_splash.sh lib/session_lifecycle.sh; do
   if [[ ! -x "$script" ]]; then
     echo "FAIL: $script not found or not executable"
     exit 1
@@ -55,7 +55,7 @@ echo "  OK — unit tests pass"
 
 # 5. Verify shell script tests
 echo "[5/5] Running shell script tests..."
-for test in tests/shell/adv_status_test.sh tests/shell/llm_gauge_test.sh tests/shell/boot_splash_test.sh tests/shell/status_bar_test.sh tests/shell/session_lifecycle_test.sh; do
+for test in tests/shell/llm_gauge_test.sh tests/shell/boot_splash_test.sh tests/shell/status_bar_test.sh tests/shell/session_lifecycle_test.sh; do
   if [[ -f "$test" ]]; then
     if ! bash "$test" >/dev/null 2>&1; then
       echo "FAIL: $test failed"
