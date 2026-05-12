@@ -8,8 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/palette.sh"
-# shellcheck source=/dev/null
-source "$SCRIPT_DIR/adv_status.sh"
+# adv_status.sh removed — now using Go binary `oca adv-status`
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/llm_gauge.sh"
 
@@ -98,14 +97,7 @@ _oca_status_window_glyphs_from_list() {
   # Build workspace status lookup if project_id given
   local ws_lookup=""
   if [[ -n "$project_id" && -n "$window_list" ]]; then
-    local snapshot
-    snapshot=$(_oca_adv_snapshot_read "$project_id" 2>/dev/null)
-    if [[ -n "$snapshot" ]] && _oca_adv_has_jq; then
-      ws_lookup=$(printf '%s' "$snapshot" | jq -r '
-        .worktree_registry // {} | to_entries[] |
-        "\(.value.changeId // (.value.branch | sub("^change/"; ""))):\(.value.status)"
-      ' 2>/dev/null) || true
-    fi
+    ws_lookup=$(oca adv-status --query workspace-lookup --project "$project_id" --output text 2>/dev/null)
   fi
 
   local result=""
@@ -213,7 +205,7 @@ oca_status_row0() {
     local project_id
     project_id=$(_oca_status_resolve_project_id "$pane_path")
     local safety
-    safety=$(oca_status_branch_safety "$pane_path" "$project_id" 2>/dev/null)
+    safety=$(oca adv-status --query branch-safety --path "$pane_path" --project "$project_id" --output text 2>/dev/null)
     if [[ -n "$safety" ]]; then
       printf ' %s' "$safety"
     fi
@@ -221,7 +213,7 @@ oca_status_row0() {
 
   # ADV state
   local adv_state
-  adv_state=$(oca_adv_active_summary 2>/dev/null)
+  adv_state=$(oca adv-status --query active-change --output text 2>/dev/null)
   if [[ -n "$adv_state" ]]; then
     printf ' %s' "$(_oca_status_color '#2D3138')│$(_oca_status_reset)"
     printf ' %s' "$(_oca_status_color '#6C7AB8')$adv_state$(_oca_status_reset)"
@@ -231,7 +223,7 @@ oca_status_row0() {
   local project_id
   project_id=$(_oca_status_resolve_project_id "$pane_path")
   local ws_state
-  ws_state=$(oca_status_workspace_state "$project_id" 2>/dev/null)
+  ws_state=$(oca adv-status --query worktrees --project "$project_id" --output text 2>/dev/null)
   if [[ -n "$ws_state" ]]; then
     printf ' %s' "$(_oca_status_color '#2D3138')│$(_oca_status_reset)"
     printf ' %s' "$ws_state"
@@ -255,7 +247,7 @@ oca_status_row0() {
 
   # Temporal health
   local temporal_health
-  temporal_health=$(oca_adv_temporal_health 2>/dev/null)
+  temporal_health=$(oca adv-status --query temporal-health --output text 2>/dev/null)
   if [[ -n "$temporal_health" ]]; then
     printf ' %s' "$(_oca_status_color '#2D3138')│$(_oca_status_reset)"
     printf ' %s' "$(_oca_status_color '#A8A6A3')$temporal_health$(_oca_status_reset)"
