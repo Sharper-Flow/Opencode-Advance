@@ -160,8 +160,8 @@ func TestParseOpenCodeSessions(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "single matching session",
-			input: `[{"id":"ses_111","title":"test","updated":1778546399316,"created":1778520585734,"projectId":"abc","directory":"/home/user/project"}]`,
+			name:    "single matching session",
+			input:   `[{"id":"ses_111","title":"test","updated":1778546399316,"created":1778520585734,"projectId":"abc","directory":"/home/user/project"}]`,
 			workdir: "/home/user/project",
 			wantID:  "ses_111",
 		},
@@ -175,8 +175,8 @@ func TestParseOpenCodeSessions(t *testing.T) {
 			wantID:  "ses_new",
 		},
 		{
-			name: "no matching session",
-			input: `[{"id":"ses_111","title":"test","updated":1778546399316,"created":1778520585734,"projectId":"abc","directory":"/other/project"}]`,
+			name:    "no matching session",
+			input:   `[{"id":"ses_111","title":"test","updated":1778546399316,"created":1778520585734,"projectId":"abc","directory":"/other/project"}]`,
 			workdir: "/home/user/project",
 			wantErr: true,
 		},
@@ -193,8 +193,8 @@ func TestParseOpenCodeSessions(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "missing directory field",
-			input: `[{"id":"ses_111","title":"test","updated":1778546399316}]`,
+			name:    "missing directory field",
+			input:   `[{"id":"ses_111","title":"test","updated":1778546399316}]`,
 			workdir: "/home/user/project",
 			wantErr: true,
 		},
