@@ -55,7 +55,7 @@
     {
       "id": "rq-ocawp-statusBar01",
       "title": "Branch Safety and Workspace State in Status Bar",
-      "body": "The tmux status bar must show: (1) ⚡ when on a default branch while ADV has active changes, (2) compact workspace state glyphs (✗ setup_failed, ѻ stale, ✓ merged, ␡ pending_delete), (3) workspace status suffix on change window glyphs.",
+      "body": "The tmux status bar must show: (1) ⚡ when on a default branch while ADV has active changes, (2) compact workspace state glyphs (✗ setup_failed, ѻ stale, ✓ merged, ␡ pending_delete), (3) workspace status suffix on change window glyphs. Data sourced via `oca adv-status` Go subcommand queries (branch-safety, workspace-state, workspace-lookup, active-change, temporal-health) — no shell script or jq dependency.",
       "priority": "must",
       "tags": ["oca", "status-bar", "ux", "safety"],
       "scenarios": [
